@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
-      
+
       - name: Check required secrets
         run: |
           if [ -z "${{ secrets.SUPABASE_PROJECT_ID }}" ]; then
@@ -21,7 +21,7 @@ jobs:
             echo "Error: SUPABASE_ACCESS_TOKEN secret is not set. Please configure it in repository settings."
             exit 1
           fi
-      
+
       - name: Deploy Edge Functions
         run: supabase functions deploy server --project-ref "$SUPABASE_PROJECT_ID"
         env:
