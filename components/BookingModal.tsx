@@ -1,0 +1,185 @@
+'use client';
+
+import { X, Calendar, Users, Clock, CreditCard, ChevronRight } from 'lucide-react';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+
+interface BookingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  tile: {
+    name: string;
+    type: string;
+    priceRange: string;
+    meta: string;
+  } | null;
+}
+
+export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({
+    name: '',
+    guests: '2',
+    date: new Date().toISOString().split('T')[0],
+    time: '11:00 PM',
+    request: ''
+  });
+
+  if (!isOpen || !tile) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setStep(3); // Show success
+  };
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="absolute inset-0 bg-black/90 backdrop-blur-xl"
+        />
+        
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          className="relative w-full max-w-md bg-zinc-950 border border-white/10 p-8 overflow-hidden"
+        >
+          {/* Header */}
+          <div className="flex justify-between items-start mb-10">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[8px] font-bold uppercase tracking-[0.3em] text-white/40">Request Access</span>
+                <div className="w-1 h-1 bg-white/20 rounded-full" />
+                <span className="text-[8px] font-bold uppercase tracking-[0.3em] text-white/40">{tile.priceRange}</span>
+              </div>
+              <h2 className="text-xl font-bold uppercase tracking-[0.2em]">{tile.name}</h2>
+            </div>
+            <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
+              <X size={20} />
+            </button>
+          </div>
+
+          {step < 3 ? (
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 block ml-1">Guest Details</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="relative">
+                      <Input 
+                        value={formData.name}
+                        onChange={(e) => setFormData({...formData, name: e.target.value})}
+                        placeholder="NAME"
+                        required
+                        className="bg-transparent border-white/10 rounded-none h-12 text-[10px] uppercase tracking-widest placeholder:text-white/20 focus:border-white transition-all"
+                      />
+                    </div>
+                    <div className="relative">
+                      <select 
+                        value={formData.guests}
+                        onChange={(e) => setFormData({...formData, guests: e.target.value})}
+                        className="w-full bg-transparent border border-white/10 h-12 text-[10px] uppercase tracking-widest px-4 focus:border-white outline-none appearance-none cursor-pointer"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 8, 10, 12].map(n => (
+                          <option key={n} value={n} className="bg-black text-white">{n} GUESTS</option>
+                        ))}
+                      </select>
+                      <Users size={12} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 block ml-1">Arrival Window</label>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="relative">
+                      <Input 
+                        type="date"
+                        value={formData.date}
+                        onChange={(e) => setFormData({...formData, date: e.target.value})}
+                        className="bg-transparent border-white/10 rounded-none h-12 text-[10px] uppercase tracking-widest focus:border-white transition-all invert brightness-200"
+                      />
+                    </div>
+                    <div className="relative">
+                      <select 
+                        value={formData.time}
+                        onChange={(e) => setFormData({...formData, time: e.target.value})}
+                        className="w-full bg-transparent border border-white/10 h-12 text-[10px] uppercase tracking-widest px-4 focus:border-white outline-none appearance-none cursor-pointer"
+                      >
+                        {['10:00 PM', '10:30 PM', '11:00 PM', '11:30 PM', '12:00 AM', '12:30 AM', '01:00 AM'].map(t => (
+                          <option key={t} value={t} className="bg-black text-white">{t}</option>
+                        ))}
+                      </select>
+                      <Clock size={12} className="absolute right-4 top-1/2 -translate-y-1/2 text-white/20 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 block ml-1">Special Requests</label>
+                  <textarea 
+                    value={formData.request}
+                    onChange={(e) => setFormData({...formData, request: e.target.value})}
+                    placeholder="BOTTLE SERVICE, TABLE PREFERENCE, ETC."
+                    className="w-full bg-transparent border border-white/10 h-24 text-[10px] uppercase tracking-widest p-4 focus:border-white outline-none resize-none placeholder:text-white/20"
+                  />
+                </div>
+              </div>
+
+              <Button 
+                type="submit"
+                className="w-full h-14 bg-white text-zinc-950 hover:bg-zinc-200 rounded-none font-bold text-[10px] uppercase tracking-[0.3em] flex items-center justify-between px-8 !text-black"
+              >
+                Submit Reservation
+                <ChevronRight size={16} />
+              </Button>
+
+              <div className="flex items-center gap-2 justify-center py-2 opacity-40">
+                <CreditCard size={10} />
+                <span className="text-[7px] font-bold uppercase tracking-widest">No prepayment required for A-List members</span>
+              </div>
+            </form>
+          ) : (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="py-10 text-center space-y-6"
+            >
+              <div className="w-16 h-16 border border-white/20 flex items-center justify-center mx-auto mb-4 bg-white/5">
+                <motion.div 
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="w-8 h-8 bg-white rounded-full"
+                />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold uppercase tracking-[0.2em] mb-2">Request Received</h3>
+                <p className="text-[10px] text-white/40 font-light leading-relaxed uppercase tracking-widest">
+                  Your reservation for {tile.name} is being prioritized. <br />
+                  A concierge will contact you shortly.
+                </p>
+              </div>
+              <Button 
+                onClick={onClose}
+                variant="outline"
+                className="w-full border-white/10 text-white hover:bg-white/5 rounded-none font-bold text-[9px] uppercase tracking-[0.3em]"
+              >
+                Return to Concierge
+              </Button>
+            </motion.div>
+          )}
+
+          {/* Decorative Texture */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rotate-45 translate-x-16 -translate-y-16 pointer-events-none" />
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}
