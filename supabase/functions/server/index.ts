@@ -3,7 +3,7 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import * as kv from "./kv_store.ts";
 
-const app = new Hono();
+const app = new Hono().basePath("/server");
 
 // Spotify OAuth configuration
 const SPOTIFY_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID");
