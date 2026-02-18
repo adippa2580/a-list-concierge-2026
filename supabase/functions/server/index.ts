@@ -1,6 +1,7 @@
-import { Hono } from "npm:hono";
-import { cors } from "npm:hono/cors";
-import { logger } from "npm:hono/logger";
+import { Hono } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+import { cors } from "hono/cors";
+import { logger } from "hono/logger";
 import * as kv from "./kv_store.ts";
 
 const app = new Hono().basePath("/server");
@@ -12,13 +13,13 @@ const SPOTIFY_REDIRECT_URI = Deno.env.get("SPOTIFY_REDIRECT_URI") || "https://lo
 
 // SoundCloud OAuth configuration
 const SOUNDCLOUD_CLIENT_ID = Deno.env.get("SOUNDCLOUD_CLIENT_ID");
-const SOUNDCLOUD_CLIENT_SECRET = Deno.env.get("SOUNDCLOUD_CLIENT_SECRET");
+const _SOUNDCLOUD_CLIENT_SECRET = Deno.env.get("SOUNDCLOUD_CLIENT_SECRET");
 const SOUNDCLOUD_REDIRECT_URI = Deno.env.get("SOUNDCLOUD_REDIRECT_URI") || "https://localhost:3000/soundcloud/callback";
 
 // Instagram OAuth configuration
-const INSTAGRAM_CLIENT_ID = Deno.env.get("INSTAGRAM_CLIENT_ID");
-const INSTAGRAM_CLIENT_SECRET = Deno.env.get("INSTAGRAM_CLIENT_SECRET");
-const INSTAGRAM_REDIRECT_URI = Deno.env.get("INSTAGRAM_REDIRECT_URI") || "https://localhost:3000/instagram/callback";
+const _INSTAGRAM_CLIENT_ID = Deno.env.get("INSTAGRAM_CLIENT_ID");
+const _INSTAGRAM_CLIENT_SECRET = Deno.env.get("INSTAGRAM_CLIENT_SECRET");
+const _INSTAGRAM_REDIRECT_URI = Deno.env.get("INSTAGRAM_REDIRECT_URI") || "https://localhost:3000/instagram/callback";
 
 // Eventbrite configuration
 const EVENTBRITE_API_KEY = Deno.env.get("EVENTBRITE_API_KEY") || "VUASYGB2SRP4JRPDCR";
@@ -114,7 +115,7 @@ app.get("/spotify/callback", async (c) => {
     if (!tokenResponse.ok) {
       const error = await tokenResponse.text();
       console.log(`Spotify token exchange error: ${tokenResponse.status} - ${error}`);
-      return c.json({ error: "Failed to exchange code for token" }, tokenResponse.status);
+      return c.json({ error: "Failed to exchange code for token" }, tokenResponse.status as ContentfulStatusCode);
     }
 
     const tokenData = await tokenResponse.json();
@@ -132,9 +133,10 @@ app.get("/spotify/callback", async (c) => {
       message: "Spotify connected successfully",
       userId: state
     });
-  } catch (error) {
-    console.log(`Spotify callback processing error: ${error.message}`);
-    return c.json({ error: `Failed to process Spotify callback: ${error.message}` }, 500);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.log(`Spotify callback processing error: ${msg}`);
+    return c.json({ error: `Failed to process Spotify callback: ${msg}` }, 500);
   }
 });
 
@@ -307,8 +309,9 @@ app.get("/eventbrite/events", async (c) => {
           return c.json(realEvents);
         }
       }
-    } catch (error) {
-      console.error(`Eventbrite fetch error: ${error.message}`);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error(`Eventbrite fetch error: ${msg}`);
     }
   }
 
@@ -365,7 +368,7 @@ app.post("/chat", async (c) => {
     let parsedContent;
     try {
       parsedContent = JSON.parse(data.choices[0].message.content);
-    } catch (e) {
+    } catch (_e) {
       console.error("Failed to parse OpenAI JSON:", data.choices[0].message.content);
       // Fallback if model fails to return JSON
       parsedContent = { message: data.choices[0].message.content, tiles: [] };
@@ -392,8 +395,8 @@ app.get("/soundcloud/login", (c) => {
 });
 
 // Profile Endpoint (Mock/KV)
-app.get("/profile", async (c) => {
-  const userId = c.req.query("userId");
+app.get("/profile", (c) => {
+  const _userId = c.req.query("userId");
   // In a real app, verify auth token. For now, return mock profile augmented with KV data.
 
   const defaultProfile = {
