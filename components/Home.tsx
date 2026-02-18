@@ -31,9 +31,6 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
 
       if (debouncedQuery) {
         url.searchParams.append('q', debouncedQuery);
-      } else {
-        url.searchParams.append('q', 'Nightlife');
-        url.searchParams.append('categories', '103');
       }
 
       url.searchParams.append('sort_by', 'date');
@@ -123,7 +120,8 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
       today: [] as any[],
       thisWeek: [] as any[],
       weekend: [] as any[],
-      restOfMonth: [] as any[]
+      restOfMonth: [] as any[],
+      comingUp: [] as any[]
     };
 
     events.forEach(event => {
@@ -153,7 +151,11 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
       // Rest of Month
       if (date <= endOfMonth) {
         groups.restOfMonth.push(event);
+        return;
       }
+
+      // Coming Up (beyond this month)
+      groups.comingUp.push(event);
     });
 
     return groups;
@@ -283,8 +285,35 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
 
           {groupedEvents.restOfMonth.length > 0 && (
             <div className="space-y-4">
-              <h3 className="text-xs font-bold text-white/80 uppercase tracking-widest border-b border-white/10 pb-2">Rest of Month</h3>
+              <h3 className="text-xs font-bold text-white/80 uppercase tracking-widest border-b border-white/10 pb-2">This Month</h3>
               {groupedEvents.restOfMonth.map((event: any) => (
+                <div
+                  key={event.id}
+                  className="bg-zinc-900/40 border border-white/10 p-4 flex gap-4 overflow-hidden group hover:border-white/30 transition-all cursor-pointer"
+                  onClick={() => onBookTable && onBookTable(event)}
+                >
+                  {event.image && (
+                    <div className="w-16 h-16 bg-zinc-800 flex-shrink-0 bg-cover bg-center grayscale group-hover:grayscale-0 transition-all" style={{ backgroundImage: `url(${event.image})` }} />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-sm font-light uppercase tracking-wide truncate pr-2 text-white group-hover:text-brand-gold transition-colors">{event.name}</h3>
+                      <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest whitespace-nowrap">{event.date}</span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-1 text-white/60">
+                      <MapPin size={10} />
+                      <p className="text-[9px] uppercase tracking-widest truncate">{event.venue}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {groupedEvents.comingUp.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-xs font-bold text-white/80 uppercase tracking-widest border-b border-white/10 pb-2">Coming Up</h3>
+              {groupedEvents.comingUp.map((event: any) => (
                 <div
                   key={event.id}
                   className="bg-zinc-900/40 border border-white/10 p-4 flex gap-4 overflow-hidden group hover:border-white/30 transition-all cursor-pointer"
