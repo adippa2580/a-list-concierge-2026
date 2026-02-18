@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { AListLogo } from './AListLogo';
 import { useState, useEffect, useRef } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'motion/react';
 
 const userProfileDefault = {
@@ -45,7 +45,7 @@ export function UserProfile({ onClose, onProfileUpdate }: UserProfileProps) {
   const fetchProfile = async () => {
     const userId = 'default_user';
     try {
-      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-82c84e62/profile?userId=${userId}`, {
+      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
         headers: { 'Authorization': `Bearer ${publicAnonKey}` }
       });
       if (res.ok) {
@@ -69,7 +69,7 @@ export function UserProfile({ onClose, onProfileUpdate }: UserProfileProps) {
     formData.append('file', file);
 
     try {
-      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-82c84e62/profile/upload?userId=${userId}`, {
+      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/server/profile/upload?userId=${userId}`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${publicAnonKey}` },
         body: formData
@@ -95,18 +95,18 @@ export function UserProfile({ onClose, onProfileUpdate }: UserProfileProps) {
     const userId = 'default_user';
     try {
       // Check Spotify status
-      const spotifyRes = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-82c84e62/spotify/status?userId=${userId}`, {
+      const spotifyRes = await fetch(`https://${projectId}.supabase.co/functions/v1/server/spotify/status?userId=${userId}`, {
         headers: { 'Authorization': `Bearer ${publicAnonKey}` }
       });
       const spotifyData = await spotifyRes.json();
-      
+
       setConnections(prev => ({
         ...prev,
         spotify: spotifyData.connected
       }));
 
       // Check Instagram status
-      const instaRes = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-82c84e62/instagram/media?userId=${userId}`, {
+      const instaRes = await fetch(`https://${projectId}.supabase.co/functions/v1/server/instagram/media?userId=${userId}`, {
         headers: { 'Authorization': `Bearer ${publicAnonKey}` }
       });
       setConnections(prev => ({
@@ -123,12 +123,12 @@ export function UserProfile({ onClose, onProfileUpdate }: UserProfileProps) {
     const userId = 'default_user';
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-82c84e62/${platform}/login?userId=${userId}`,
+        `https://${projectId}.supabase.co/functions/v1/server/${platform}/login?userId=${userId}`,
         {
           headers: { 'Authorization': `Bearer ${publicAnonKey}` }
         }
       );
-      
+
       const data = await response.json();
       if (data.authUrl) {
         window.location.href = data.authUrl;
@@ -144,11 +144,11 @@ export function UserProfile({ onClose, onProfileUpdate }: UserProfileProps) {
 
   return (
     <div className="min-h-screen bg-black text-white pb-32">
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileUpload} 
-        className="hidden" 
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        className="hidden"
         accept="image/*"
       />
       <div className="px-6 pt-10 space-y-10">
@@ -167,7 +167,7 @@ export function UserProfile({ onClose, onProfileUpdate }: UserProfileProps) {
                 </AvatarFallback>
               )}
             </Avatar>
-            <button 
+            <button
               onClick={() => fileInputRef.current?.click()}
               className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
             >

@@ -64,7 +64,7 @@ export default function App() {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-82c84e62/profile?userId=default_user`, {
+      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=default_user`, {
         headers: { 'Authorization': `Bearer ${publicAnonKey}` }
       });
       if (res.ok) {
@@ -143,7 +143,7 @@ export default function App() {
   // Handle Spotify callback
   if (appState === "spotify-callback") {
     return (
-      <SpotifyCallback 
+      <SpotifyCallback
         onSuccess={handleLogin}
         onError={() => {
           // Clear URL params and return to login
@@ -160,7 +160,7 @@ export default function App() {
       <div className="min-h-screen bg-black text-white font-sans selection:bg-white/20">
         {/* Mobile App Container */}
         <div className="max-w-md mx-auto bg-black min-h-screen relative shadow-2xl overflow-hidden">
-          
+
           {/* Top Bar */}
           <div className="fixed top-0 left-0 right-0 max-w-md mx-auto bg-gradient-to-b from-black/80 to-transparent backdrop-blur-md px-5 py-4 z-50 flex items-center justify-between pointer-events-auto">
             <div className="flex items-center gap-3">
@@ -227,14 +227,14 @@ export default function App() {
                   </div>
 
                   <div className="mt-auto border-t border-white/10 pt-6">
-                    <MenuButton 
-                      icon={User} 
-                      label="Sign Out" 
+                    <MenuButton
+                      icon={User}
+                      label="Sign Out"
                       onClick={() => {
                         setAppState("login");
                         setMenuOpen(false);
-                      }} 
-                      danger 
+                      }}
+                      danger
                     />
                   </div>
                 </div>
@@ -294,29 +294,29 @@ export default function App() {
           <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-30">
             <div className="absolute inset-0 bg-gradient-to-t from-black via-black/95 to-transparent h-24 pointer-events-none" />
             <div className="relative px-6 pb-6 pt-4 flex items-center justify-between">
-              <NavButton 
-                icon={HomeIcon} 
-                label="Home" 
-                isActive={currentView === "home"} 
-                onClick={() => navigateTo("home")} 
+              <NavButton
+                icon={HomeIcon}
+                label="Home"
+                isActive={currentView === "home"}
+                onClick={() => navigateTo("home")}
               />
-              <NavButton 
-                icon={Music} 
-                label="Artists" 
-                isActive={currentView === "artists"} 
-                onClick={() => navigateTo("artists")} 
+              <NavButton
+                icon={Music}
+                label="Artists"
+                isActive={currentView === "artists"}
+                onClick={() => navigateTo("artists")}
               />
-              <NavButton 
-                icon={Users} 
-                label="Social" 
-                isActive={currentView === "social"} 
-                onClick={() => navigateTo("social")} 
+              <NavButton
+                icon={Users}
+                label="Social"
+                isActive={currentView === "social"}
+                onClick={() => navigateTo("social")}
               />
-              <NavButton 
-                icon={Trophy} 
-                label="VIP" 
-                isActive={currentView === "vip"} 
-                onClick={() => navigateTo("vip")} 
+              <NavButton
+                icon={Trophy}
+                label="VIP"
+                isActive={currentView === "vip"}
+                onClick={() => navigateTo("vip")}
               />
             </div>
           </nav>
@@ -337,14 +337,14 @@ export default function App() {
                 <span className="text-[10px] font-bold uppercase tracking-[0.3em] !text-black max-w-0 overflow-hidden group-hover:max-w-[120px] transition-all duration-500 ease-out whitespace-nowrap opacity-0 group-hover:opacity-100">
                   Concierge
                 </span>
-                
+
                 {/* Premium Glow Effect */}
-                <motion.div 
-                  animate={{ 
+                <motion.div
+                  animate={{
                     scale: [1, 1.4, 1],
-                    opacity: [0, 0.2, 0] 
+                    opacity: [0, 0.2, 0]
                   }}
-                  transition={{ 
+                  transition={{
                     duration: 3,
                     repeat: Infinity,
                     ease: "easeInOut"
@@ -366,13 +366,12 @@ function MenuButton({ icon: Icon, label, onClick, highlight, danger }: any) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-4 px-4 py-3 rounded-none border-l-2 transition-all group ${
-        danger 
-          ? 'border-transparent text-red-500 hover:bg-red-500/10' 
+      className={`w-full flex items-center gap-4 px-4 py-3 rounded-none border-l-2 transition-all group ${danger
+          ? 'border-transparent text-red-500 hover:bg-red-500/10'
           : highlight
             ? 'border-purple-500 text-purple-400 bg-purple-500/5 hover:bg-purple-500/10'
             : 'border-transparent text-gray-400 hover:text-white hover:border-white/50 hover:bg-white/5'
-      }`}
+        }`}
     >
       <Icon size={18} className={danger ? "" : highlight ? "text-purple-400" : "group-hover:text-white transition-colors"} />
       <span className="text-sm font-medium tracking-wide uppercase">{label}</span>
@@ -384,9 +383,8 @@ function NavButton({ icon: Icon, label, isActive, onClick }: any) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center gap-1.5 transition-all duration-300 group ${
-        isActive ? "text-white scale-105" : "text-white/30 hover:text-white/70"
-      }`}
+      className={`flex flex-col items-center gap-1.5 transition-all duration-300 group ${isActive ? "text-white scale-105" : "text-white/30 hover:text-white/70"
+        }`}
     >
       <div className={`p-2 rounded-full transition-all ${isActive ? 'bg-white/10' : 'bg-transparent'}`}>
         <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />

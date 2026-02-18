@@ -39,7 +39,7 @@ export function SpotifyCallback({ onSuccess, onError }: SpotifyCallbackProps) {
 
         // Exchange code for tokens via backend
         const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-82c84e62/spotify/callback?code=${code}&state=${state}`,
+          `https://${projectId}.supabase.co/functions/v1/server/spotify/callback?code=${code}&state=${state}`,
           {
             headers: {
               'Authorization': `Bearer ${publicAnonKey}`
@@ -61,7 +61,7 @@ export function SpotifyCallback({ onSuccess, onError }: SpotifyCallbackProps) {
         if (data.success) {
           // Store the userId for future API calls
           localStorage.setItem('spotify_user_id', data.userId);
-          
+
           setStatus('success');
           setMessage('Successfully connected to Spotify!');
           setTimeout(() => onSuccess(), 2000);

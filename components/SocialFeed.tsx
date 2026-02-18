@@ -87,10 +87,10 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
 
   const checkInstagramStatus = async () => {
     // For this prototype, we'll try to fetch with a default userId if none found
-    const userId = localStorage.getItem('alist_user_id') || 'default_user'; 
+    const userId = localStorage.getItem('alist_user_id') || 'default_user';
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-82c84e62/instagram/media?userId=${userId}`,
+        `https://${projectId}.supabase.co/functions/v1/server/instagram/media?userId=${userId}`,
         {
           headers: {
             'Authorization': `Bearer ${publicAnonKey}`
@@ -114,7 +114,7 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
     const userId = localStorage.getItem('alist_user_id') || 'default_user';
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-82c84e62/instagram/login?userId=${userId}`,
+        `https://${projectId}.supabase.co/functions/v1/server/instagram/login?userId=${userId}`,
         {
           headers: { 'Authorization': `Bearer ${publicAnonKey}` }
         }
@@ -137,11 +137,10 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
           {filters.map((filter, index) => (
             <button
               key={filter}
-              className={`px-4 py-2 border text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
-                index === 0
+              className={`px-4 py-2 border text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${index === 0
                   ? 'bg-white text-black border-white'
                   : 'bg-transparent text-white/80 border-white/20 hover:border-white hover:text-white'
-              }`}
+                }`}
             >
               {filter}
             </button>
@@ -150,7 +149,7 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
       </div>
 
       <div className="space-y-16 pt-10">
-        
+
         {/* Trending Venues */}
         <div className="space-y-8">
           <div className="px-6 flex items-center justify-between">
@@ -168,24 +167,24 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                 onClick={() => onVenueClick(venue)}
                 className="w-full aspect-video relative group cursor-pointer border border-white/5 bg-zinc-950 overflow-hidden shadow-2xl"
               >
-                <div 
+                <div
                   className="absolute inset-0 bg-cover bg-center transition-transform duration-[2s] ease-out group-hover:scale-110 opacity-60 group-hover:opacity-100 grayscale group-hover:grayscale-0"
                   style={{ backgroundImage: `url(${venue.image})` }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
-                
+
                 <div className="absolute top-0 left-0 bg-white text-black text-[10px] font-bold px-4 py-2 uppercase tracking-[0.2em] !text-black z-10 shadow-lg">
                   TRENDING #{venue.rank}
                 </div>
-                
+
                 <div className="absolute bottom-0 left-0 right-0 p-8 transform group-hover:translate-y-[-8px] transition-transform duration-500">
                   <h3 className="text-4xl font-light uppercase tracking-wide mb-2 font-serif text-white group-hover:gold-gradient transition-all">{venue.name}</h3>
                   <div className="flex justify-between items-center border-t border-white/20 pt-4">
-                     <span className="text-[11px] uppercase tracking-[0.3em] text-white/60">{venue.location.split(',')[0]}</span>
-                     <div className="flex items-center gap-2">
-                        <Users size={12} className="text-white/40 group-hover:text-gold transition-colors" />
-                        <span className="text-[10px] uppercase tracking-widest text-white font-bold">{venue.attendees} IN THE SCENE</span>
-                     </div>
+                    <span className="text-[11px] uppercase tracking-[0.3em] text-white/60">{venue.location.split(',')[0]}</span>
+                    <div className="flex items-center gap-2">
+                      <Users size={12} className="text-white/40 group-hover:text-gold transition-colors" />
+                      <span className="text-[10px] uppercase tracking-widest text-white font-bold">{venue.attendees} IN THE SCENE</span>
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -203,7 +202,7 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                 <span className="text-[8px] uppercase tracking-widest text-white/40">Instagram Feed Synced</span>
               </div>
             ) : (
-              <button 
+              <button
                 onClick={handleConnect}
                 className="flex items-center gap-2 group hover:text-white transition-colors"
               >
@@ -219,32 +218,32 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                 <div key={post.id} className="p-0 space-y-0 group">
                   {/* Full width editorial post */}
                   <div className="relative aspect-square w-full overflow-hidden">
-                     <img 
-                      src={post.media_url} 
-                      alt="Instagram Media" 
+                    <img
+                      src={post.media_url}
+                      alt="Instagram Media"
                       className="object-cover w-full h-full grayscale group-hover:grayscale-0 transition-all duration-1000"
-                     />
-                     <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
-                     <div className="absolute top-6 left-6 flex items-center gap-3">
-                        <div className="w-10 h-10 border border-white/40 backdrop-blur-md p-0.5 flex items-center justify-center bg-black/20">
-                           <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-                              <span className="text-[10px] font-bold text-white">IG</span>
-                           </div>
+                    />
+                    <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+                    <div className="absolute top-6 left-6 flex items-center gap-3">
+                      <div className="w-10 h-10 border border-white/40 backdrop-blur-md p-0.5 flex items-center justify-center bg-black/20">
+                        <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+                          <span className="text-[10px] font-bold text-white">IG</span>
                         </div>
-                        <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10">
-                           <span className="text-[9px] font-bold uppercase tracking-widest text-white">{new Date(post.timestamp).toLocaleDateString()}</span>
-                        </div>
-                     </div>
+                      </div>
+                      <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-white">{new Date(post.timestamp).toLocaleDateString()}</span>
+                      </div>
+                    </div>
                   </div>
-                  
+
                   <div className="p-8 space-y-6 bg-zinc-950">
                     <p className="text-lg font-light leading-relaxed text-white/90 font-serif italic">"{post.caption || "A night to remember."}"</p>
-                    
+
                     <div className="flex items-center justify-between pt-4 border-t border-white/10">
                       <div className="flex gap-4 text-[9px] uppercase tracking-widest text-white/40">
                         <span className="flex items-center gap-2"><MapPin size={10} /> MIAMI DISTRICT</span>
                       </div>
-                      <button 
+                      <button
                         onClick={() => window.open(post.permalink, '_blank')}
                         className="text-[9px] font-bold uppercase tracking-[0.2em] text-white hover:text-white/70 flex items-center gap-2"
                       >
@@ -257,7 +256,7 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
             ) : (
               socialPosts.map((post) => (
                 <div key={post.id} className="p-6 space-y-4 hover:bg-white/5 transition-colors">
-                  
+
                   {/* User Header */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -314,11 +313,11 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
             )}
           </div>
         </div>
-        
+
         <div className="px-6">
-           <Button variant="outline" className="w-full h-12 border-white/20 text-white/60 hover:text-white hover:bg-white/5 hover:border-white/40 rounded-none uppercase tracking-widest text-[10px] font-bold">
-             Load More
-           </Button>
+          <Button variant="outline" className="w-full h-12 border-white/20 text-white/60 hover:text-white hover:bg-white/5 hover:border-white/40 rounded-none uppercase tracking-widest text-[10px] font-bold">
+            Load More
+          </Button>
         </div>
       </div>
     </div>

@@ -71,7 +71,7 @@ export function AIConcierge() {
     try {
       const { projectId, publicAnonKey } = await import('../utils/supabase/info');
       const userId = localStorage.getItem('alist_user_id') || 'default_user';
-      
+
       const conversationHistory = messages
         .filter(m => m.type === 'user' || m.type === 'ai')
         .map(m => ({
@@ -80,7 +80,7 @@ export function AIConcierge() {
         }));
 
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-82c84e62/chat`,
+        `https://${projectId}.supabase.co/functions/v1/server/chat`,
         {
           method: 'POST',
           headers: {
@@ -99,7 +99,7 @@ export function AIConcierge() {
       if (!response.ok) throw new Error('Failed to get AI response');
 
       const data = await response.json();
-      
+
       const aiResponse = {
         id: messages.length + 2,
         type: 'ai',
@@ -107,7 +107,7 @@ export function AIConcierge() {
         tiles: data.tiles || [],
         timestamp: new Date()
       };
-      
+
       setMessages(prev => [...prev, aiResponse]);
     } catch (error) {
       console.error('Error calling ChatGPT:', error);
@@ -140,17 +140,17 @@ export function AIConcierge() {
   return (
     <div className="min-h-screen bg-black text-white pb-40">
       {/* Booking Modal */}
-      <BookingModal 
-        isOpen={isBookingOpen} 
-        onClose={() => setIsBookingOpen(false)} 
-        tile={selectedTile} 
+      <BookingModal
+        isOpen={isBookingOpen}
+        onClose={() => setIsBookingOpen(false)}
+        tile={selectedTile}
       />
 
       {/* Header */}
       <div className="bg-black/80 backdrop-blur-md border-b border-white/10 px-6 py-6 pt-12 sticky top-0 z-20 marble-bg">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 gold-border flex items-center justify-center bg-zinc-900">
-             <AListLogo variant="icon" size="sm" animated />
+            <AListLogo variant="icon" size="sm" animated />
           </div>
           <div>
             <h1 className="text-sm font-bold uppercase tracking-[0.2em] gold-gradient">Concierge</h1>
@@ -177,11 +177,10 @@ export function AIConcierge() {
             </div>
 
             <div
-              className={`max-w-[90%] p-6 text-sm font-light leading-relaxed border shadow-2xl ${
-                message.type === 'user'
+              className={`max-w-[90%] p-6 text-sm font-light leading-relaxed border shadow-2xl ${message.type === 'user'
                   ? 'bg-white text-zinc-950 border-white rounded-none !text-black'
                   : 'bg-zinc-900/50 backdrop-blur-md text-white border-white/10 rounded-none marble-bg'
-              }`}
+                }`}
             >
               <div className={message.type === 'ai' ? 'font-serif text-lg leading-relaxed italic' : 'font-sans text-[11px] uppercase tracking-widest leading-loose'}>
                 {message.content}
@@ -190,12 +189,12 @@ export function AIConcierge() {
               {message.tiles && message.tiles.length > 0 && (
                 <div className="mt-8 flex flex-col gap-6">
                   {message.tiles.map((tile: any, idx: number) => (
-                    <div 
+                    <div
                       key={`${tile.id}-${idx}`}
                       className="group bg-black border border-white/10 overflow-hidden hover:border-gold/40 transition-all cursor-pointer shadow-2xl"
                     >
                       <div className="relative h-48 w-full overflow-hidden">
-                        <ImageWithFallback 
+                        <ImageWithFallback
                           src={`https://images.unsplash.com/photo-${tile.imageUrl || '1514525253361-bee8718a74a2'}?auto=format&fit=crop&w=600&q=80`}
                           alt={tile.name}
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-[1.5s] grayscale group-hover:grayscale-0"
@@ -213,11 +212,11 @@ export function AIConcierge() {
                           <span className="text-[10px] text-white/40 uppercase tracking-[0.3em] font-bold">{tile.meta}</span>
                         </div>
                         <p className="text-[11px] text-white/60 font-light leading-relaxed uppercase tracking-widest line-clamp-2">{tile.description}</p>
-                        
+
                         {tile.bookingEnabled && (
                           <div className="pt-4 flex justify-between items-center border-t border-white/10">
                             <span className="text-[10px] font-bold text-white tracking-[0.3em] gold-gradient">{tile.priceRange}</span>
-                            <Button 
+                            <Button
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();

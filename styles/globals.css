@@ -26,11 +26,11 @@
     --font-weight-medium: 500;
     --font-weight-normal: 400;
     --ring: oklch(0.708 0 0);
-    
+
     /* Luxury Font Definitions */
     --font-serif: "Cormorant Garamond", serif;
     --font-sans: "Inter", sans-serif;
-    
+
     --radius: 0.625rem;
   }
 
@@ -56,13 +56,13 @@
     --ring: oklch(0.439 0 0);
     --font-weight-medium: 500;
     --font-weight-normal: 400;
-    
+
     /* Luxury Palette Extensions */
     --gold: #D4AF37;
     --gold-light: #F9E5BC;
     --gold-dark: #996515;
     --marble-accent: rgba(255, 255, 255, 0.03);
-    
+
     --chart-1: oklch(0.488 0.243 264.376);
     --chart-2: oklch(0.696 0.17 162.48);
     --chart-3: oklch(0.769 0.188 70.08);
@@ -87,14 +87,21 @@ html {
   @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Inter:wght@100..900&display=swap');
 
   * {
-    @apply border-border outline-ring/50;
+    border-color: var(--border);
+    outline-color: color-mix(in srgb, var(--ring), transparent 50%);
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    background-color: var(--background);
+    color: var(--foreground);
+    @apply font-sans;
   }
-  
-  h1, h2, h3, h4, .font-serif {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-serif {
     font-family: var(--font-serif);
     font-weight: 400;
   }
@@ -153,7 +160,7 @@ html {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
@@ -166,18 +173,18 @@ html {
 
   .gold-border {
     border: 1px solid transparent;
-    background-image: linear-gradient(black, black), 
-                      linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #AA771C);
+    background-image: linear-gradient(black, black),
+      linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #AA771C);
     background-origin: border-box;
     background-clip: content-box, border-box;
   }
 
   .marble-bg {
     background-color: #000;
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(255,255,255,0.03) 0, transparent 50%), 
-      radial-gradient(at 50% 0%, rgba(255,255,255,0.02) 0, transparent 50%), 
-      radial-gradient(at 100% 0%, rgba(255,255,255,0.03) 0, transparent 50%);
+    background-image:
+      radial-gradient(at 0% 0%, rgba(255, 255, 255, 0.03) 0, transparent 50%),
+      radial-gradient(at 50% 0%, rgba(255, 255, 255, 0.02) 0, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(255, 255, 255, 0.03) 0, transparent 50%);
   }
 
   .text-luxury {

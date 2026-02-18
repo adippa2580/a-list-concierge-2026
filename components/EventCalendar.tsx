@@ -5,7 +5,7 @@ import { Calendar as CalendarIcon, MapPin, Music, Heart, Clock, Star, Filter, Ar
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 const initialBookedEvents = [
@@ -77,18 +77,52 @@ export function EventCalendar() {
   const [recommendedEvents, setRecommendedEvents] = useState(initialRecommendedEvents);
   const [savedVenues, setSavedVenues] = useState(initialSavedVenues);
   const [loading, setLoading] = useState(false);
-
+  const [activeLocation, setActiveLocation] = useState<{ lat: number, lon: number } | null>(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   useEffect(() => {
     if (activeTab === 'discover') {
       fetchEventbriteEvents();
     }
-  }, [activeTab]);
+  }, [activeTab, activeLocation, useCurrentLocation]);
+
+  const handleLocationClick = () => {
+    setIsLoadingLocation(true);
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setActiveLocation({
+            lat: position.coords.latitude,
+            lon: position.coords.longitude
+          });
+          setUseCurrentLocation(true);
+          setIsLoadingLocation(false);
+          toast.success("Location updated");
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          setIsLoadingLocation(false);
+          toast.error("Could not get location. Using default.");
+        }
+      );
+    } else {
+      toast.error("Geolocation not supported");
+      setIsLoadingLocation(false);
+    }
+  };
 
   const fetchEventbriteEvents = async () => {
     setLoading(true);
     try {
+      let url = `https://${projectId}.supabase.co/functions/v1/server/eventbrite/events`;
+      if (useCurrentLocation && activeLocation) {
+        url += `?lat=${activeLocation.lat}&lon=${activeLocation.lon}`;
+      } else {
+        url += `?city=Miami`;
+      }
+
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-82c84e62/eventbrite/events?city=Miami`,
+        url,
         {
           headers: {
             'Authorization': `Bearer ${publicAnonKey}`
@@ -99,7 +133,7 @@ export function EventCalendar() {
       if (!response.ok) throw new Error('Failed to fetch events');
 
       const data = await response.json();
-      
+
       if (data.events && data.events.length > 0) {
         const formattedEvents = data.events.map((event: any) => ({
           id: event.id,
@@ -161,7 +195,18 @@ export function EventCalendar() {
       {/* Header */}
       <div className="bg-black/80 backdrop-blur-md sticky top-0 z-20 px-6 pt-8 pb-4 border-b border-white/10">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-sm font-bold tracking-[0.2em] uppercase text-white/60">Agenda</h1>
+          <div>
+            <h1 className="text-sm font-bold tracking-[0.2em] uppercase text-white/60">Agenda</h1>
+            <div
+              className="flex items-center gap-1 text-white hover:text-white/80 cursor-pointer mt-1"
+              onClick={handleLocationClick}
+            >
+              <MapPin size={10} className={isLoadingLocation ? "animate-pulse" : ""} />
+              <span className="text-[10px] uppercase tracking-widest font-bold">
+                {isLoadingLocation ? "Locating..." : (useCurrentLocation ? "Current Location" : "Miami, FL")}
+              </span>
+            </div>
+          </div>
           <Button variant="ghost" size="icon" className="text-white/60 hover:text-white hover:bg-transparent p-0 h-auto">
             <Filter size={20} />
           </Button>
@@ -169,20 +214,20 @@ export function EventCalendar() {
 
         <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
           <TabsList className="w-full bg-transparent border-b border-white/10 rounded-none h-auto p-0 justify-start gap-8">
-            <TabsTrigger 
-              value="schedule" 
+            <TabsTrigger
+              value="schedule"
               className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-2 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 data-[state=active]:text-white transition-all"
             >
               My Plan
             </TabsTrigger>
-            <TabsTrigger 
-              value="discover" 
+            <TabsTrigger
+              value="discover"
               className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-2 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 data-[state=active]:text-white transition-all"
             >
               Discover
             </TabsTrigger>
-            <TabsTrigger 
-              value="saved" 
+            <TabsTrigger
+              value="saved"
               className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-2 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 data-[state=active]:text-white transition-all"
             >
               Saved
@@ -200,8 +245,8 @@ export function EventCalendar() {
                 {bookedEvents.length === 0 ? (
                   <div className="text-center py-12 border border-dashed border-white/10">
                     <p className="text-xs uppercase tracking-widest text-white/60">No events booked</p>
-                    <Button 
-                      variant="link" 
+                    <Button
+                      variant="link"
                       className="text-[10px] font-bold uppercase tracking-[0.2em] text-white mt-2"
                       onClick={() => setActiveTab('discover')}
                     >
@@ -213,16 +258,15 @@ export function EventCalendar() {
                     <div key={event.id} className="border border-white/10 bg-zinc-900/30 p-5 group hover:border-white/40 transition-colors">
                       <div className="flex justify-between items-start mb-4">
                         <div>
-                          <span className={`text-[8px] font-bold uppercase tracking-widest px-2 py-1 mb-2 inline-block !text-black ${
-                            event.status === 'Confirmed' ? 'bg-white text-zinc-950' : 'border border-white/40 text-white/80'
-                          }`}>
+                          <span className={`text-[8px] font-bold uppercase tracking-widest px-2 py-1 mb-2 inline-block !text-black ${event.status === 'Confirmed' ? 'bg-white text-zinc-950' : 'border border-white/40 text-white/80'
+                            }`}>
                             {event.status}
                           </span>
                           <h3 className="text-xl font-light uppercase tracking-wide leading-none">{event.name}</h3>
                         </div>
                         <div className="text-right">
-                           <p className="text-sm font-bold uppercase tracking-wide">{event.time}</p>
-                           <p className="text-[9px] uppercase tracking-widest text-white/60">{event.date}</p>
+                          <p className="text-sm font-bold uppercase tracking-wide">{event.time}</p>
+                          <p className="text-[9px] uppercase tracking-widest text-white/60">{event.date}</p>
                         </div>
                       </div>
 
@@ -230,8 +274,8 @@ export function EventCalendar() {
                       {event.guests && (
                         <div className="flex flex-wrap gap-2 mb-4">
                           {event.guests.map((guest, idx) => (
-                            <span 
-                              key={idx} 
+                            <span
+                              key={idx}
                               className="bg-white text-zinc-950 text-[8px] font-bold px-2 py-1 uppercase tracking-widest !text-black"
                             >
                               {guest}
@@ -239,7 +283,7 @@ export function EventCalendar() {
                           ))}
                         </div>
                       )}
-                      
+
                       <div className="space-y-3 pt-3 border-t border-white/10">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 text-white/80">
@@ -261,59 +305,59 @@ export function EventCalendar() {
 
         {activeTab === 'discover' && (
           <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500">
-             <div className="border border-white/10 bg-white/5 p-4 mb-6">
-                <div className="flex items-start gap-3">
-                  <Music className="text-white mt-0.5" size={16} />
-                  <div>
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-white">Curated For You</h3>
-                    <p className="text-[10px] uppercase tracking-widest text-white/60 mt-1">Based on your listening history.</p>
+            <div className="border border-white/10 bg-white/5 p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <Music className="text-white mt-0.5" size={16} />
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-white">Curated For You</h3>
+                  <p className="text-[10px] uppercase tracking-widest text-white/60 mt-1">Based on your listening history.</p>
+                </div>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                <Loader2 className="animate-spin text-white/40" size={32} />
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Searching trending events...</p>
+              </div>
+            ) : (
+              recommendedEvents.map((event) => (
+                <div key={event.id} className="border border-white/10 bg-zinc-900/30 p-4 hover:border-white/40 transition-colors group">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <h4 className="text-sm font-bold uppercase tracking-wide text-white line-clamp-1">{event.name}</h4>
+                      <p className="text-[9px] uppercase tracking-widest text-white/60 mt-0.5">{event.venue}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[9px] font-bold uppercase tracking-widest bg-white/20 px-1 py-0.5 text-white/80">{event.match} Match</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-4">
+                    <div className="flex items-center gap-3 text-[9px] uppercase tracking-widest text-white/80">
+                      <span>{event.date}</span>
+                      <span>{event.time}</span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleToggleSave(event.id)}
+                        className={`transition-colors ${event.isSaved ? 'text-white' : 'text-white/40 hover:text-white'}`}
+                      >
+                        <Heart size={16} fill={event.isSaved ? "currentColor" : "none"} />
+                      </button>
+                      <Button
+                        size="sm"
+                        className="h-7 text-[9px] font-bold uppercase tracking-widest bg-white text-zinc-950 hover:bg-white/90 rounded-none px-3 !text-black"
+                        onClick={() => event.url ? window.open(event.url, '_blank') : handleBookEvent(event)}
+                      >
+                        {event.url ? 'Tickets' : `Book ${event.price}`}
+                      </Button>
+                    </div>
                   </div>
                 </div>
-             </div>
-
-             {loading ? (
-               <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                 <Loader2 className="animate-spin text-white/40" size={32} />
-                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Searching trending events...</p>
-               </div>
-             ) : (
-               recommendedEvents.map((event) => (
-                 <div key={event.id} className="border border-white/10 bg-zinc-900/30 p-4 hover:border-white/40 transition-colors group">
-                   <div className="flex justify-between items-start mb-2">
-                     <div>
-                       <h4 className="text-sm font-bold uppercase tracking-wide text-white line-clamp-1">{event.name}</h4>
-                       <p className="text-[9px] uppercase tracking-widest text-white/60 mt-0.5">{event.venue}</p>
-                     </div>
-                     <div className="text-right">
-                        <span className="text-[9px] font-bold uppercase tracking-widest bg-white/20 px-1 py-0.5 text-white/80">{event.match} Match</span>
-                     </div>
-                   </div>
-                   
-                   <div className="flex items-center justify-between mt-4">
-                     <div className="flex items-center gap-3 text-[9px] uppercase tracking-widest text-white/80">
-                       <span>{event.date}</span>
-                       <span>{event.time}</span>
-                     </div>
-                     
-                     <div className="flex items-center gap-3">
-                        <button 
-                          onClick={() => handleToggleSave(event.id)}
-                          className={`transition-colors ${event.isSaved ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                        >
-                          <Heart size={16} fill={event.isSaved ? "currentColor" : "none"} />
-                        </button>
-                        <Button 
-                          size="sm" 
-                          className="h-7 text-[9px] font-bold uppercase tracking-widest bg-white text-zinc-950 hover:bg-white/90 rounded-none px-3 !text-black"
-                          onClick={() => event.url ? window.open(event.url, '_blank') : handleBookEvent(event)}
-                        >
-                          {event.url ? 'Tickets' : `Book ${event.price}`}
-                        </Button>
-                     </div>
-                   </div>
-                 </div>
-               ))
-             )}
+              ))
+            )}
           </div>
         )}
 
@@ -325,30 +369,30 @@ export function EventCalendar() {
               </div>
             ) : (
               savedVenues.map((venue) => (
-                 <div key={venue.id} className="border border-white/10 bg-zinc-900/30 p-4 relative group">
-                   <div className="flex justify-between items-start">
-                     <div>
-                       <h4 className="font-bold text-sm uppercase tracking-wide">{venue.name}</h4>
-                       <p className="text-[9px] uppercase tracking-widest text-white/60 mt-1">{venue.location}</p>
-                     </div>
-                     <button 
-                        onClick={() => handleRemoveSavedVenue(venue.id)}
-                        className="text-white/40 hover:text-white transition-colors"
-                      >
-                        <Heart size={16} fill="currentColor" />
-                      </button>
-                   </div>
-                   
-                   <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/10">
-                     <div className="flex items-center gap-1 text-white">
-                       <Star size={10} fill="currentColor" />
-                       <span className="text-[9px] font-bold tracking-wider">{venue.rating}</span>
-                     </div>
-                     <span className="text-[9px] uppercase tracking-widest text-white/60">
-                       {venue.type}
-                     </span>
-                   </div>
-                 </div>
+                <div key={venue.id} className="border border-white/10 bg-zinc-900/30 p-4 relative group">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-sm uppercase tracking-wide">{venue.name}</h4>
+                      <p className="text-[9px] uppercase tracking-widest text-white/60 mt-1">{venue.location}</p>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveSavedVenue(venue.id)}
+                      className="text-white/40 hover:text-white transition-colors"
+                    >
+                      <Heart size={16} fill="currentColor" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/10">
+                    <div className="flex items-center gap-1 text-white">
+                      <Star size={10} fill="currentColor" />
+                      <span className="text-[9px] font-bold tracking-wider">{venue.rating}</span>
+                    </div>
+                    <span className="text-[9px] uppercase tracking-widest text-white/60">
+                      {venue.type}
+                    </span>
+                  </div>
+                </div>
               ))
             )}
           </div>

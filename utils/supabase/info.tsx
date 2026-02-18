@@ -1,4 +1,4 @@
-import { projectId, publicAnonKey } from './utils/supabase/info';
+
 
 export const projectId = "ofjcnikfebfgopytsgbm"
 export const publicAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9mamNuaWtmZWJmZ29weXRzZ2JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA5NzE5MjAsImV4cCI6MjA3NjU0NzkyMH0.Dpu4Xh2ho8zbi7lnDoSxXfVw5ZbxJBu8evqkOxI6WGE"
