@@ -20,33 +20,33 @@ export function AListLogo({
   const sizes = {
     sm: { container: 'h-6', icon: 'w-6 h-6', text: 'text-sm', letterSpacing: 'tracking-tight' },
     md: { container: 'h-8', icon: 'w-8 h-8', text: 'text-base', letterSpacing: 'tracking-tight' },
-    lg: { container: 'h-12', icon: 'w-12 h-12', text: 'text-2xl', letterSpacing: 'tracking-tight' },
-    xl: { container: 'h-16', icon: 'w-16 h-16', text: 'text-4xl', letterSpacing: 'tracking-tight' },
-    '2xl': { container: 'h-24', icon: 'w-24 h-24', text: 'text-5xl', letterSpacing: 'tracking-tight' }
+    lg: { container: 'h-12', icon: 'w-12 h-12', text: 'text-2xl', letterSpacing: 'tracking-widest' },
+    xl: { container: 'h-16', icon: 'w-16 h-16', text: 'text-4xl', letterSpacing: 'tracking-[0.2em]' },
+    '2xl': { container: 'h-24', icon: 'w-24 h-24', text: 'text-5xl', letterSpacing: 'tracking-[0.3em]' }
   };
 
   const themes = {
     gradient: {
-      iconBg: 'bg-gradient-to-br from-purple-600 via-pink-600 to-purple-700',
-      textGradient: 'bg-gradient-to-r from-white via-purple-100 to-pink-100 bg-clip-text text-transparent',
-      tagline: 'text-gray-300'
+      iconBg: 'bg-gradient-to-br from-[#BD00FF] via-[#FF00E5] to-[#00D9FF]',
+      textGradient: 'bg-gradient-to-r from-[#BD00FF] via-[#FF00E5] to-[#00D9FF] bg-clip-text text-transparent',
+      tagline: 'text-[#E5E4E2]/60'
     },
     monochrome: {
-      iconBg: 'bg-zinc-800',
-      textGradient: 'text-white',
-      tagline: 'text-gray-400'
+      iconBg: 'bg-[#011410]',
+      textGradient: 'text-[#F5F5F7]',
+      tagline: 'text-[#E5E4E2]/30'
     },
     light: {
-      iconBg: 'bg-gradient-to-br from-purple-500 via-pink-500 to-purple-600',
-      textGradient: 'bg-gradient-to-r from-gray-900 via-purple-900 to-pink-900 bg-clip-text text-transparent',
-      tagline: 'text-gray-500'
+      iconBg: 'bg-gradient-to-br from-[#BD00FF] via-[#FF00E5] to-[#00D9FF]',
+      textGradient: 'bg-gradient-to-r from-[#011410] via-[#000504] to-black bg-clip-text text-transparent',
+      tagline: 'text-[#E5E4E2]/50'
     }
   };
 
   const sizeConfig = sizes[size];
   const themeConfig = themes[theme];
 
-  // Splash screen variant - large centered logo with animation
+  // Splash screen variant
   if (variant === 'splash') {
     return (
       <div className={`flex flex-col items-center justify-center gap-4 ${className}`}>
@@ -71,10 +71,10 @@ export function AListLogo({
     );
   }
 
-  // Minimal variant - just text
+  // Minimal variant
   if (variant === 'minimal') {
     return (
-      <span className={`font-bold ${sizeConfig.text} ${sizeConfig.letterSpacing} ${themeConfig.textGradient} ${className}`}>
+      <span className={`font-bold ${sizeConfig.text} ${sizeConfig.letterSpacing} ${themeConfig.textGradient} whitespace-nowrap ${className}`}>
         A-LIST
       </span>
     );

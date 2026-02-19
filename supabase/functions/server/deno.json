@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "strict": true,
+        "lib": [
+            "deno.window"
+        ]
+    },
+    "nodeModulesDir": "none",
+    "imports": {
+        "hono": "npm:hono@^4.7.4",
+        "hono/cors": "npm:hono@^4.7.4/cors",
+        "hono/logger": "npm:hono@^4.7.4/logger",
+        "hono/utils/http-status": "npm:hono@^4.7.4/utils/http-status",
+        "@supabase/supabase-js": "jsr:@supabase/supabase-js@2.49.8"
+    }
+}

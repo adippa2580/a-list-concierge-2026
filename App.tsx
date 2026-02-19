@@ -15,6 +15,10 @@ import { SplashScreen } from "./components/SplashScreen";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { SpotifyCallback } from "./components/SpotifyCallback";
+import { SoundCloudCallback } from "./components/SoundCloudCallback";
+import { JoinCrewScreen } from "./components/JoinCrewScreen";
+import { OnboardingScreen, ONBOARDING_DONE_KEY } from "./components/OnboardingScreen";
+import { MemberClubsFeed } from "./components/MemberClubsFeed";
 import { AIConcierge } from "./components/AIConcierge";
 import { AListLogo } from "./components/AListLogo";
 import { projectId, publicAnonKey } from './utils/supabase/info';
@@ -29,6 +33,9 @@ import {
   Menu,
   X,
   Calendar,
+  Shield,
+  Crown,
+  Building2,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
 
@@ -44,9 +51,10 @@ type ViewType =
   | "crews"
   | "year-review"
   | "ai-concierge"
-  | "calendar";
+  | "calendar"
+  | "member-clubs";
 
-type AppState = "splash" | "welcome" | "login" | "app" | "spotify-callback";
+type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify-callback" | "soundcloud-callback" | "join-crew";
 
 export default function App() {
   const [appState, setAppState] = useState<AppState>("splash");
@@ -56,10 +64,41 @@ export default function App() {
   const [selectedTable, setSelectedTable] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [joinCrewToken, setJoinCrewToken] = useState<string | null>(null);
   const unreadInvites = 3;
 
-  useEffect(() => {
+  const AVATAR_KEY = 'alist_avatar_url';
+
+  // Load avatar: localStorage (user upload) takes priority over server default
+  const loadAvatar = () => {
+    const local = localStorage.getItem(AVATAR_KEY);
+    if (local) {
+      setUserAvatar(local);
+      return;
+    }
     fetchProfile();
+  };
+
+  useEffect(() => {
+    loadAvatar();
+
+    // Listen for custom event dispatched by UserProfile after a successful upload
+    const handleAvatarUpdated = () => {
+      const latest = localStorage.getItem(AVATAR_KEY);
+      if (latest) setUserAvatar(latest);
+    };
+    window.addEventListener('alist-avatar-updated', handleAvatarUpdated);
+
+    // Cross-tab support via the native storage event
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === AVATAR_KEY && e.newValue) setUserAvatar(e.newValue);
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('alist-avatar-updated', handleAvatarUpdated);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const fetchProfile = async () => {
@@ -69,22 +108,41 @@ export default function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.avatarUrl) setUserAvatar(data.avatarUrl);
+        // Only use server avatar if no local upload exists
+        if (data.avatarUrl && !localStorage.getItem(AVATAR_KEY)) {
+          setUserAvatar(data.avatarUrl);
+        }
       }
     } catch (e) {
       console.error(e);
     }
   };
 
-  // Check for Spotify callback on mount
+  // Check for OAuth callbacks and crew invite links on mount
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const pathname = window.location.pathname;
+
+    // Crew invite deep link: ?joinCrew=TOKEN
+    const joinToken = urlParams.get('joinCrew');
+    if (joinToken) {
+      setJoinCrewToken(joinToken);
+      setAppState('join-crew');
+      // Clean up the URL so refresh doesn't re-trigger
+      window.history.replaceState({}, document.title, window.location.pathname);
+      return;
+    }
+
     if (urlParams.has('code') && urlParams.has('state')) {
-      setAppState('spotify-callback');
+      if (pathname.includes('soundcloud')) {
+        setAppState('soundcloud-callback');
+      } else {
+        setAppState('spotify-callback');
+      }
     }
   }, []);
 
-  // Auto-transition from splash to login after 3 seconds
+  // Auto-transition from splash to welcome
   useEffect(() => {
     if (appState === "splash") {
       const timer = setTimeout(() => {
@@ -95,7 +153,9 @@ export default function App() {
   }, [appState]);
 
   const handleLogin = () => {
-    setAppState("app");
+    // First-time users see onboarding; returning users go straight home
+    const done = localStorage.getItem(ONBOARDING_DONE_KEY);
+    setAppState(done ? "app" : "onboarding");
   };
 
   const handleVenueClick = (venue: any) => {
@@ -109,11 +169,10 @@ export default function App() {
     if (table) {
       setSelectedTable(table);
     } else {
-      // Fallback or default table if none passed
       setSelectedTable({
         name: 'Standard Table',
-        minSpend: 500,
-        capacity: '4-6 people'
+        min: 500,
+        capacity: '4-6'
       });
     }
     setCurrentView("group");
@@ -132,12 +191,17 @@ export default function App() {
 
   // Show welcome screen
   if (appState === "welcome") {
-    return <WelcomeScreen onStart={() => setAppState("login")} />;
+    return <WelcomeScreen onGetStarted={() => setAppState("login")} />;
   }
 
   // Show login screen
   if (appState === "login") {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <LoginScreen onSuccess={handleLogin} />;
+  }
+
+  // Show onboarding (first-time only)
+  if (appState === "onboarding") {
+    return <OnboardingScreen onComplete={() => setAppState("app")} />;
   }
 
   // Handle Spotify callback
@@ -146,7 +210,37 @@ export default function App() {
       <SpotifyCallback
         onSuccess={handleLogin}
         onError={() => {
-          // Clear URL params and return to login
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setAppState('login');
+        }}
+      />
+    );
+  }
+
+  // Handle crew invite deep link
+  if (appState === 'join-crew' && joinCrewToken) {
+    return (
+      <JoinCrewScreen
+        token={joinCrewToken}
+        onAccepted={() => {
+          setJoinCrewToken(null);
+          setAppState('app');
+          setCurrentView('crews');
+        }}
+        onDeclined={() => {
+          setJoinCrewToken(null);
+          setAppState('app');
+        }}
+      />
+    );
+  }
+
+  // Handle SoundCloud callback
+  if (appState === "soundcloud-callback") {
+    return (
+      <SoundCloudCallback
+        onSuccess={handleLogin}
+        onError={() => {
           window.history.replaceState({}, document.title, window.location.pathname);
           setAppState('login');
         }}
@@ -157,90 +251,105 @@ export default function App() {
   // Main app
   return (
     <div className="dark">
-      <div className="min-h-screen bg-black text-white font-sans selection:bg-white/20">
+      <div className="min-h-screen bg-[#000504] text-white font-sans selection:bg-white/20">
         {/* Mobile App Container */}
-        <div className="max-w-md mx-auto bg-black min-h-screen relative shadow-2xl overflow-hidden">
+        <div className="max-w-md mx-auto bg-[#000504] min-h-screen relative shadow-2xl overflow-hidden">
 
-          {/* Top Bar */}
-          <div className="fixed top-0 left-0 right-0 max-w-md mx-auto bg-gradient-to-b from-black/80 to-transparent backdrop-blur-md px-5 py-4 z-50 flex items-center justify-between pointer-events-auto">
+          {/* Top Bar — Platinum Theme */}
+          <div className="fixed top-0 left-0 right-0 max-w-md mx-auto bg-gradient-to-b from-[#000504]/90 to-transparent backdrop-blur-md px-5 py-4 z-50 flex items-center justify-between pointer-events-auto border-b border-[#E5E4E2]/5">
             <div className="flex items-center gap-3">
               <button onClick={() => navigateTo("profile")} className="relative group">
-                <div className="w-10 h-10 gold-border overflow-hidden bg-zinc-900 flex items-center justify-center">
+                <div className="w-10 h-10 platinum-border overflow-hidden bg-[#011410] flex items-center justify-center">
                   {userAvatar ? (
                     <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
-                    <User size={18} className="text-white/40" />
+                    <User size={18} className="text-[#E5E4E2]/40" />
                   )}
                 </div>
               </button>
               <AListLogo size="sm" animated variant="icon" />
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => navigateTo("ai-concierge")}
-                className="relative p-2 hover:bg-white/5 rounded-full transition-all group"
+                className="relative p-2 hover:bg-white/5 transition-all group"
               >
-                <Sparkles size={18} className="text-white/70 group-hover:text-white transition-colors" />
+                <Sparkles size={18} className="text-[#E5E4E2]/60 group-hover:text-[#E5E4E2] transition-colors" />
               </button>
               <button
                 onClick={() => navigateTo("inbox")}
-                className="relative p-2 hover:bg-white/5 rounded-full transition-all group"
+                className="relative p-2 hover:bg-white/5 transition-all group"
               >
-                <Mail size={18} className="text-white/70 group-hover:text-white transition-colors" />
+                <Mail size={18} className="text-[#E5E4E2]/60 group-hover:text-[#E5E4E2] transition-colors" />
                 {unreadInvites > 0 && (
-                  <span className="absolute top-1.5 right-1.5 bg-white text-black text-[8px] font-bold rounded-full w-3 h-3 flex items-center justify-center">
+                  <span className="absolute top-1 right-1 bg-white text-[#000504] text-[7px] font-bold w-3.5 h-3.5 flex items-center justify-center">
                     {unreadInvites}
                   </span>
                 )}
               </button>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="p-2 hover:bg-white/5 rounded-full transition-all group"
+                className="p-2 hover:bg-white/5 transition-all group"
               >
                 {menuOpen ? (
                   <X size={20} className="text-white transition-transform duration-300 rotate-90" />
                 ) : (
-                  <Menu size={20} className="text-white/70 group-hover:text-white transition-colors" />
+                  <Menu size={20} className="text-[#E5E4E2]/60 group-hover:text-white transition-colors" />
                 )}
               </button>
             </div>
           </div>
 
           {/* Full Screen Side Menu Overlay */}
-          {menuOpen && (
-            <div className="fixed inset-0 z-40 flex justify-end">
-              <div
-                className="absolute inset-0 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300"
-                onClick={() => setMenuOpen(false)}
-              />
-              <div className="relative w-full max-w-xs h-full bg-zinc-950 border-l border-white/10 p-8 shadow-2xl animate-in slide-in-from-right duration-500">
-                <div className="pt-20 flex flex-col h-full">
-                  <div className="mb-8">
-                    <h2 className="text-xs font-bold tracking-[0.2em] text-white/40 uppercase mb-4">Navigation</h2>
-                    <div className="space-y-2">
-                      <MenuButton icon={User} label="My Profile" onClick={() => navigateTo("profile")} />
-                      <MenuButton icon={Users} label="My Crews" onClick={() => navigateTo("crews")} />
-                      <MenuButton icon={Calendar} label="Events Calendar" onClick={() => navigateTo("calendar")} />
-                      <MenuButton icon={Trophy} label="2024 Year in Review" onClick={() => navigateTo("year-review")} />
-                      <MenuButton icon={Sparkles} label="AI Concierge" onClick={() => navigateTo("ai-concierge")} highlight />
+          <AnimatePresence>
+            {menuOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-40 flex justify-end"
+              >
+                <div
+                  className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                  onClick={() => setMenuOpen(false)}
+                />
+                <motion.div
+                  initial={{ x: '100%' }}
+                  animate={{ x: 0 }}
+                  exit={{ x: '100%' }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  className="relative w-full max-w-xs h-full bg-[#000504] border-l border-[#E5E4E2]/10 p-8 shadow-2xl"
+                >
+                  <div className="pt-20 flex flex-col h-full">
+                    <div className="mb-8">
+                      <h2 className="text-[10px] font-bold tracking-[0.4em] text-white/30 uppercase mb-6 border-l-2 border-[#E5E4E2]/20 pl-4">Navigation</h2>
+                      <div className="space-y-1">
+                        <MenuButton icon={User} label="My Profile" onClick={() => navigateTo("profile")} />
+                        <MenuButton icon={Users} label="My Crews" onClick={() => navigateTo("crews")} />
+                        <MenuButton icon={Building2} label="Member Clubs" onClick={() => navigateTo("member-clubs")} highlight />
+                        <MenuButton icon={Calendar} label="Events Calendar" onClick={() => navigateTo("calendar")} />
+                        <MenuButton icon={Shield} label="VIP Status" onClick={() => navigateTo("vip")} />
+                        <MenuButton icon={Trophy} label="2025 Year in Review" onClick={() => navigateTo("year-review")} />
+                        <MenuButton icon={Sparkles} label="AI Concierge" onClick={() => navigateTo("ai-concierge")} highlight />
+                      </div>
+                    </div>
+
+                    <div className="mt-auto border-t border-white/10 pt-6">
+                      <MenuButton
+                        icon={User}
+                        label="Sign Out"
+                        onClick={() => {
+                          setAppState("login");
+                          setMenuOpen(false);
+                        }}
+                        danger
+                      />
                     </div>
                   </div>
-
-                  <div className="mt-auto border-t border-white/10 pt-6">
-                    <MenuButton
-                      icon={User}
-                      label="Sign Out"
-                      onClick={() => {
-                        setAppState("login");
-                        setMenuOpen(false);
-                      }}
-                      danger
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Main Content Area */}
           <div className="h-screen overflow-y-auto pb-24 pt-20 no-scrollbar scroll-smooth">
@@ -256,9 +365,10 @@ export default function App() {
                 {currentView === "home" && (
                   <Home
                     onVenueClick={handleVenueClick}
-                    onBookTable={(venue) => handleBookTable(venue, null)}
+                    onBookTable={(venue: any) => handleBookTable(venue, null)}
                     onOpenCalendar={() => navigateTo("calendar")}
                     onViewAllArtists={() => navigateTo("artists")}
+                    onViewMemberClubs={() => navigateTo("member-clubs")}
                   />
                 )}
                 {currentView === "vip" && <VIPStatus />}
@@ -269,14 +379,13 @@ export default function App() {
                 {currentView === "venue" && selectedVenue && (
                   <VenueDetail
                     venue={selectedVenue}
-                    onBook={(table) => handleBookTable(selectedVenue, table)}
+                    onBookTable={(venue: any) => handleBookTable(venue)}
                     onBack={() => setCurrentView("home")}
                   />
                 )}
                 {currentView === "group" && selectedVenue && (
                   <GroupBooking
-                    venue={selectedVenue}
-                    selectedTable={selectedTable}
+                    venue={{ ...selectedVenue, selectedTable }}
                     onBack={() => setCurrentView("venue")}
                   />
                 )}
@@ -286,13 +395,16 @@ export default function App() {
                 {currentView === "year-review" && <YearInReview />}
                 {currentView === "ai-concierge" && <AIConcierge />}
                 {currentView === "calendar" && <EventCalendar />}
+                {currentView === "member-clubs" && (
+                  <MemberClubsFeed onManageClubs={() => navigateTo("profile")} />
+                )}
               </motion.div>
             </AnimatePresence>
           </div>
 
-          {/* Bottom Navigation */}
+          {/* Bottom Navigation — Platinum */}
           <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-30">
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/95 to-transparent h-24 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#000504] via-[#000504]/95 to-transparent h-24 pointer-events-none" />
             <div className="relative px-6 pb-6 pt-4 flex items-center justify-between">
               <NavButton
                 icon={HomeIcon}
@@ -313,10 +425,10 @@ export default function App() {
                 onClick={() => navigateTo("social")}
               />
               <NavButton
-                icon={Trophy}
-                label="VIP"
-                isActive={currentView === "vip"}
-                onClick={() => navigateTo("vip")}
+                icon={Building2}
+                label="Members"
+                isActive={currentView === "member-clubs"}
+                onClick={() => navigateTo("member-clubs")}
               />
             </div>
           </nav>
@@ -331,25 +443,25 @@ export default function App() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => navigateTo("ai-concierge")}
-                className="absolute bottom-28 right-6 z-40 bg-white text-zinc-950 p-4 rounded-full shadow-[0_20px_50px_rgba(255,255,255,0.2)] border border-white/20 flex items-center gap-0 hover:gap-3 group transition-all duration-500 ease-out"
+                className="absolute bottom-28 right-6 z-40 bg-white text-[#000504] p-4 shadow-[0_20px_50px_rgba(229,228,226,0.15)] border border-[#E5E4E2]/30 flex items-center gap-0 hover:gap-3 group transition-all duration-500 ease-out"
               >
-                <Sparkles size={22} className="text-zinc-950 group-hover:rotate-12 transition-transform duration-500 !text-black" />
+                <Sparkles size={22} className="text-[#000504] group-hover:rotate-12 transition-transform duration-500 !text-black" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.3em] !text-black max-w-0 overflow-hidden group-hover:max-w-[120px] transition-all duration-500 ease-out whitespace-nowrap opacity-0 group-hover:opacity-100">
                   Concierge
                 </span>
 
-                {/* Premium Glow Effect */}
+                {/* Platinum Glow Pulse */}
                 <motion.div
                   animate={{
                     scale: [1, 1.4, 1],
-                    opacity: [0, 0.2, 0]
+                    opacity: [0, 0.15, 0]
                   }}
                   transition={{
                     duration: 3,
                     repeat: Infinity,
                     ease: "easeInOut"
                   }}
-                  className="absolute inset-0 bg-white rounded-full -z-10"
+                  className="absolute inset-0 bg-[#E5E4E2] -z-10"
                 />
               </motion.button>
             )}
@@ -360,21 +472,21 @@ export default function App() {
   );
 }
 
-// Helper Components
+// Helper Components — Platinum Theme
 
 function MenuButton({ icon: Icon, label, onClick, highlight, danger }: any) {
   return (
     <button
       onClick={onClick}
-      className={`w-full flex items-center gap-4 px-4 py-3 rounded-none border-l-2 transition-all group ${danger
+      className={`w-full flex items-center gap-4 px-4 py-3 border-l-2 transition-all group ${danger
           ? 'border-transparent text-red-500 hover:bg-red-500/10'
           : highlight
-            ? 'border-purple-500 text-purple-400 bg-purple-500/5 hover:bg-purple-500/10'
-            : 'border-transparent text-gray-400 hover:text-white hover:border-white/50 hover:bg-white/5'
+            ? 'border-[#E5E4E2] text-[#E5E4E2] bg-[#E5E4E2]/5 hover:bg-[#E5E4E2]/10'
+            : 'border-transparent text-white/40 hover:text-white hover:border-[#E5E4E2]/50 hover:bg-white/5'
         }`}
     >
-      <Icon size={18} className={danger ? "" : highlight ? "text-purple-400" : "group-hover:text-white transition-colors"} />
-      <span className="text-sm font-medium tracking-wide uppercase">{label}</span>
+      <Icon size={18} className={danger ? "" : highlight ? "text-[#E5E4E2]" : "group-hover:text-white transition-colors"} />
+      <span className="text-[11px] font-bold tracking-[0.2em] uppercase">{label}</span>
     </button>
   );
 }
@@ -383,13 +495,13 @@ function NavButton({ icon: Icon, label, isActive, onClick }: any) {
   return (
     <button
       onClick={onClick}
-      className={`flex flex-col items-center gap-1.5 transition-all duration-300 group ${isActive ? "text-white scale-105" : "text-white/30 hover:text-white/70"
+      className={`flex flex-col items-center gap-1.5 transition-all duration-300 group ${isActive ? "text-white scale-105" : "text-white/25 hover:text-white/60"
         }`}
     >
-      <div className={`p-2 rounded-full transition-all ${isActive ? 'bg-white/10' : 'bg-transparent'}`}>
-        <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+      <div className={`p-2 transition-all ${isActive ? 'bg-white/10 border border-[#E5E4E2]/20' : 'bg-transparent'}`}>
+        <Icon size={20} strokeWidth={isActive ? 2.5 : 1.5} />
       </div>
-      <span className={`text-[9px] font-bold uppercase tracking-widest ${isActive ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
+      <span className={`text-[8px] font-bold uppercase tracking-[0.3em] ${isActive ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'}`}>
         {label}
       </span>
     </button>

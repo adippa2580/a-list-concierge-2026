@@ -1,10 +1,11 @@
 'use client';
 
-import { X, Calendar, Users, Clock, CreditCard, ChevronRight } from 'lucide-react';
+import { X, Calendar, Users, Clock, CreditCard, ChevronRight, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ImageWithFallback } from './figma/ImageWithFallback';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface BookingModalProps {
     type: string;
     priceRange: string;
     meta: string;
+    imageUrl?: string;
   } | null;
 }
 
@@ -29,9 +31,15 @@ export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
 
   if (!isOpen || !tile) return null;
 
+  const handleClose = () => {
+    onClose();
+    // Small timeout so reset isn't visible during exit animation
+    setTimeout(() => setStep(1), 300);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setStep(3); // Show success
+    setStep(3);
   };
 
   return (
@@ -41,7 +49,7 @@ export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          onClick={handleClose}
           className="absolute inset-0 bg-black/90 backdrop-blur-xl"
         />
         
@@ -52,18 +60,34 @@ export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
           className="relative w-full max-w-md bg-zinc-950 border border-white/10 p-8 overflow-hidden"
         >
           {/* Header */}
-          <div className="flex justify-between items-start mb-10">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[8px] font-bold uppercase tracking-[0.3em] text-white/40">Request Access</span>
-                <div className="w-1 h-1 bg-white/20 rounded-full" />
-                <span className="text-[8px] font-bold uppercase tracking-[0.3em] text-white/40">{tile.priceRange}</span>
+          <div className="space-y-6 mb-8">
+            {tile.imageUrl && (
+              <div className="h-32 w-full overflow-hidden platinum-border relative">
+                <ImageWithFallback 
+                  src={tile.imageUrl} 
+                  className="w-full h-full object-cover grayscale"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent" />
               </div>
-              <h2 className="text-xl font-bold uppercase tracking-[0.2em]">{tile.name}</h2>
+            )}
+            
+            <div className="flex justify-between items-start">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[8px] font-bold uppercase tracking-[0.3em] text-[#E5E4E2]/40">Request Access</span>
+                  <div className="w-1 h-1 bg-[#E5E4E2]/20 rounded-full" />
+                  <span className="text-[8px] font-bold uppercase tracking-[0.3em] text-[#E5E4E2]/40">{tile.priceRange || '$$$$'}</span>
+                </div>
+                <h2 className="text-2xl font-serif italic uppercase tracking-wider text-white">{tile.name}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                   <MapPin size={10} className="text-[#E5E4E2]/40" />
+                   <span className="text-[9px] uppercase tracking-widest text-white/30">{tile.meta}</span>
+                </div>
+              </div>
+              <button onClick={handleClose} className="text-white/40 hover:text-white transition-colors p-2">
+                <X size={20} />
+              </button>
             </div>
-            <button onClick={onClose} className="text-white/40 hover:text-white transition-colors">
-              <X size={20} />
-            </button>
           </div>
 
           {step < 3 ? (
@@ -167,7 +191,7 @@ export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
                 </p>
               </div>
               <Button 
-                onClick={onClose}
+                onClick={handleClose}
                 variant="outline"
                 className="w-full border-white/10 text-white hover:bg-white/5 rounded-none font-bold text-[9px] uppercase tracking-[0.3em]"
               >

@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, Users, DollarSign, Clock, TrendingUp, Filter, ChevronRight, Instagram, Loader2, ExternalLink } from 'lucide-react';
+import { MapPin, Users, ChevronRight, Instagram, Loader2, ExternalLink, LogOut, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+
+const API = `https://${projectId}.supabase.co/functions/v1/server`;
+const HEADERS = { Authorization: `Bearer ${publicAnonKey}` };
 
 const filters = ['All', 'Friends', 'Clubs', 'Lounges'];
 
@@ -34,11 +37,7 @@ const trendingVenues = [
 const socialPosts = [
   {
     id: 1,
-    user: {
-      name: 'Sarah Chen',
-      tier: 'Platinum',
-      avatar: 'SC'
-    },
+    user: { name: 'Sarah Chen', tier: 'Platinum', avatar: 'SC' },
     venue: {
       name: 'LIV Miami',
       location: 'South Beach, Miami',
@@ -53,11 +52,7 @@ const socialPosts = [
   },
   {
     id: 2,
-    user: {
-      name: 'Marcus Liu',
-      tier: 'Gold Elite',
-      avatar: 'ML'
-    },
+    user: { name: 'Marcus Liu', tier: 'Gold Elite', avatar: 'ML' },
     venue: {
       name: 'E11EVEN Miami',
       location: 'Downtown, Miami',
@@ -72,57 +67,100 @@ const socialPosts = [
   }
 ];
 
+interface InstagramMediaItem {
+  id: string;
+  media_type: 'IMAGE' | 'VIDEO';
+  media_url?: string;
+  thumbnail_url?: string;
+  permalink: string;
+  caption?: string;
+  timestamp: string;
+}
+
 interface SocialFeedProps {
-  onVenueClick: (venue: any) => void;
+  onVenueClick: (venue: { name: string; location?: string; image?: string; time?: string }) => void;
 }
 
 export function SocialFeed({ onVenueClick }: SocialFeedProps) {
-  const [instagramMedia, setInstagramMedia] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [instagramMedia, setInstagramMedia] = useState<InstagramMediaItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [connected, setConnected] = useState(false);
+  const [expired, setExpired] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
+  const [tokenDaysLeft, setTokenDaysLeft] = useState<number | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [showSetupGuide, setShowSetupGuide] = useState(false);
+
+  const userId = typeof localStorage !== 'undefined'
+    ? localStorage.getItem('alist_user_id') || 'default_user'
+    : 'default_user';
 
   useEffect(() => {
-    checkInstagramStatus();
+    fetchInstagramStatus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const checkInstagramStatus = async () => {
-    // For this prototype, we'll try to fetch with a default userId if none found
-    const userId = localStorage.getItem('alist_user_id') || 'default_user';
+  const fetchInstagramStatus = async () => {
+    setLoading(true);
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/instagram/media?userId=${userId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`
-          }
-        }
-      );
+      const res = await fetch(`${API}/instagram/media?userId=${userId}&limit=12`, { headers: HEADERS });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as {
+        connected: boolean;
+        expired?: boolean;
+        username?: string;
+        token_expires_days?: number;
+        data: InstagramMediaItem[];
+      };
 
-      if (response.ok) {
-        const data = await response.json();
-        if (data.data) {
-          setInstagramMedia(data.data);
-          setConnected(true);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching Instagram media:', error);
+      setConnected(data.connected);
+      setExpired(!!data.expired);
+      setUsername(data.username ?? null);
+      setTokenDaysLeft(data.token_expires_days ?? null);
+      setInstagramMedia(data.data || []);
+    } catch (e) {
+      console.error('[Instagram] Status check failed:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleConnect = async () => {
-    const userId = localStorage.getItem('alist_user_id') || 'default_user';
+    setConnecting(true);
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/instagram/login?userId=${userId}`,
-        {
-          headers: { 'Authorization': `Bearer ${publicAnonKey}` }
-        }
-      );
-      const data = await response.json();
+      const res = await fetch(`${API}/instagram/login?userId=${userId}`, { headers: HEADERS });
+      const data = await res.json() as { authUrl?: string; error?: string };
+      if (data.error) {
+        // Credentials not yet configured — show setup guide
+        setShowSetupGuide(true);
+        return;
+      }
       if (data.authUrl) window.location.href = data.authUrl;
     } catch (e) {
-      console.error('Failed to initiate login', e);
+      console.error('[Instagram] Connect failed:', e);
+      setShowSetupGuide(true);
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    setDisconnecting(true);
+    try {
+      await fetch(`${API}/instagram/disconnect?userId=${userId}`, {
+        method: 'DELETE',
+        headers: HEADERS
+      });
+      setConnected(false);
+      setExpired(false);
+      setUsername(null);
+      setTokenDaysLeft(null);
+      setInstagramMedia([]);
+    } catch (e) {
+      console.error('[Instagram] Disconnect failed:', e);
+    } finally {
+      setDisconnecting(false);
     }
   };
 
@@ -192,71 +230,177 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
           </div>
         </div>
 
-        {/* The Scene - Social Activity */}
+        {/* Instagram / Live Dispatch Section */}
         <div className="space-y-10">
           <div className="px-6 flex items-center justify-between">
             <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/40">Live Dispatch</h2>
-            {connected ? (
-              <div className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[8px] uppercase tracking-widest text-white/40">Instagram Feed Synced</span>
+
+            {loading ? (
+              <Loader2 size={12} className="text-white/30 animate-spin" />
+            ) : connected ? (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-[8px] uppercase tracking-widest text-white/40">
+                    {username ? `@${username}` : 'Instagram Synced'}
+                    {tokenDaysLeft !== null && tokenDaysLeft < 7 && (
+                      <span className="ml-1 text-amber-400">· {tokenDaysLeft}d left</span>
+                    )}
+                  </span>
+                </div>
+                <button
+                  onClick={handleDisconnect}
+                  disabled={disconnecting}
+                  className="flex items-center gap-1 text-white/20 hover:text-white/60 transition-colors"
+                  title="Disconnect Instagram"
+                >
+                  <LogOut size={10} />
+                </button>
               </div>
+            ) : expired ? (
+              <button
+                onClick={handleConnect}
+                disabled={connecting}
+                className="flex items-center gap-2 text-amber-400 hover:text-amber-300 transition-colors group"
+              >
+                <AlertTriangle size={12} />
+                <span className="text-[8px] uppercase tracking-widest border-b border-amber-400/40">Token Expired — Reconnect</span>
+              </button>
             ) : (
               <button
                 onClick={handleConnect}
+                disabled={connecting}
                 className="flex items-center gap-2 group hover:text-white transition-colors"
               >
-                <Instagram size={12} className="text-white/40 group-hover:text-white" />
+                {connecting
+                  ? <Loader2 size={12} className="animate-spin text-white/40" />
+                  : <Instagram size={12} className="text-white/40 group-hover:text-white" />}
                 <span className="text-[8px] uppercase tracking-widest text-white/40 group-hover:text-white border-b border-white/20">Link Profile</span>
               </button>
             )}
           </div>
 
+          {/* Setup Guide Modal */}
+          <AnimatePresence>
+            {showSetupGuide && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                className="mx-6 p-5 bg-zinc-900 border border-amber-400/20"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Instagram size={14} className="text-amber-400" />
+                    <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-amber-400">Instagram Setup Required</p>
+                  </div>
+                  <button onClick={() => setShowSetupGuide(false)} className="text-white/30 hover:text-white text-xs">✕</button>
+                </div>
+                <p className="text-[10px] text-white/50 leading-relaxed mb-4">
+                  To connect Instagram, you need a <strong className="text-white/70">Business or Creator account</strong> and a configured Meta app with the <code className="text-amber-400/80 text-[9px]">instagram_business_basic</code> permission. Set these Supabase secrets:
+                </p>
+                <div className="space-y-1.5 font-mono text-[9px] text-white/40 bg-black/40 p-3 border border-white/5">
+                  <p><span className="text-amber-400">INSTAGRAM_CLIENT_ID</span>=&lt;your_meta_app_id&gt;</p>
+                  <p><span className="text-amber-400">INSTAGRAM_CLIENT_SECRET</span>=&lt;your_meta_app_secret&gt;</p>
+                </div>
+                <p className="text-[9px] text-white/30 mt-2">
+                  Register this URL as your OAuth redirect in the Meta app:
+                </p>
+                <div className="font-mono text-[8px] text-amber-400/60 bg-black/40 p-2 border border-white/5 break-all">
+                  https://&lt;project-ref&gt;.supabase.co/functions/v1/server/instagram/callback
+                </div>
+                <p className="text-[9px] text-white/30 mt-3">
+                  Create your app at{' '}
+                  <a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer" className="text-amber-400/70 hover:text-amber-400 underline">
+                    developers.facebook.com/apps
+                  </a>
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="divide-y divide-white/5">
-            {instagramMedia.length > 0 ? (
-              instagramMedia.map((post) => (
-                <div key={post.id} className="p-0 space-y-0 group">
-                  {/* Full width editorial post */}
-                  <div className="relative aspect-square w-full overflow-hidden">
-                    <img
-                      src={post.media_url}
-                      alt="Instagram Media"
-                      className="object-cover w-full h-full grayscale group-hover:grayscale-0 transition-all duration-1000"
-                    />
-                    <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
-                    <div className="absolute top-6 left-6 flex items-center gap-3">
-                      <div className="w-10 h-10 border border-white/40 backdrop-blur-md p-0.5 flex items-center justify-center bg-black/20">
-                        <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-                          <span className="text-[10px] font-bold text-white">IG</span>
+            {connected && instagramMedia.length > 0 ? (
+              instagramMedia.map((post) => {
+                const mediaSrc = post.media_type === 'VIDEO' ? post.thumbnail_url : post.media_url;
+                return (
+                  <div key={post.id} className="p-0 space-y-0 group">
+                    <div className="relative aspect-square w-full overflow-hidden">
+                      {post.media_type === 'VIDEO' ? (
+                        <video
+                          src={post.media_url}
+                          poster={post.thumbnail_url}
+                          muted
+                          playsInline
+                          loop
+                          onMouseEnter={e => (e.currentTarget as HTMLVideoElement).play()}
+                          onMouseLeave={e => { (e.currentTarget as HTMLVideoElement).pause(); (e.currentTarget as HTMLVideoElement).currentTime = 0; }}
+                          className="object-cover w-full h-full grayscale group-hover:grayscale-0 transition-all duration-1000"
+                        />
+                      ) : (
+                        <img
+                          src={mediaSrc}
+                          alt="Instagram Media"
+                          className="object-cover w-full h-full grayscale group-hover:grayscale-0 transition-all duration-1000"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors" />
+                      <div className="absolute top-6 left-6 flex items-center gap-3">
+                        <div className="w-10 h-10 border border-white/40 backdrop-blur-md p-0.5 flex items-center justify-center bg-black/20">
+                          <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+                            <span className="text-[10px] font-bold text-white">IG</span>
+                          </div>
+                        </div>
+                        <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-white">
+                            {new Date(post.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
                         </div>
                       </div>
-                      <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 border border-white/10">
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-white">{new Date(post.timestamp).toLocaleDateString()}</span>
+                      {post.media_type === 'VIDEO' && (
+                        <div className="absolute top-6 right-6 bg-black/50 backdrop-blur-md px-2 py-1 border border-white/10">
+                          <span className="text-[8px] font-bold uppercase tracking-widest text-white/60">▶ Video</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="p-8 space-y-6 bg-zinc-950">
+                      <p className="text-lg font-light leading-relaxed text-white/90 font-serif italic">
+                        "{post.caption || 'A night to remember.'}"
+                      </p>
+
+                      <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                        <div className="flex gap-4 text-[9px] uppercase tracking-widest text-white/40">
+                          <span className="flex items-center gap-2"><MapPin size={10} /> Miami District</span>
+                        </div>
+                        <button
+                          onClick={() => window.open(post.permalink, '_blank')}
+                          className="text-[9px] font-bold uppercase tracking-[0.2em] text-white hover:text-white/70 flex items-center gap-2"
+                        >
+                          View on Instagram <ExternalLink size={10} />
+                        </button>
                       </div>
                     </div>
                   </div>
-
-                  <div className="p-8 space-y-6 bg-zinc-950">
-                    <p className="text-lg font-light leading-relaxed text-white/90 font-serif italic">"{post.caption || "A night to remember."}"</p>
-
-                    <div className="flex items-center justify-between pt-4 border-t border-white/10">
-                      <div className="flex gap-4 text-[9px] uppercase tracking-widest text-white/40">
-                        <span className="flex items-center gap-2"><MapPin size={10} /> MIAMI DISTRICT</span>
-                      </div>
-                      <button
-                        onClick={() => window.open(post.permalink, '_blank')}
-                        className="text-[9px] font-bold uppercase tracking-[0.2em] text-white hover:text-white/70 flex items-center gap-2"
-                      >
-                        Source <ExternalLink size={10} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
+                );
+              })
+            ) : connected && !loading ? (
+              /* Connected but no media yet */
+              <div className="px-6 py-12 text-center space-y-3">
+                <Instagram size={24} className="text-white/20 mx-auto" />
+                <p className="text-[9px] uppercase tracking-[0.3em] text-white/30">No media found on your account</p>
+                <button
+                  onClick={fetchInstagramStatus}
+                  className="flex items-center gap-2 mx-auto text-white/30 hover:text-white/60 transition-colors"
+                >
+                  <RefreshCw size={10} />
+                  <span className="text-[8px] uppercase tracking-widest">Refresh</span>
+                </button>
+              </div>
             ) : (
+              /* Not connected — show curated social posts */
               socialPosts.map((post) => (
                 <div key={post.id} className="p-6 space-y-4 hover:bg-white/5 transition-colors">
-
                   {/* User Header */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">

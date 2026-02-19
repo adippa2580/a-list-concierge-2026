@@ -1,402 +1,257 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, MapPin, Music, Heart, Clock, Star, Filter, ArrowUpRight, Loader2 } from 'lucide-react';
-import { Button } from './ui/button';
+import { Calendar, Clock, MapPin, Search, Star, Bookmark, BookmarkCheck, Filter, Music, Ticket, Users, ChevronRight } from 'lucide-react';
 import { Badge } from './ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { toast } from 'sonner';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { AListLogo } from './AListLogo';
+import { ImageWithFallback } from './figma/ImageWithFallback';
+import { useState, useMemo, useEffect } from 'react';
+import { motion } from 'motion/react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { toast } from 'sonner';
 
-const initialBookedEvents = [
-  {
-    id: 1,
-    name: 'Martin Garrix Live',
-    venue: 'LIV Miami',
-    date: 'Tonight',
-    time: '11:00 PM',
-    status: 'Confirmed',
-    guests: ['Sarah', 'Mike', '+3']
-  },
-  {
-    id: 2,
-    name: 'Sunset Boat Party',
-    venue: 'Biscayne Bay',
-    date: 'Tomorrow',
-    time: '5:00 PM',
-    status: 'Pending',
-    guests: ['Anna', 'Tom']
-  }
-];
-
-const initialRecommendedEvents = [
-  {
-    id: 3,
-    name: 'Underground Techno',
-    venue: 'Club Space',
-    date: 'Fri, Oct 24',
-    time: '11:00 PM',
-    match: '98%',
-    genre: 'Techno',
-    price: '$40',
-    isSaved: false
-  },
-  {
-    id: 4,
-    name: 'Hip Hop Fridays',
-    venue: 'E11EVEN',
-    date: 'Fri, Oct 24',
-    time: '10:00 PM',
-    match: '85%',
-    genre: 'Hip Hop',
-    price: '$60',
-    isSaved: false
-  }
-];
-
-const initialSavedVenues = [
-  {
-    id: 1,
-    name: 'LIV Miami',
-    location: 'Miami Beach',
-    rating: 4.9,
-    type: 'Nightclub'
-  },
-  {
-    id: 2,
-    name: 'Komodo',
-    location: 'Brickell',
-    rating: 4.7,
-    type: 'Lounge / Dining'
-  }
+const categories = [
+  { key: 'all', label: 'All Events', icon: Star },
+  { key: 'tables', label: 'Tables', icon: Users },
+  { key: 'tickets', label: 'Tickets', icon: Ticket },
+  { key: 'guestlist', label: 'Guestlist', icon: Bookmark }
 ];
 
 export function EventCalendar() {
-  const [activeTab, setActiveTab] = useState('schedule');
-  const [bookedEvents, setBookedEvents] = useState(initialBookedEvents);
-  const [recommendedEvents, setRecommendedEvents] = useState(initialRecommendedEvents);
-  const [savedVenues, setSavedVenues] = useState(initialSavedVenues);
+  const [activeCategory, setActiveCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [savedEvents, setSavedEvents] = useState<Set<string>>(new Set());
+  const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [activeLocation, setActiveLocation] = useState<{ lat: number, lon: number } | null>(null);
-  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const [useCurrentLocation, setUseCurrentLocation] = useState(false);
+
   useEffect(() => {
-    if (activeTab === 'discover') {
-      fetchEventbriteEvents();
-    }
-  }, [activeTab, activeLocation, useCurrentLocation]);
+    fetchEvents();
+  }, []);
 
-  const handleLocationClick = () => {
-    setIsLoadingLocation(true);
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setActiveLocation({
-            lat: position.coords.latitude,
-            lon: position.coords.longitude
-          });
-          setUseCurrentLocation(true);
-          setIsLoadingLocation(false);
-          toast.success("Location updated");
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-          setIsLoadingLocation(false);
-          toast.error("Could not get location. Using default.");
-        }
-      );
-    } else {
-      toast.error("Geolocation not supported");
-      setIsLoadingLocation(false);
-    }
-  };
-
-  const fetchEventbriteEvents = async () => {
+  const fetchEvents = async () => {
     setLoading(true);
     try {
-      let url = `https://${projectId}.supabase.co/functions/v1/server/eventbrite/events`;
-      if (useCurrentLocation && activeLocation) {
-        url += `?lat=${activeLocation.lat}&lon=${activeLocation.lon}`;
-      } else {
-        url += `?city=Miami`;
+      const url = new URL(`https://${projectId}.supabase.co/functions/v1/server/eventbrite/events`);
+      url.searchParams.append('sort_by', 'date');
+      url.searchParams.append('city', 'Miami');
+
+      const res = await fetch(url.toString(), {
+        headers: { 'Authorization': `Bearer ${publicAnonKey}` }
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const eventList = Array.isArray(data) ? data : (data.events || []);
+
+        const formatted = eventList.map((e: any) => ({
+          id: e.id || Math.random().toString(),
+          name: e.name?.text || e.name || 'Event',
+          venue: e.venue?.name || 'Secret Venue',
+          date: new Date(e.start?.local || Date.now()),
+          dateStr: new Date(e.start?.local || Date.now()).toLocaleDateString('en-US', {
+            weekday: 'short', month: 'short', day: 'numeric'
+          }),
+          time: new Date(e.start?.local || Date.now()).toLocaleTimeString('en-US', {
+            hour: 'numeric', minute: '2-digit', hour12: true
+          }),
+          image: e.logo?.url || null,
+          category: 'tables',
+          source: e.source || 'eventbrite',
+          ticketUrl: e.ticketUrl || null,
+        })).slice(0, 20);
+
+        setEvents(formatted);
       }
-
-      const response = await fetch(
-        url,
-        {
-          headers: {
-            'Authorization': `Bearer ${publicAnonKey}`
-          }
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to fetch events');
-
-      const data = await response.json();
-
-      if (data.events && data.events.length > 0) {
-        const formattedEvents = data.events.map((event: any) => ({
-          id: event.id,
-          name: event.name.text,
-          venue: event.venue?.name || 'Miami Venue',
-          date: new Date(event.start.local).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-          time: new Date(event.start.local).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-          match: `${Math.floor(Math.random() * 20) + 80}%`, // Mock match percentage
-          genre: 'Live Event',
-          price: event.is_free ? 'Free' : '$' + (Math.floor(Math.random() * 50) + 20),
-          isSaved: false,
-          url: event.url
-        }));
-        setRecommendedEvents(formattedEvents);
-      }
-    } catch (error) {
-      console.error('Error fetching Eventbrite events:', error);
-      // Fallback to mock data is already set
+    } catch (err) {
+      console.error('Failed to fetch calendar events:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleToggleSave = (eventId: number | string) => {
-    setRecommendedEvents(prev => prev.map(event => {
-      if (event.id === eventId) {
-        const newStatus = !event.isSaved;
-        toast.success(newStatus ? "Event saved to your list" : "Event removed from saved list");
-        return { ...event, isSaved: newStatus };
+  const toggleSave = (eventId: string) => {
+    setSavedEvents(prev => {
+      const next = new Set(prev);
+      if (next.has(eventId)) {
+        next.delete(eventId);
+        toast('Removed from Plan');
+      } else {
+        next.add(eventId);
+        toast.success('Saved to Plan');
       }
-      return event;
-    }));
+      return next;
+    });
   };
 
-  const handleBookEvent = (event: any) => {
-    if (bookedEvents.some(e => e.id === event.id)) {
-      toast.info("You've already booked this event!");
-      return;
+  const filteredEvents = useMemo(() => {
+    let filtered = events;
+
+    // Apply category filter
+    if (activeCategory !== 'all') {
+      const categoryKeywords: Record<string, string[]> = {
+        tables: ['table', 'vip', 'booth', 'bottle', 'lounge', 'nightclub', 'club'],
+        tickets: ['ticket', 'concert', 'show', 'festival', 'music', 'live', 'dj', 'dance', 'rave'],
+        guestlist: ['guestlist', 'guest list', 'free', 'rsvp', 'entry', 'door'],
+      };
+      const keywords = categoryKeywords[activeCategory] || [];
+      const categoryFiltered = filtered.filter(e =>
+        keywords.some(kw =>
+          e.name.toLowerCase().includes(kw) ||
+          e.venue.toLowerCase().includes(kw) ||
+          e.category === activeCategory
+        )
+      );
+      // Only apply filter if it returns results, otherwise show all
+      if (categoryFiltered.length > 0) filtered = categoryFiltered;
     }
 
-    const newBooking = {
-      ...event,
-      status: 'Pending',
-      guests: ['You']
-    };
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(e =>
+        e.name.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q)
+      );
+    }
+    return filtered;
+  }, [events, activeCategory, searchQuery]);
 
-    setBookedEvents([...bookedEvents, newBooking]);
-    toast.success(`Booking request sent for ${event.name}!`);
-    setActiveTab('schedule');
-  };
-
-  const handleRemoveSavedVenue = (id: number) => {
-    setSavedVenues(prev => prev.filter(v => v.id !== id));
-    toast.success("Venue removed from saved list");
-  };
+  // Group events by date
+  const groupedEvents = useMemo(() => {
+    const groups: { [key: string]: any[] } = {};
+    filteredEvents.forEach(event => {
+      const key = event.dateStr;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(event);
+    });
+    return groups;
+  }, [filteredEvents]);
 
   return (
-    <div className="min-h-screen bg-black text-white pb-32">
+    <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
       {/* Header */}
-      <div className="bg-black/80 backdrop-blur-md sticky top-0 z-20 px-6 pt-8 pb-4 border-b border-white/10">
+      <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-4 sticky top-0 z-20">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-sm font-bold tracking-[0.2em] uppercase text-white/60">Agenda</h1>
-            <div
-              className="flex items-center gap-1 text-white hover:text-white/80 cursor-pointer mt-1"
-              onClick={handleLocationClick}
-            >
-              <MapPin size={10} className={isLoadingLocation ? "animate-pulse" : ""} />
-              <span className="text-[10px] uppercase tracking-widest font-bold">
-                {isLoadingLocation ? "Locating..." : (useCurrentLocation ? "Current Location" : "Miami, FL")}
-              </span>
-            </div>
+            <h2 className="text-3xl font-serif italic platinum-gradient leading-none tracking-tight">Event Calendar</h2>
           </div>
-          <Button variant="ghost" size="icon" className="text-white/60 hover:text-white hover:bg-transparent p-0 h-auto">
-            <Filter size={20} />
-          </Button>
+          <div className="w-12 h-12 platinum-border flex items-center justify-center bg-[#011410]">
+            <Calendar size={20} className="text-[#E5E4E2]" strokeWidth={1.5} />
+          </div>
         </div>
 
-        <Tabs value={activeTab} className="w-full" onValueChange={setActiveTab}>
-          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-none h-auto p-0 justify-start gap-8">
-            <TabsTrigger
-              value="schedule"
-              className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-2 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 data-[state=active]:text-white transition-all"
+        {/* Category Filters */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+          {categories.map(cat => (
+            <button
+              key={cat.key}
+              onClick={() => setActiveCategory(cat.key)}
+              className={`flex items-center gap-2 px-4 py-2 border whitespace-nowrap transition-all text-[9px] font-bold uppercase tracking-widest ${
+                activeCategory === cat.key
+                  ? 'bg-white text-black border-white'
+                  : 'border-white/10 text-white/40 hover:border-white/30'
+              }`}
             >
-              My Plan
-            </TabsTrigger>
-            <TabsTrigger
-              value="discover"
-              className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-2 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 data-[state=active]:text-white transition-all"
-            >
-              Discover
-            </TabsTrigger>
-            <TabsTrigger
-              value="saved"
-              className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-2 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 data-[state=active]:text-white transition-all"
-            >
-              Saved
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+              <cat.icon size={12} />
+              {cat.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div className="relative group mt-4">
+          <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-white/20 group-hover:text-[#E5E4E2] transition-colors" size={14} />
+          <Input
+            placeholder="SEARCH EVENTS..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-7 bg-transparent border-0 border-b border-white/10 rounded-none px-0 py-2 text-white placeholder:text-white/20 focus-visible:ring-0 focus-visible:border-[#E5E4E2] transition-all tracking-[0.2em] text-[10px] font-bold uppercase h-10 w-full"
+          />
+        </div>
       </div>
 
-      <div className="px-6 py-8">
-        {activeTab === 'schedule' && (
-          <div className="space-y-8 animate-in slide-in-from-bottom-2 duration-500">
-            <div>
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 mb-4">Upcoming</h2>
-              <div className="space-y-4">
-                {bookedEvents.length === 0 ? (
-                  <div className="text-center py-12 border border-dashed border-white/10">
-                    <p className="text-xs uppercase tracking-widest text-white/60">No events booked</p>
-                    <Button
-                      variant="link"
-                      className="text-[10px] font-bold uppercase tracking-[0.2em] text-white mt-2"
-                      onClick={() => setActiveTab('discover')}
-                    >
-                      Discover events
-                    </Button>
-                  </div>
-                ) : (
-                  bookedEvents.map((event) => (
-                    <div key={event.id} className="border border-white/10 bg-zinc-900/30 p-5 group hover:border-white/40 transition-colors">
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <span className={`text-[8px] font-bold uppercase tracking-widest px-2 py-1 mb-2 inline-block !text-black ${event.status === 'Confirmed' ? 'bg-white text-zinc-950' : 'border border-white/40 text-white/80'
-                            }`}>
-                            {event.status}
-                          </span>
-                          <h3 className="text-xl font-light uppercase tracking-wide leading-none">{event.name}</h3>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-bold uppercase tracking-wide">{event.time}</p>
-                          <p className="text-[9px] uppercase tracking-widest text-white/60">{event.date}</p>
-                        </div>
-                      </div>
-
-                      {/* Guests List - White Boxes */}
-                      {event.guests && (
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {event.guests.map((guest, idx) => (
-                            <span
-                              key={idx}
-                              className="bg-white text-zinc-950 text-[8px] font-bold px-2 py-1 uppercase tracking-widest !text-black"
-                            >
-                              {guest}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="space-y-3 pt-3 border-t border-white/10">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-white/80">
-                            <MapPin size={12} />
-                            <span className="text-[10px] uppercase tracking-widest">{event.venue}</span>
-                          </div>
-                          <Button size="sm" variant="outline" className="h-6 border-white/30 text-white/60 hover:text-white hover:border-white rounded-none text-[9px] uppercase tracking-widest">
-                            Details
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+      {/* Events */}
+      <div className="px-6 py-8 space-y-8">
+        {loading && (
+          <div className="text-center py-12">
+            <span className="text-[10px] uppercase tracking-[0.3em] text-[#E5E4E2] animate-pulse font-bold">Loading Events...</span>
           </div>
         )}
 
-        {activeTab === 'discover' && (
-          <div className="space-y-6 animate-in slide-in-from-bottom-2 duration-500">
-            <div className="border border-white/10 bg-white/5 p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <Music className="text-white mt-0.5" size={16} />
-                <div>
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-white">Curated For You</h3>
-                  <p className="text-[10px] uppercase tracking-widest text-white/60 mt-1">Based on your listening history.</p>
-                </div>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                <Loader2 className="animate-spin text-white/40" size={32} />
-                <p className="text-[10px] uppercase tracking-[0.2em] text-white/40">Searching trending events...</p>
-              </div>
-            ) : (
-              recommendedEvents.map((event) => (
-                <div key={event.id} className="border border-white/10 bg-zinc-900/30 p-4 hover:border-white/40 transition-colors group">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h4 className="text-sm font-bold uppercase tracking-wide text-white line-clamp-1">{event.name}</h4>
-                      <p className="text-[9px] uppercase tracking-widest text-white/60 mt-0.5">{event.venue}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[9px] font-bold uppercase tracking-widest bg-white/20 px-1 py-0.5 text-white/80">{event.match} Match</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-4">
-                    <div className="flex items-center gap-3 text-[9px] uppercase tracking-widest text-white/80">
-                      <span>{event.date}</span>
-                      <span>{event.time}</span>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => handleToggleSave(event.id)}
-                        className={`transition-colors ${event.isSaved ? 'text-white' : 'text-white/40 hover:text-white'}`}
-                      >
-                        <Heart size={16} fill={event.isSaved ? "currentColor" : "none"} />
-                      </button>
-                      <Button
-                        size="sm"
-                        className="h-7 text-[9px] font-bold uppercase tracking-widest bg-white text-zinc-950 hover:bg-white/90 rounded-none px-3 !text-black"
-                        onClick={() => event.url ? window.open(event.url, '_blank') : handleBookEvent(event)}
-                      >
-                        {event.url ? 'Tickets' : `Book ${event.price}`}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+        {!loading && Object.keys(groupedEvents).length === 0 && (
+          <div className="text-center py-16 border border-dashed border-white/10">
+            <Calendar size={32} className="mx-auto text-white/10 mb-4" />
+            <p className="text-[10px] uppercase tracking-[0.3em] text-white/20 font-bold">No events found</p>
           </div>
         )}
 
-        {activeTab === 'saved' && (
-          <div className="grid grid-cols-1 gap-4 animate-in slide-in-from-bottom-2 duration-500">
-            {savedVenues.length === 0 ? (
-              <div className="text-center py-12 border border-dashed border-white/10">
-                <p className="text-xs uppercase tracking-widest text-white/60">No saved venues</p>
-              </div>
-            ) : (
-              savedVenues.map((venue) => (
-                <div key={venue.id} className="border border-white/10 bg-zinc-900/30 p-4 relative group">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-bold text-sm uppercase tracking-wide">{venue.name}</h4>
-                      <p className="text-[9px] uppercase tracking-widest text-white/60 mt-1">{venue.location}</p>
-                    </div>
-                    <button
-                      onClick={() => handleRemoveSavedVenue(venue.id)}
-                      className="text-white/40 hover:text-white transition-colors"
-                    >
-                      <Heart size={16} fill="currentColor" />
-                    </button>
-                  </div>
+        {Object.entries(groupedEvents).map(([dateKey, dateEvents]) => (
+          <div key={dateKey} className="space-y-4">
+            {/* Date Header */}
+            <div className="sticky top-[220px] z-10 bg-[#000504]/90 backdrop-blur-md py-2 -mx-6 px-6 border-y border-[#E5E4E2]/5 flex justify-between items-center">
+              <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-white">{dateKey}</span>
+              <Badge variant="outline" className="border-[#E5E4E2]/10 text-[#E5E4E2]/40 text-[7px] uppercase tracking-[0.2em] px-2 py-0 h-4 rounded-none">
+                {dateEvents.length} Events
+              </Badge>
+            </div>
 
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/10">
-                    <div className="flex items-center gap-1 text-white">
-                      <Star size={10} fill="currentColor" />
-                      <span className="text-[9px] font-bold tracking-wider">{venue.rating}</span>
-                    </div>
-                    <span className="text-[9px] uppercase tracking-widest text-white/60">
-                      {venue.type}
+            {/* Event Cards */}
+            {dateEvents.map((event: any, index: number) => (
+              <motion.div
+                key={event.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="bg-zinc-950/60 border border-white/5 hover:border-[#E5E4E2]/20 transition-all group cursor-pointer"
+                onClick={() => {
+                  if (event.ticketUrl) {
+                    window.open(event.ticketUrl, '_blank', 'noopener,noreferrer');
+                  }
+                }}
+              >
+                <div className="flex gap-5 p-5">
+                  {/* Date Column */}
+                  <div className="flex flex-col items-center justify-center w-14 flex-shrink-0 border-r border-white/5 pr-4">
+                    <span className="text-2xl font-serif italic">{event.date.getDate()}</span>
+                    <span className="text-[8px] uppercase tracking-widest text-white/40 font-bold">
+                      {event.date.toLocaleDateString('en-US', { weekday: 'short' })}
                     </span>
                   </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-sm font-bold uppercase tracking-wider truncate pr-2">{event.name}</h3>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSave(event.id);
+                        }}
+                        className="flex-shrink-0 p-1 hover:bg-white/5 transition-colors"
+                      >
+                        {savedEvents.has(event.id) ? (
+                          <BookmarkCheck size={16} className="text-[#E5E4E2]" />
+                        ) : (
+                          <Bookmark size={16} className="text-white/20" />
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-3 mt-1 text-[9px] uppercase tracking-widest text-white/40">
+                      <div className="flex items-center gap-1">
+                        <Clock size={9} />
+                        <span>{event.time}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MapPin size={9} />
+                        <span className="truncate">{event.venue}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ))
-            )}
+              </motion.div>
+            ))}
           </div>
-        )}
+        ))}
       </div>
     </div>
   );

@@ -1,182 +1,856 @@
 'use client';
 
-import { Settings, Share2, Music, Users, Award, DollarSign, Edit, Calendar, Instagram, ExternalLink, CheckCircle2 } from 'lucide-react';
-import { Button } from './ui/button';
+import { User, Shield, Camera, Music, TrendingUp, Award, Star, Lock, CheckCircle2, Loader2, Edit2, Check, X, Instagram, Headphones, RefreshCw, ExternalLink, Zap, Building2, Plus, KeyRound, Trash2 } from 'lucide-react';
 import { Badge } from './ui/badge';
-import { Progress } from './ui/progress';
+import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Avatar, AvatarFallback } from './ui/avatar';
-import { AListLogo } from './AListLogo';
-import { useState, useEffect, useRef } from 'react';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
-import { toast } from 'sonner';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 
-const userProfileDefault = {
-  name: 'Alex Rivera',
-  username: '@alexrivera',
-  tier: 'Platinum',
-  points: 8450,
-  nextTierPoints: 12000,
-  totalSpend: 24500,
-  badges: ['Early Adopter', 'Club Hopper', 'Music Guru', 'Top Spender'],
-  memberSince: 'Jan 2024',
-  nightsOut: 47,
-  averageSpend: 521,
-  avatarUrl: null
+interface UserProfileProps {
+  onProfileUpdate?: () => void;
+}
+
+const AVATAR_STORAGE_KEY    = 'alist_avatar_url';
+const CUSTOM_NAME_KEY       = 'alist_custom_name';
+const CUSTOM_BIO_KEY        = 'alist_custom_bio';
+const CUSTOM_LOC_KEY        = 'alist_custom_location';
+const CUSTOM_EMAIL_KEY      = 'alist_custom_email';
+const CUSTOM_PHONE_KEY      = 'alist_custom_phone';
+const CUSTOM_SINCE_KEY      = 'alist_custom_since';
+const CUSTOM_USERNAME_KEY   = 'alist_custom_username';
+const CLUBS_KEY             = 'alist_private_clubs';
+
+// Known clubs users can connect — name must match what the backend registry accepts
+const KNOWN_CLUBS = [
+  'Park House Houston',
+  'Park House Dallas',
+  'The Crescent Club',
+  'Soho House',
+  'Zero Bond',
+  'The Core Club',
+  'Casa Cipriani',
+  'The Battery',
+  'Aman Club',
+];
+
+
+const ACHIEVEMENT_ICONS: Record<string, any> = {
+  'First Table Booking': Star,
+  '10 Nights Out': TrendingUp,
+  'Crew Captain': Shield,
+  '$10K Verified Spend': Award,
 };
 
-export function UserProfile({ onClose, onProfileUpdate }: UserProfileProps) {
-  const [connections, setConnections] = useState({
-    instagram: false,
-    spotify: false,
-    soundcloud: false
-  });
-  const [profile, setProfile] = useState<any>(userProfileDefault);
-  const [loading, setLoading] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
+interface SocialProfile {
+  spotify: {
+    connected: boolean;
+    display_name: string | null;
+    avatar_url: string | null;
+    followers: number | null;
+    id: string | null;
+  };
+  soundcloud: {
+    connected: boolean;
+    username: string | null;
+    avatar_url: string | null;
+    sc_user_id: number | null;
+  };
+  instagram: {
+    connected: boolean;
+    username: string | null;
+    days_until_expiry: number | null;
+  };
+}
+
+export function UserProfile({ onProfileUpdate }: UserProfileProps) {
+  const [activeTab, setActiveTab] = useState('identity');
+
+  // Avatar
+  const [avatarUrl, setAvatarUrl]   = useState<string | null>(null);
+  const [uploading, setUploading]   = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Profile data from API
+  const [profile, setProfile]       = useState<any>(null);
+  const [loading, setLoading]       = useState(true);
+
+  // Social connections
+  const [social, setSocial]         = useState<SocialProfile | null>(null);
+  const [socialLoading, setSocialLoading] = useState(true);
+
+  // Custom overrides (stored in localStorage so they survive refreshes)
+  const [customName, setCustomName]         = useState('');
+  const [customBio, setCustomBio]           = useState('');
+  const [customLoc, setCustomLoc]           = useState('');
+  const [customUsername, setCustomUsername] = useState('');
+
+  // Edit mode
+  const [editing, setEditing]           = useState(false);
+  const [editName, setEditName]         = useState('');
+  const [editBio, setEditBio]           = useState('');
+  const [editLoc, setEditLoc]           = useState('');
+  const [editEmail, setEditEmail]       = useState('');
+  const [editPhone, setEditPhone]       = useState('');
+  const [editSince, setEditSince]       = useState('');
+  const [editUsername, setEditUsername] = useState('');
+
+  // Extra custom overrides
+  const [customEmail, setCustomEmail] = useState('');
+  const [customPhone, setCustomPhone] = useState('');
+  const [customSince, setCustomSince] = useState('');
+
+  // Private clubs
+  const [clubs, setClubs]           = useState<Array<{ id: string; name: string; joinedAt: string }>>([]);
+  const [showAddClub, setShowAddClub] = useState(false);
+  const [clubInput, setClubInput]   = useState('');
+
+  // Load clubs from localStorage
+  const loadClubs = () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(CLUBS_KEY) || '[]');
+      setClubs(stored);
+    } catch { setClubs([]); }
+  };
+
+  const addClub = (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const existing = clubs.find(c => c.name.toLowerCase() === trimmed.toLowerCase());
+    if (existing) { toast.error('Club already connected'); return; }
+    const newClub = { id: crypto.randomUUID(), name: trimmed, joinedAt: new Date().toISOString() };
+    const updated = [...clubs, newClub];
+    localStorage.setItem(CLUBS_KEY, JSON.stringify(updated));
+    setClubs(updated);
+    setClubInput('');
+    setShowAddClub(false);
+    toast.success(`${trimmed} connected`);
+  };
+
+  const removeClub = (id: string, name: string) => {
+    const updated = clubs.filter(c => c.id !== id);
+    localStorage.setItem(CLUBS_KEY, JSON.stringify(updated));
+    setClubs(updated);
+    toast.success(`${name} removed`);
+  };
+
+
+  // ── Load everything on mount ───────────────────────────────────────────────
   useEffect(() => {
-    checkConnections();
+    // localStorage overrides
+    const savedAvatar = localStorage.getItem(AVATAR_STORAGE_KEY);
+    if (savedAvatar) setAvatarUrl(savedAvatar);
+    setCustomName(localStorage.getItem(CUSTOM_NAME_KEY) || '');
+    setCustomBio(localStorage.getItem(CUSTOM_BIO_KEY) || '');
+    setCustomLoc(localStorage.getItem(CUSTOM_LOC_KEY) || '');
+    setCustomEmail(localStorage.getItem(CUSTOM_EMAIL_KEY) || '');
+    setCustomPhone(localStorage.getItem(CUSTOM_PHONE_KEY) || '');
+    setCustomSince(localStorage.getItem(CUSTOM_SINCE_KEY) || '');
+    setCustomUsername(localStorage.getItem(CUSTOM_USERNAME_KEY) || '');
+
     fetchProfile();
+    fetchSocialProfile();
+    loadClubs();
   }, []);
 
   const fetchProfile = async () => {
-    const userId = 'default_user';
+    setLoading(true);
     try {
-      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
-        headers: { 'Authorization': `Bearer ${publicAnonKey}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.avatarUrl) {
-          setProfile((prev: any) => ({ ...prev, avatarUrl: data.avatarUrl }));
-        }
-      }
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/profile?userId=default_user`,
+        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+      );
+      if (res.ok) setProfile(await res.json());
     } catch (e) {
-      console.error('Failed to fetch profile', e);
+      console.error('Profile fetch error:', e);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const fetchSocialProfile = async () => {
+    setSocialLoading(true);
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/social/profile?userId=default_user`,
+        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+      );
+      if (res.ok) setSocial(await res.json());
+    } catch (e) {
+      console.error('Social profile fetch error:', e);
+    } finally {
+      setSocialLoading(false);
+    }
+  };
+
+  // ── Derived display values ─────────────────────────────────────────────────
+  // Priority: custom override → Instagram username → Spotify display name → SoundCloud username → API default
+  const derivedName = (() => {
+    if (customName) return customName;
+    if (social?.instagram.connected && social.instagram.username) return `@${social.instagram.username}`;
+    if (social?.spotify.connected && social.spotify.display_name) return social.spotify.display_name;
+    if (social?.soundcloud.connected && social.soundcloud.username) return social.soundcloud.username;
+    return profile?.name || 'Your Name';
+  })();
+
+  const derivedUsername = (() => {
+    if (customUsername) return customUsername.startsWith('@') ? customUsername : `@${customUsername}`;
+    if (social?.instagram.connected && social.instagram.username) return `@${social.instagram.username}`;
+    if (social?.spotify.connected && social.spotify.display_name) return `@${social.spotify.display_name?.toLowerCase().replace(/\s+/g, '')}`;
+    if (social?.soundcloud.connected && social.soundcloud.username) return `@${social.soundcloud.username}`;
+    // Don't fall back to the default profile username (it's mock data)
+    return '@member';
+  })();
+
+  // Avatar: custom upload > social avatar (Spotify → SoundCloud) > null
+  const socialAvatar = social?.spotify.avatar_url || social?.soundcloud.avatar_url || null;
+  const displayAvatar = avatarUrl || socialAvatar;
+
+  // Bio & location
+  const derivedBio = customBio || '';
+  const derivedLoc = customLoc || profile?.personalDetails?.location || 'Miami, FL';
+
+  // ── Edit actions ───────────────────────────────────────────────────────────
+  const startEdit = () => {
+    setEditName(customName || derivedName);
+    setEditBio(derivedBio);
+    setEditLoc(derivedLoc);
+    setEditEmail(customEmail || profile?.personalDetails?.email || '');
+    setEditPhone(customPhone || profile?.personalDetails?.phone || '');
+    setEditSince(customSince || profile?.memberSince || '');
+    // Strip leading @ for the input field
+    setEditUsername(customUsername ? customUsername.replace(/^@/, '') : '');
+    setEditing(true);
+  };
+
+  const saveEdit = () => {
+    localStorage.setItem(CUSTOM_NAME_KEY,     editName.trim());
+    localStorage.setItem(CUSTOM_BIO_KEY,      editBio.trim());
+    localStorage.setItem(CUSTOM_LOC_KEY,      editLoc.trim());
+    localStorage.setItem(CUSTOM_EMAIL_KEY,    editEmail.trim());
+    localStorage.setItem(CUSTOM_PHONE_KEY,    editPhone.trim());
+    localStorage.setItem(CUSTOM_SINCE_KEY,    editSince.trim());
+    localStorage.setItem(CUSTOM_USERNAME_KEY, editUsername.trim());
+    setCustomName(editName.trim());
+    setCustomBio(editBio.trim());
+    setCustomLoc(editLoc.trim());
+    setCustomEmail(editEmail.trim());
+    setCustomPhone(editPhone.trim());
+    setCustomSince(editSince.trim());
+    setCustomUsername(editUsername.trim());
+    setEditing(false);
+    toast.success('Profile updated');
+    onProfileUpdate?.();
+  };
+
+  const cancelEdit = () => setEditing(false);
+
+  const resetToSocial = () => {
+    localStorage.removeItem(CUSTOM_NAME_KEY);
+    localStorage.removeItem(CUSTOM_BIO_KEY);
+    localStorage.removeItem(CUSTOM_USERNAME_KEY);
+    setCustomName('');
+    setCustomBio('');
+    setCustomUsername('');
+    setEditing(false);
+    // Also clear custom avatar to restore social avatar
+    localStorage.removeItem(AVATAR_STORAGE_KEY);
+    setAvatarUrl(null);
+    toast.success('Reset to social profile');
+  };
+
+  // ── Avatar upload ──────────────────────────────────────────────────────────
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
 
-    setIsUploading(true);
-    const userId = 'default_user';
-    const formData = new FormData();
-    formData.append('file', file);
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      try {
+        localStorage.setItem(AVATAR_STORAGE_KEY, dataUrl);
+        setAvatarUrl(dataUrl);
+        window.dispatchEvent(new Event('alist-avatar-updated'));
+        toast.success('Profile photo updated');
+        onProfileUpdate?.();
+      } catch (_err) {
+        toast.error('Could not save photo — try a smaller image');
+      } finally { setUploading(false); }
+    };
+    reader.onerror = () => { toast.error('Failed to read image'); setUploading(false); };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
+  // ── Social connect handlers ────────────────────────────────────────────────
+  const connectSpotify = async () => {
     try {
-      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/server/profile/upload?userId=${userId}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${publicAnonKey}` },
-        body: formData
-      });
-
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/spotify/login?userId=default_user`,
+        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+      );
       if (res.ok) {
         const data = await res.json();
-        setProfile((prev: any) => ({ ...prev, avatarUrl: data.avatarUrl }));
-        toast.success('Profile picture updated');
-        if (onProfileUpdate) onProfileUpdate();
-      } else {
-        const err = await res.json();
-        toast.error(err.error || 'Upload failed');
+        if (data.authUrl) window.location.href = data.authUrl;
       }
-    } catch (error) {
-      toast.error('Upload failed');
-    } finally {
-      setIsUploading(false);
-    }
+    } catch { toast.error('Could not connect Spotify'); }
   };
 
-  const checkConnections = async () => {
-    const userId = 'default_user';
+  const connectSoundCloud = async () => {
     try {
-      // Check Spotify status
-      const spotifyRes = await fetch(`https://${projectId}.supabase.co/functions/v1/server/spotify/status?userId=${userId}`, {
-        headers: { 'Authorization': `Bearer ${publicAnonKey}` }
-      });
-      const spotifyData = await spotifyRes.json();
-
-      setConnections(prev => ({
-        ...prev,
-        spotify: spotifyData.connected
-      }));
-
-      // Check Instagram status
-      const instaRes = await fetch(`https://${projectId}.supabase.co/functions/v1/server/instagram/media?userId=${userId}`, {
-        headers: { 'Authorization': `Bearer ${publicAnonKey}` }
-      });
-      setConnections(prev => ({
-        ...prev,
-        instagram: instaRes.ok
-      }));
-    } catch (e) {
-      console.error('Connection check failed', e);
-    }
-  };
-
-  const handleConnect = async (platform: 'instagram' | 'spotify' | 'soundcloud') => {
-    setLoading(platform);
-    const userId = 'default_user';
-    try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/${platform}/login?userId=${userId}`,
-        {
-          headers: { 'Authorization': `Bearer ${publicAnonKey}` }
-        }
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/soundcloud/login?userId=default_user`,
+        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
-
-      const data = await response.json();
-      if (data.authUrl) {
-        window.location.href = data.authUrl;
-      } else {
-        toast.error(`Failed to initiate ${platform} connection`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
       }
-    } catch (error) {
-      toast.error(`Connection error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setLoading(null);
-    }
+    } catch { toast.error('Could not connect SoundCloud'); }
   };
+
+  const connectInstagram = async () => {
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/instagram/auth-url?userId=default_user`,
+        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.url) window.location.href = data.url;
+      }
+    } catch { toast.error('Could not connect Instagram'); }
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  if (loading && !profile) {
+    return (
+      <div className="min-h-screen bg-[#000504] text-white flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 size={24} className="text-[#E5E4E2]/40 animate-spin mx-auto" />
+          <p className="text-[9px] uppercase tracking-[0.3em] text-white/30">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const stats       = profile?.stats || {};
+  const achievements = profile?.achievements || [];
 
   return (
-    <div className="min-h-screen bg-black text-white pb-32">
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileUpload}
-        className="hidden"
-        accept="image/*"
-      />
-      <div className="px-6 pt-10 space-y-10">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-light uppercase tracking-wide leading-none">{profile.name}</h1>
-            <p className="text-xs text-white/60 uppercase tracking-widest">{profile.username}</p>
-          </div>
-          <div className="relative group">
-            <Avatar className="w-24 h-24 rounded-none bg-zinc-900 border border-white/10 overflow-hidden gold-border">
-              {profile.avatarUrl ? (
-                <img src={profile.avatarUrl} alt={profile.name} className="w-full h-full object-cover" />
-              ) : (
-                <AvatarFallback className="rounded-none bg-zinc-900 text-2xl font-light text-white">
-                  {profile.name.substring(0, 2).toUpperCase()}
-                </AvatarFallback>
-              )}
-            </Avatar>
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+    <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
+
+      {/* ── Edit Profile Overlay Modal ──────────────────────────────── */}
+      <AnimatePresence>
+        {editing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end"
+            onClick={cancelEdit}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full bg-[#060d0a] border-t border-white/10 p-6 space-y-6 pb-12"
             >
-              <Edit size={20} className="text-white" />
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/50">Edit Profile</h3>
+                <button onClick={cancelEdit} className="p-1 text-white/30 hover:text-white transition-colors">
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Avatar row */}
+              <div className="flex items-center gap-4">
+                <div
+                  className="relative w-16 h-16 border border-white/10 overflow-hidden bg-[#011410] flex items-center justify-center cursor-pointer group"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {displayAvatar
+                    ? <img src={displayAvatar} alt="avatar" className="w-full h-full object-cover" />
+                    : <User size={24} className="text-white/20" />}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera size={14} className="text-white" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[9px] uppercase tracking-widest text-white/50 mb-1">Profile Photo</p>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-[8px] uppercase tracking-widest text-white/30 hover:text-white border border-white/10 hover:border-white/30 px-3 py-1.5 transition-all"
+                  >
+                    {uploading ? 'Uploading…' : 'Change Photo'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Fields */}
+              <div className="space-y-4 max-h-[45vh] overflow-y-auto pr-1">
+                {/* @Handle — special field with @ prefix display */}
+                <div className="space-y-1.5">
+                  <label className="text-[8px] uppercase tracking-[0.25em] text-white/30">@ Handle</label>
+                  <div className="flex items-center border-b border-white/15 focus-within:border-white/50 transition-colors py-2">
+                    <span className="text-white/40 text-xs tracking-widest mr-0.5">@</span>
+                    <input
+                      type="text"
+                      value={editUsername}
+                      onChange={e => setEditUsername(e.target.value.replace(/^@+/, '').replace(/\s+/g, ''))}
+                      placeholder="yourhandle"
+                      className="flex-1 bg-transparent focus:outline-none placeholder:text-white/15 text-sm text-white uppercase tracking-widest"
+                    />
+                  </div>
+                </div>
+
+                {[
+                  { label: 'Display Name', value: editName,  setter: setEditName,  placeholder: 'Your display name',    type: 'text',  bright: true },
+                  { label: 'Bio',          value: editBio,   setter: setEditBio,   placeholder: 'Short bio about yourself', type: 'text',  bright: false },
+                  { label: 'Location',     value: editLoc,   setter: setEditLoc,   placeholder: 'City, State',           type: 'text',  bright: false },
+                  { label: 'Email',        value: editEmail, setter: setEditEmail, placeholder: 'your@email.com',        type: 'email', bright: false },
+                  { label: 'Phone',        value: editPhone, setter: setEditPhone, placeholder: '+1 (000) 000-0000',     type: 'tel',   bright: false },
+                  { label: 'Member Since', value: editSince, setter: setEditSince, placeholder: 'e.g. January 2025',    type: 'text',  bright: false },
+                ].map(({ label, value, setter, placeholder, type, bright }) => (
+                  <div key={label} className="space-y-1.5">
+                    <label className="text-[8px] uppercase tracking-[0.25em] text-white/30">{label}</label>
+                    <input
+                      type={type}
+                      value={value}
+                      onChange={e => setter(e.target.value)}
+                      placeholder={placeholder}
+                      className={`w-full bg-transparent border-b border-white/15 focus:border-white/50 focus:outline-none py-2 placeholder:text-white/15 transition-colors text-xs uppercase tracking-widest ${
+                        bright ? 'text-white text-sm' : 'text-white/70'
+                      }`}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={saveEdit}
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white text-[#000504] font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-colors"
+                >
+                  <Check size={12} /> Save Changes
+                </button>
+                {(customName || customBio || avatarUrl) && (
+                  <button
+                    onClick={resetToSocial}
+                    className="px-4 py-3.5 border border-white/10 text-[8px] uppercase tracking-widest text-white/30 hover:text-white/60 hover:border-white/30 transition-all"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Profile Header ───────────────────────────────────────────── */}
+      <div className="relative px-6 pt-16 pb-6">
+        {/* Social source badge */}
+        {!socialLoading && (social?.instagram.connected || social?.spotify.connected || social?.soundcloud.connected) && !customName && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-1.5 mb-4"
+          >
+            <Zap size={9} className="text-[#E5E4E2]/40" />
+            <span className="text-[8px] uppercase tracking-[0.25em] text-white/30 font-bold">
+              Profile synced from&nbsp;
+              {social?.instagram.connected ? 'Instagram' : social?.spotify.connected ? 'Spotify' : 'SoundCloud'}
+            </span>
+          </motion.div>
+        )}
+
+        <div className="flex items-start gap-5">
+          {/* Avatar */}
+          <div className="relative group flex-shrink-0">
+            <div className="w-20 h-20 platinum-border overflow-hidden bg-[#011410] flex items-center justify-center">
+              {displayAvatar ? (
+                <img src={displayAvatar} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <User size={32} className="text-[#E5E4E2]/30" />
+              )}
+            </div>
+            <button
+              onClick={() => !uploading && fileInputRef.current?.click()}
+              disabled={uploading}
+              className="absolute -bottom-1 -right-1 w-7 h-7 bg-white text-[#000504] flex items-center justify-center border border-[#E5E4E2]/20 hover:bg-[#E5E4E2] transition-all"
+            >
+              {uploading
+                ? <div className="w-3 h-3 border border-[#000504] border-t-transparent rounded-full animate-spin" />
+                : <Camera size={12} />}
             </button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
           </div>
+
+            {/* Identity — no inline edit, pencil triggers modal */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <h2 className="text-2xl font-serif italic uppercase tracking-wider truncate">{derivedName}</h2>
+                <button onClick={startEdit} className="flex-shrink-0 p-1 text-white/20 hover:text-white/60 transition-colors">
+                  <Edit2 size={13} />
+                </button>
+              </div>
+              {derivedBio && (
+                <p className="text-[10px] text-white/40 uppercase tracking-widest mb-1 truncate">{derivedBio}</p>
+              )}
+              <div className="flex items-center gap-3">
+                <Badge className="bg-[#E5E4E2]/10 border border-[#E5E4E2]/20 text-[#E5E4E2] text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-none font-bold">
+                  {profile?.tier || 'Platinum'}
+                </Badge>
+                <span className="text-[9px] uppercase tracking-widest text-white/30">{derivedUsername}</span>
+              </div>
+              {derivedLoc && (
+                <p className="text-[9px] uppercase tracking-[0.2em] text-white/20 mt-1">📍 {derivedLoc}</p>
+              )}
+            </div>
         </div>
-        {/* Remaining UI elements... */}
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-4 gap-4 mt-8 pt-6 border-t border-white/5">
+          {[
+            { label: 'Sessions',    value: stats.sessions    ?? '—' },
+            { label: 'Host Score',  value: stats.hostScore   ?? '—' },
+            { label: 'Social Intel', value: stats.socialScore ?? '—' },
+            { label: 'Total Spend', value: stats.totalSpend  ? `$${(stats.totalSpend / 1000).toFixed(1)}K` : '—' },
+          ].map(stat => (
+            <div key={stat.label} className="text-center">
+              <p className="text-lg font-light font-serif italic">{stat.value}</p>
+              <p className="text-[7px] uppercase tracking-[0.2em] text-white/30 font-bold mt-1">{stat.label}</p>
+            </div>
+          ))}
+        </div>
       </div>
+
+      {/* ── Tabs ─────────────────────────────────────────────────────── */}
+      <div className="px-6 mb-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-none h-auto p-0 justify-start gap-8">
+            {['Identity', 'History', 'Vault'].map(tab => (
+              <TabsTrigger
+                key={tab}
+                value={tab.toLowerCase()}
+                className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 data-[state=active]:text-white transition-all"
+              >
+                {tab}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+      </div>
+
+      {/* ── Tab Content ──────────────────────────────────────────────── */}
+      <div className="px-6 space-y-8">
+
+        {/* IDENTITY TAB */}
+        {activeTab === 'identity' && (
+          <>
+            {/* Social Integration Hub */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">
+                  Connected Accounts
+                </h3>
+                <button
+                  onClick={fetchSocialProfile}
+                  className="flex items-center gap-1 text-[8px] uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors"
+                >
+                  <RefreshCw size={9} className={socialLoading ? 'animate-spin' : ''} />
+                  Refresh
+                </button>
+              </div>
+
+              {/* Instagram */}
+              <SocialRow
+                icon={<Instagram size={16} className="text-[#E5E4E2]" />}
+                name="Instagram"
+                connected={social?.instagram.connected ?? false}
+                loading={socialLoading}
+                handle={social?.instagram.username ? `@${social.instagram.username}` : null}
+                meta={social?.instagram.days_until_expiry ? `Token expires in ${social.instagram.days_until_expiry}d` : null}
+                avatar={null}
+                onConnect={connectInstagram}
+                isSource={!customName && social?.instagram.connected === true}
+              />
+
+              {/* Spotify */}
+              <SocialRow
+                icon={<Music size={16} className="text-[#E5E4E2]" />}
+                name="Spotify"
+                connected={social?.spotify.connected ?? false}
+                loading={socialLoading}
+                handle={social?.spotify.display_name || null}
+                meta={social?.spotify.followers != null ? `${social.spotify.followers.toLocaleString()} followers` : null}
+                avatar={social?.spotify.avatar_url || null}
+                onConnect={connectSpotify}
+                isSource={!customName && !social?.instagram.connected && social?.spotify.connected === true}
+              />
+
+              {/* SoundCloud */}
+              <SocialRow
+                icon={<Headphones size={16} className="text-[#E5E4E2]" />}
+                name="SoundCloud"
+                connected={social?.soundcloud.connected ?? false}
+                loading={socialLoading}
+                handle={social?.soundcloud.username ? `@${social.soundcloud.username}` : null}
+                meta={null}
+                avatar={social?.soundcloud.avatar_url || null}
+                onConnect={connectSoundCloud}
+                isSource={!customName && !social?.instagram.connected && !social?.spotify.connected && social?.soundcloud.connected === true}
+              />
+            </div>
+
+            {/* ── Private Club Memberships ─────────────────────────── */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">
+                  Private Club Memberships
+                </h3>
+                <button
+                  onClick={() => { setShowAddClub(v => !v); setClubInput(''); }}
+                  className="flex items-center gap-1 text-[8px] uppercase tracking-widest text-white/20 hover:text-white/60 transition-colors"
+                >
+                  <Plus size={9} />
+                  Add Club
+                </button>
+              </div>
+
+              {/* Add club panel */}
+              <AnimatePresence>
+                {showAddClub && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="border border-white/10 bg-zinc-950/60 p-4 space-y-3">
+                      <p className="text-[8px] uppercase tracking-[0.2em] text-white/30">Enter your club name</p>
+                      {/* Quick-select known clubs */}
+                      <div className="flex flex-wrap gap-1.5">
+                        {KNOWN_CLUBS.map(c => (
+                          <button
+                            key={c}
+                            onClick={() => addClub(c)}
+                            disabled={!!clubs.find(x => x.name.toLowerCase() === c.toLowerCase())}
+                            className="px-2.5 py-1 text-[7px] uppercase tracking-widest border border-white/10 hover:border-white/40 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                          >
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Or type any custom club */}
+                      <div className="flex gap-2">
+                        <input
+                          value={clubInput}
+                          onChange={e => setClubInput(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') addClub(clubInput); }}
+                          placeholder="Or type any club…"
+                          className="flex-1 bg-transparent border-b border-white/10 focus:border-white/40 outline-none text-[10px] uppercase tracking-widest py-1.5 placeholder:text-white/20 transition-colors"
+                        />
+                        <button
+                          onClick={() => addClub(clubInput)}
+                          className="px-3 py-1 bg-white text-[#000504] text-[8px] font-bold uppercase tracking-widest hover:bg-[#E5E4E2] transition-colors"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Connected clubs list */}
+              {clubs.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-8 border border-dashed border-white/8">
+                  <Building2 size={22} className="text-white/15" />
+                  <p className="text-[8px] uppercase tracking-[0.2em] text-white/25">No clubs connected yet</p>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {clubs.map(club => (
+                    <div key={club.id} className="flex items-center gap-3 p-3.5 border-b border-white/5 group">
+                      <div className="w-7 h-7 border border-white/10 flex items-center justify-center flex-shrink-0">
+                        <KeyRound size={11} className="text-[#E5E4E2]/60" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-widest truncate">{club.name}</p>
+                        <p className="text-[7px] uppercase tracking-widest text-white/25 mt-0.5">
+                          Connected {new Date(club.joinedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[7px] uppercase tracking-widest text-green-500/70 font-bold">Active</span>
+                        <button
+                          onClick={() => removeClub(club.id, club.name)}
+                          className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 text-white/30 transition-all"
+                          title="Remove club"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Personal Details */}
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">
+                Personal Details
+              </h3>
+              {[
+                { label: 'Display Name', value: derivedName },
+                { label: 'Email',        value: customEmail || profile?.personalDetails?.email || '—' },
+                { label: 'Phone',        value: customPhone || profile?.personalDetails?.phone || '—' },
+                { label: 'Location',     value: derivedLoc },
+                { label: 'Member Since', value: customSince || profile?.memberSince || 'January 2025' },
+              ].map(field => (
+                <div key={field.label} className="flex items-center justify-between p-4 border-b border-white/5">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">{field.label}</span>
+                  <span className="text-[10px] uppercase tracking-widest">{field.value}</span>
+                </div>
+              ))}
+              <button
+                onClick={startEdit}
+                className="w-full flex items-center justify-center gap-2 py-3 border border-white/10 hover:border-white/30 text-[9px] font-bold uppercase tracking-widest text-white/40 hover:text-white/70 transition-all"
+              >
+                <Edit2 size={10} /> Customise Profile
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* HISTORY TAB */}
+        {activeTab === 'history' && (
+          <div className="space-y-6">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Achievements</h3>
+            {achievements.length === 0 ? (
+              <p className="text-[9px] uppercase tracking-widest text-white/20 text-center py-12">No achievements yet</p>
+            ) : achievements.map((achievement: any, index: number) => {
+              const Icon = ACHIEVEMENT_ICONS[achievement.name] || Award;
+              return (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="flex items-center gap-4 p-5 border border-white/10 bg-zinc-950/40"
+                >
+                  <div className="w-10 h-10 border border-[#E5E4E2]/20 bg-white/5 flex items-center justify-center">
+                    <Icon size={16} className="text-[#E5E4E2]" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-xs font-bold uppercase tracking-widest">{achievement.name}</h4>
+                    <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{achievement.date}</p>
+                  </div>
+                  {achievement.earned && <CheckCircle2 size={14} className="text-green-500" />}
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* VAULT TAB */}
+        {activeTab === 'vault' && (
+          <div className="space-y-6">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Secure Vault</h3>
+            <div className="p-12 border border-dashed border-white/10 text-center space-y-4">
+              <div className="w-16 h-16 border border-white/10 bg-white/5 flex items-center justify-center mx-auto">
+                <Lock size={24} className="text-white/20" />
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest mb-2">Digital Vault</p>
+                <p className="text-[9px] text-white/30 uppercase tracking-widest leading-loose">
+                  Securely store payment methods, ID verification,<br />and exclusive membership documents.
+                </p>
+              </div>
+              <Button className="bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[9px] uppercase tracking-[0.3em] !text-black px-8">
+                Set Up Vault
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Social Row sub-component ───────────────────────────────────────────────────
+function SocialRow({
+  icon, name, connected, loading, handle, meta, avatar, onConnect, isSource,
+}: {
+  icon: React.ReactNode;
+  name: string;
+  connected: boolean;
+  loading: boolean;
+  handle: string | null;
+  meta: string | null;
+  avatar: string | null;
+  onConnect: () => void;
+  isSource: boolean;
+}) {
+  return (
+    <div className={`flex items-center justify-between p-4 border transition-all ${isSource ? 'border-[#E5E4E2]/30 bg-white/[0.03]' : 'border-white/10 bg-zinc-950/40'}`}>
+      <div className="flex items-center gap-4">
+        {/* Avatar or icon */}
+        <div className="w-10 h-10 border border-white/10 bg-white/5 flex items-center justify-center overflow-hidden flex-shrink-0">
+          {avatar ? (
+            <img src={avatar} alt={name} className="w-full h-full object-cover" />
+          ) : icon}
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <h4 className="text-xs font-bold uppercase tracking-widest">{name}</h4>
+            {isSource && (
+              <span className="text-[7px] font-bold uppercase tracking-widest text-[#E5E4E2]/60 border border-[#E5E4E2]/20 px-1.5 py-0.5">
+                Active Source
+              </span>
+            )}
+          </div>
+          {loading ? (
+            <div className="w-16 h-2 bg-white/10 animate-pulse mt-1.5 rounded-sm" />
+          ) : connected ? (
+            <>
+              {handle && <p className="text-[9px] text-white/50 uppercase tracking-widest mt-0.5">{handle}</p>}
+              {meta && <p className="text-[8px] text-white/30 uppercase tracking-widest mt-0.5">{meta}</p>}
+            </>
+          ) : (
+            <p className="text-[9px] text-white/20 uppercase tracking-widest mt-0.5">Not connected</p>
+          )}
+        </div>
+      </div>
+
+      {loading ? (
+        <Loader2 size={12} className="text-white/20 animate-spin" />
+      ) : connected ? (
+        <div className="flex items-center gap-2">
+          <Badge className="bg-green-500/10 border border-green-500/20 text-green-500 text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-none font-bold">
+            Synced
+          </Badge>
+        </div>
+      ) : (
+        <button
+          onClick={onConnect}
+          className="text-[9px] font-bold uppercase tracking-widest text-[#E5E4E2] hover:text-white transition-colors border-b border-[#E5E4E2] pb-0.5"
+        >
+          Connect
+        </button>
+      )}
     </div>
   );
 }

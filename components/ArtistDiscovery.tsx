@@ -15,12 +15,14 @@ const artists = [
     genre: 'Progressive House',
     followers: '245K',
     image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Martin%20Garrix/artists',
     upcomingShows: [
       {
         venue: 'LIV Miami',
         location: 'South Beach, Miami',
         date: 'Tonight, 11:30 PM',
-        distance: '2.3 mi'
+        distance: '2.3 mi',
+        eventUrl: 'https://www.livnightclub.com'
       }
     ],
     following: true,
@@ -32,12 +34,14 @@ const artists = [
     genre: 'Electronic / Dance',
     followers: '189K',
     image: 'https://images.unsplash.com/photo-1670613074622-8c8ba08265ce?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Tiesto/artists',
     upcomingShows: [
       {
         venue: 'E11EVEN Miami',
         location: 'Downtown, Miami',
         date: 'Friday, 11:00 PM',
-        distance: '3.1 mi'
+        distance: '3.1 mi',
+        eventUrl: 'https://www.11miami.com'
       }
     ],
     following: true,
@@ -49,12 +53,14 @@ const artists = [
     genre: 'Tech House',
     followers: '312K',
     image: 'https://images.unsplash.com/photo-1574672280600-4accfa5b6f98?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/John%20Summit/artists',
     upcomingShows: [
       {
         venue: 'Space Miami',
         location: 'Downtown, Miami',
         date: 'Sunday, 12:00 AM',
-        distance: '3.5 mi'
+        distance: '3.5 mi',
+        eventUrl: 'https://www.clubspace.com'
       }
     ],
     following: false,
@@ -66,12 +72,14 @@ const artists = [
     genre: 'House / Disco',
     followers: '156K',
     image: 'https://images.unsplash.com/photo-1625872778166-7b133d560b82?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Peggy%20Gou/artists',
     upcomingShows: [
       {
         venue: 'Soho Beach House',
         location: 'Mid-Beach, Miami',
         date: 'Saturday, 10:00 PM',
-        distance: '4.2 mi'
+        distance: '4.2 mi',
+        eventUrl: 'https://www.sohohouse.com/houses/soho-beach-house'
       }
     ],
     following: true,
@@ -83,12 +91,14 @@ const artists = [
     genre: 'Tech House',
     followers: '284K',
     image: 'https://images.unsplash.com/photo-1560443797-0b2389cb632b?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Fisher/artists',
     upcomingShows: [
       {
         venue: 'Story Miami',
         location: 'South Beach, Miami',
         date: 'Tonight, 12:00 AM',
-        distance: '2.8 mi'
+        distance: '2.8 mi',
+        eventUrl: 'https://www.storynightclub.com'
       }
     ],
     following: false,
@@ -100,12 +110,14 @@ const artists = [
     genre: 'Deep House',
     followers: '210K',
     image: 'https://images.unsplash.com/photo-1629869343830-37a495211abf?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Black%20Coffee/artists',
     upcomingShows: [
       {
         venue: 'Brooklyn Mirage',
         location: 'Brooklyn, NY',
         date: 'Friday, 10:00 PM',
-        distance: '1.2 mi'
+        distance: '1.2 mi',
+        eventUrl: 'https://www.brooklynmirage.com'
       }
     ],
     following: true,
@@ -117,12 +129,14 @@ const artists = [
     genre: 'Techno',
     followers: '175K',
     image: 'https://images.unsplash.com/photo-1748867424431-eebe9aadf19f?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Charlotte%20de%20Witte/artists',
     upcomingShows: [
       {
         venue: 'Factory Town',
         location: 'Hialeah, Miami',
         date: 'Saturday, 1:00 AM',
-        distance: '8.5 mi'
+        distance: '8.5 mi',
+        eventUrl: 'https://www.factorytownmiami.com'
       }
     ],
     following: false,
@@ -134,12 +148,14 @@ const artists = [
     genre: 'Deep House',
     followers: '198K',
     image: 'https://images.unsplash.com/photo-1619241805829-34fb64299391?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Solomun/artists',
     upcomingShows: [
       {
         venue: 'Factory Town',
         location: 'Hialeah, Miami',
         date: 'Sunday, 10:00 PM',
-        distance: '5.1 mi'
+        distance: '5.1 mi',
+        eventUrl: 'https://www.factorytownmiami.com'
       }
     ],
     following: false,
@@ -151,12 +167,14 @@ const artists = [
     genre: 'Brazilian Bass',
     followers: '142K',
     image: 'https://images.unsplash.com/photo-1764014353572-bcdfce164b73?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Vintage%20Culture/artists',
     upcomingShows: [
       {
         venue: 'Hyde Beach',
         location: 'South Beach, Miami',
         date: 'Tomorrow, 2:00 PM',
-        distance: '2.5 mi'
+        distance: '2.5 mi',
+        eventUrl: 'https://www.sbe.com/nightlife/hyde/hyde-beach-miami'
       }
     ],
     following: false,
@@ -329,7 +347,11 @@ function ArtistRow({ artist, isFollowing, onToggleFollow }: any) {
         <div className="mt-4 pl-16 space-y-3 animate-in slide-in-from-top-2 duration-300">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Upcoming</p>
           {artist.upcomingShows.map((show: any, index: number) => (
-            <div key={index} className="bg-zinc-900/50 p-3 border border-white/10 hover:border-gold/40 transition-colors flex items-center justify-between group/show cursor-pointer marble-bg">
+            <div
+              key={index}
+              className="bg-zinc-900/50 p-3 border border-white/10 hover:border-gold/40 transition-colors flex items-center justify-between group/show cursor-pointer marble-bg"
+              onClick={() => show.eventUrl && window.open(show.eventUrl, '_blank', 'noopener,noreferrer')}
+            >
                <div>
                   <h4 className="text-xs font-bold uppercase tracking-wide text-white group-hover/show:gold-gradient transition-all">{show.venue}</h4>
                   <p className="text-[10px] uppercase tracking-widest text-white/70 mt-1">{show.date}</p>
@@ -338,7 +360,10 @@ function ArtistRow({ artist, isFollowing, onToggleFollow }: any) {
             </div>
           ))}
           
-          <button className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gold hover:text-gold/70 mt-2">
+          <button
+            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gold hover:text-gold/70 mt-2"
+            onClick={() => artist.spotifyUrl && window.open(artist.spotifyUrl, '_blank', 'noopener,noreferrer')}
+          >
             <Play size={10} fill="currentColor" />
             <span>Listen on Spotify</span>
           </button>

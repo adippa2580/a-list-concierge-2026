@@ -57,13 +57,15 @@
     --font-weight-medium: 500;
     --font-weight-normal: 400;
 
-    /* Luxury Palette Extensions */
-    --gold: #D4AF37;
-    --gold-light: #F9E5BC;
-    --gold-dark: #996515;
-    --marble-accent: rgba(255, 255, 255, 0.03);
+    /* Luxury Palette Extensions - Platinum Theme */
+    --platinum: #e5e4e2;
+    --platinum-light: #f5f5f7;
+    --platinum-dark: #8e8e93;
+    --emerald: #011410;
+    --emerald-dark: #000504;
+    --marble-accent: rgba(255, 255, 255, 0.01);
 
-    --chart-1: oklch(0.488 0.243 264.376);
+    --chart-1: oklch(0.488 0.243 162);
     --chart-2: oklch(0.696 0.17 162.48);
     --chart-3: oklch(0.769 0.188 70.08);
     --chart-4: oklch(0.627 0.265 303.9);
@@ -83,25 +85,21 @@ html {
   font-size: var(--font-size);
 }
 
-@layer base {
-  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Inter:wght@100..900&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Inter:wght@100..900&display=swap");
 
+@layer base {
   * {
-    border-color: var(--border);
-    outline-color: color-mix(in srgb, var(--ring), transparent 50%);
+    border-color: rgb(229 228 226 / 0.1);
+    outline-color: rgb(229 228 226 / 0.5);
   }
 
   body {
-    background-color: var(--background);
-    color: var(--foreground);
-    @apply font-sans;
+    background-color: #000504;
+    color: #ffffff;
+    font-family: var(--font-sans);
   }
 
-  h1,
-  h2,
-  h3,
-  h4,
-  .font-serif {
+  h1, h2, h3, h4, .font-serif {
     font-family: var(--font-serif);
     font-weight: 400;
   }
@@ -165,29 +163,86 @@ html {
     display: none;
   }
 
-  .gold-gradient {
-    background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .platinum-gradient {
+    background: linear-gradient(
+      135deg,
+      #8e8e93,
+      #e5e4e2,
+      #f5f5f7,
+      #e5e4e2,
+      #8e8e93
+    );
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
-  .gold-border {
+  .platinum-border {
     border: 1px solid transparent;
-    background-image: linear-gradient(black, black),
-      linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #AA771C);
+    background-image:
+      linear-gradient(var(--emerald-dark), var(--emerald-dark)),
+      linear-gradient(135deg, #8e8e93, #e5e4e2, #f5f5f7, #8e8e93);
     background-origin: border-box;
     background-clip: content-box, border-box;
   }
 
   .marble-bg {
-    background-color: #000;
+    background-color: var(--emerald-dark);
     background-image:
-      radial-gradient(at 0% 0%, rgba(255, 255, 255, 0.03) 0, transparent 50%),
-      radial-gradient(at 50% 0%, rgba(255, 255, 255, 0.02) 0, transparent 50%),
-      radial-gradient(at 100% 0%, rgba(255, 255, 255, 0.03) 0, transparent 50%);
+      radial-gradient(at 0% 0%, rgba(229, 228, 226, 0.02) 0, transparent 50%),
+      radial-gradient(at 50% 0%, rgba(1, 20, 16, 0.15) 0, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(229, 228, 226, 0.02) 0, transparent 50%);
   }
 
   .text-luxury {
-    @apply tracking-[0.3em] uppercase font-bold text-[11px];
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    font-weight: 700;
+    font-size: 11px;
+  }
+
+  /* Legacy gold utilities for backward compatibility */
+  .gold-gradient {
+    background: linear-gradient(
+      135deg,
+      #8e8e93,
+      #e5e4e2,
+      #f5f5f7,
+      #e5e4e2,
+      #8e8e93
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .gold-border {
+    border: 1px solid transparent;
+    background-image:
+      linear-gradient(
+        var(--emerald-dark, #000504),
+        var(--emerald-dark, #000504)
+      ),
+      linear-gradient(135deg, #8e8e93, #e5e4e2, #f5f5f7, #8e8e93);
+    background-origin: border-box;
+    background-clip: content-box, border-box;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
   }
 }

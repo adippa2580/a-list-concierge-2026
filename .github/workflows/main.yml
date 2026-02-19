@@ -9,6 +9,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # ── Apify CLI — used to interact with RA Events Scraper actor ─────────
+      - name: Setup Apify CLI
+        uses: apify/setup-apify-cli-action@v1.0.0
+        with:
+          apify-cli-version: latest
+
       - uses: supabase/setup-cli@v1
 
       - name: Check required secrets
@@ -21,9 +28,25 @@ jobs:
             echo "::error::SUPABASE_ACCESS_TOKEN is not set. Add it under Settings → Secrets and variables → Actions."
             exit 1
           fi
+          if [ -z "$APIFY_TOKEN" ]; then
+            echo "::warning::APIFY_TOKEN is not set — RA Guide event results will be unavailable. Add it under Settings → Secrets → Actions."
+          fi
         env:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+
+      # ── Set Apify token as a Supabase secret so the edge function can call
+      #    the RA Events Scraper actor at runtime via the Apify REST API ─────
+      - name: Push APIFY_TOKEN to Supabase secrets
+        if: ${{ env.APIFY_TOKEN != '' }}
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+        run: |
+          echo "$APIFY_TOKEN" | supabase secrets set APIFY_TOKEN="$APIFY_TOKEN" \
+            --project-ref "$SUPABASE_PROJECT_ID"
 
       - name: Deploy Edge Functions
         env:
