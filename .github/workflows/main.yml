@@ -14,7 +14,7 @@ jobs:
       - name: Setup Apify CLI
         uses: apify/setup-apify-cli-action@v1.0.0
         with:
-          apify-cli-version: latest
+          token: ${{ secrets.APIFY_TOKEN }}
 
       - uses: supabase/setup-cli@v1
 
