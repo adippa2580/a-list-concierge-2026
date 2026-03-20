@@ -136,10 +136,10 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           const eventList = Array.isArray(data) ? data : (data.events || []);
 
           const formatted: any[] = eventList.map((e: any) => {
-            const externalSources = ['web_search', 'website', 'ticketmaster', 'tickettailor'];
+            const externalSources = ['ra', 'web_search', 'website', 'ticketmaster', 'tickettailor'];
             const isWebSource = externalSources.includes(e.source);
             const isTicketmaster = e.source === 'ticketmaster';
-            const isVenueSource = isWebSource && !isTicketmaster; // RA, web search, venue sites
+            const isVenueSource = isWebSource && !isTicketmaster; // RA Guide, web search, venue sites
             return {
               id: e.id,
               name: e.name?.text || e.name || 'Event',
@@ -419,7 +419,12 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
                 className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
               />
               {/* Corner source badge */}
-              {event.isVenueSource && (
+              {event.source === 'ra' && (
+                <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-green-600 flex items-center gap-0.5">
+                  <span className="text-[7px] font-black text-white uppercase tracking-widest">RA</span>
+                </div>
+              )}
+              {event.isVenueSource && event.source !== 'ra' && (
                 <div className="absolute top-1 left-1 p-1 bg-amber-500">
                   <Ticket size={8} className="text-black" />
                 </div>
@@ -470,7 +475,9 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className={`bg-zinc-950/60 border p-5 flex gap-5 overflow-hidden group hover:border-[#E5E4E2]/30 transition-all cursor-pointer relative ${
-          event.isVenueSource || isTmEnriched
+          event.source === 'ra'
+            ? 'border-l-2 border-l-green-500/70 border-t-white/5 border-r-white/5 border-b-white/5'
+            : event.isVenueSource || isTmEnriched
             ? 'border-l-2 border-l-amber-500/70 border-t-white/5 border-r-white/5 border-b-white/5'
             : event.isTicketmaster
             ? 'border-l-2 border-l-blue-500/40 border-t-white/5 border-r-white/5 border-b-white/5'
@@ -492,8 +499,13 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
               alt={displayName}
               className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
             />
-            {/* Corner source badge — Ticket icon for both venue and TM */}
-            {event.isVenueSource && (
+            {/* Corner source badge */}
+            {event.source === 'ra' && (
+              <div className="absolute top-0 left-0 px-1 py-0.5 bg-green-600">
+                <span className="text-[6px] font-black text-white uppercase tracking-widest">RA</span>
+              </div>
+            )}
+            {event.isVenueSource && event.source !== 'ra' && (
               <div className="absolute top-0 left-0 p-0.5 bg-amber-500">
                 <Ticket size={7} className="text-black" />
               </div>
@@ -511,11 +523,16 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
               {displayName}
             </h3>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Venue badge with Ticket icon */}
-              {event.isVenueSource && (
+              {/* Source badge — RA Guide gets distinct green, other venue sources get amber */}
+              {event.source === 'ra' && (
+                <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border whitespace-nowrap flex items-center gap-1 bg-green-600/20 text-green-400 border-green-500/30">
+                  RA Guide
+                </span>
+              )}
+              {event.isVenueSource && event.source !== 'ra' && (
                 <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border whitespace-nowrap flex items-center gap-1 bg-amber-500/20 text-amber-400 border-amber-500/30">
                   <Ticket size={7} />
-                  {event.source === 'ra' ? 'RA Guide' : 'Venue'}
+                  Venue
                 </span>
               )}
               {event.isTicketmaster && (

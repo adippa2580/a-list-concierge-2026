@@ -997,6 +997,8 @@ function buildSystemPrompt(intelligence: Record<string, unknown> | null, locatio
 
   if (location) prompt += ` User location: ${location.lat}, ${location.lng}.`;
 
+  prompt += '\n\nEARLY DISCOVERY: In your opening exchanges (first 1-2 replies), if the user has not indicated their party size or crew, naturally weave in the question: are they flying solo tonight, or curating an experience for their crew? Use this to tailor venue recommendations — intimate table-for-two vs. VIP group booking with bottle service.';
+
   prompt += '\n\nYou MUST respond with valid JSON only — no markdown, no extra text. Schema: { "message": "Your conversational response", "tiles": [ { "name": "Venue Name", "type": "Club|Bar|Lounge", "description": "Short vibe description", "imageUrl": "search keywords for unsplash", "priceRange": "$$$", "bookingEnabled": true } ] }. Use empty tiles array if no venue recommendations are relevant.';
   return prompt;
 }
@@ -1012,8 +1014,8 @@ app.get("/chat/greet", async (c) => {
   const hour = new Date().getUTCHours(); // approximate, good enough for greeting
   const timeOfDay = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
   const greetPrompt = intelligence?.context_summary
-    ? `Generate a short, warm, personalised opening greeting for this returning user. Reference something specific about their preferences to show you remember them. It is ${timeOfDay}. Keep it under 30 words. Tone: elite concierge, like they just walked into a private members club.`
-    : `Generate a short, sophisticated first-time opening greeting. It is ${timeOfDay}. Introduce yourself as A-List Assist. Keep it under 25 words. Tone: elite nightlife concierge.`;
+    ? `Generate a short, warm, personalised opening greeting for this returning user. Reference something specific about their preferences. It is ${timeOfDay}. End with a single natural question: are they going solo tonight, or curating a night out for their crew? Keep it under 35 words total. Tone: elite concierge, like they just walked into a private members club.`
+    : `Generate a short, sophisticated opening greeting. It is ${timeOfDay}. Introduce yourself as A-List Assist. End with a single natural question: are they flying solo or bringing the crew tonight? Keep it under 30 words total. Tone: elite nightlife concierge.`;
 
   try {
     const raw = await callGemini([
