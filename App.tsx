@@ -17,6 +17,7 @@ import { WelcomeScreen } from "./components/WelcomeScreen";
 import { LoginScreen } from "./components/LoginScreen";
 import { SpotifyCallback } from "./components/SpotifyCallback";
 import { SoundCloudCallback } from "./components/SoundCloudCallback";
+import { InstagramCallback } from "./components/InstagramCallback";
 import { JoinCrewScreen } from "./components/JoinCrewScreen";
 import { OnboardingScreen, ONBOARDING_DONE_KEY } from "./components/OnboardingScreen";
 import { MemberClubsFeed } from "./components/MemberClubsFeed";
@@ -58,7 +59,7 @@ type ViewType =
   | "member-clubs"
   | "bookings";
 
-type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify-callback" | "soundcloud-callback" | "join-crew";
+type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify-callback" | "soundcloud-callback" | "instagram-callback" | "join-crew";
 
 export default function App() {
   const { userId } = useAuth();
@@ -181,9 +182,13 @@ export default function App() {
     }
 
     if (urlParams.has('code') && urlParams.has('state')) {
-      if (pathname.includes('soundcloud')) {
+      const rawState = urlParams.get('state') ?? '';
+      if (rawState.startsWith('soundcloud:')) {
         setAppState('soundcloud-callback');
+      } else if (rawState.startsWith('instagram:')) {
+        setAppState('instagram-callback');
       } else {
+        // Default to Spotify (state = "spotify:userId" or legacy plain userId)
         setAppState('spotify-callback');
       }
     }
@@ -304,6 +309,19 @@ export default function App() {
   if (appState === "soundcloud-callback") {
     return (
       <SoundCloudCallback
+        onSuccess={handleLogin}
+        onError={() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+          setAppState('login');
+        }}
+      />
+    );
+  }
+
+  // Handle Instagram callback
+  if (appState === "instagram-callback") {
+    return (
+      <InstagramCallback
         onSuccess={handleLogin}
         onError={() => {
           window.history.replaceState({}, document.title, window.location.pathname);

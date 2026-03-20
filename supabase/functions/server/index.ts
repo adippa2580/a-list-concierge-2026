@@ -593,7 +593,7 @@ app.get("/spotify/login", (c) => {
     "playlist-read-private"
   ].join(" ");
 
-  const state = userId; // Use userId as state to identify user after callback
+  const state = `spotify:${userId}`; // provider:userId so App.tsx can route the callback correctly
 
   const authUrl = `https://accounts.spotify.com/authorize?` +
     `response_type=code` +
@@ -608,20 +608,23 @@ app.get("/spotify/login", (c) => {
 // Spotify OAuth - Handle callback
 app.get("/spotify/callback", async (c) => {
   const code = c.req.query("code");
-  const state = c.req.query("state"); // This is the userId
+  const rawState = c.req.query("state"); // "spotify:userId"
   const error = c.req.query("error");
 
   if (error) {
     return c.json({ error: `Spotify authorization failed: ${error}` }, 400);
   }
 
-  if (!code || !state) {
+  if (!code || !rawState) {
     return c.json({ error: "Missing code or state parameter" }, 400);
   }
 
   if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
     return c.json({ error: "Spotify credentials not configured" }, 500);
   }
+
+  // Parse provider:userId state
+  const userId = rawState.startsWith("spotify:") ? rawState.slice(8) : rawState;
 
   try {
     // Exchange code for access token
@@ -646,7 +649,7 @@ app.get("/spotify/callback", async (c) => {
     const tokenData = await tokenResponse.json();
 
     // Store tokens in KV store with userId as key
-    await kv.set(`spotify_token_${state}`, {
+    await kv.set(`spotify_token_${userId}`, {
       access_token: tokenData.access_token,
       refresh_token: tokenData.refresh_token,
       expires_at: Date.now() + (tokenData.expires_in * 1000),
@@ -656,7 +659,7 @@ app.get("/spotify/callback", async (c) => {
     return c.json({
       success: true,
       message: "Spotify connected successfully",
-      userId: state
+      userId
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -1087,23 +1090,26 @@ app.get("/soundcloud/login", (c) => {
     `&redirect_uri=${encodeURIComponent(SOUNDCLOUD_REDIRECT_URI)}` +
     `&response_type=code` +
     `&scope=non-expiring` +
-    `&state=${encodeURIComponent(userId)}`;
+    `&state=${encodeURIComponent(`soundcloud:${userId}`)}`;
 
   return c.json({ authUrl });
 });
 
 /** GET /soundcloud/callback — exchange authorization code for access token */
 app.get("/soundcloud/callback", async (c) => {
-  const code  = c.req.query("code");
-  const state = c.req.query("state"); // userId
-  const error = c.req.query("error");
+  const code     = c.req.query("code");
+  const rawState = c.req.query("state"); // "soundcloud:userId"
+  const error    = c.req.query("error");
 
   if (error) {
     return c.json({ error: `SoundCloud authorization failed: ${error}` }, 400);
   }
-  if (!code || !state) {
+  if (!code || !rawState) {
     return c.json({ error: "Missing code or state parameter" }, 400);
   }
+
+  const state  = rawState; // keep for kv key
+  const userId = rawState.startsWith("soundcloud:") ? rawState.slice(11) : rawState;
 
   const clientId     = SOUNDCLOUD_CLIENT_ID;
   const clientSecret = Deno.env.get("SOUNDCLOUD_CLIENT_SECRET");
@@ -1144,7 +1150,7 @@ app.get("/soundcloud/callback", async (c) => {
     });
     const me = meRes.ok ? await meRes.json() as { id: number; username: string; permalink: string; avatar_url?: string } : null;
 
-    await kv.set(`soundcloud_token_${state}`, {
+    await kv.set(`soundcloud_token_${userId}`, {
       access_token:  tokenData.access_token,
       refresh_token: tokenData.refresh_token || null,
       expires_at:    tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : null,
@@ -1153,7 +1159,7 @@ app.get("/soundcloud/callback", async (c) => {
       avatar_url:    me?.avatar_url ?? null,
     });
 
-    return c.json({ success: true, userId: state, username: me?.username, avatar_url: me?.avatar_url });
+    return c.json({ success: true, userId, username: me?.username, avatar_url: me?.avatar_url });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[SoundCloud] Callback error: ${msg}`);
@@ -1796,23 +1802,26 @@ app.get("/instagram/login", (c) => {
     `&redirect_uri=${encodeURIComponent(INSTAGRAM_REDIRECT_URI)}` +
     `&scope=${encodeURIComponent(scope)}` +
     `&response_type=code` +
-    `&state=${encodeURIComponent(userId)}`;
+    `&state=${encodeURIComponent(`instagram:${userId}`)}`;
 
   return c.json({ authUrl });
 });
 
 /** GET /instagram/callback — exchange code for short-lived token, then long-lived token */
 app.get("/instagram/callback", async (c) => {
-  const code = c.req.query("code");
-  const state = c.req.query("state"); // userId
-  const error = c.req.query("error");
+  const code     = c.req.query("code");
+  const rawState = c.req.query("state"); // "instagram:userId"
+  const error    = c.req.query("error");
 
   if (error) {
     return c.json({ error: `Instagram authorization failed: ${error}` }, 400);
   }
-  if (!code || !state) {
+  if (!code || !rawState) {
     return c.json({ error: "Missing code or state" }, 400);
   }
+
+  const state  = rawState; // keep for any fallback
+  const userId = rawState.startsWith("instagram:") ? rawState.slice(10) : rawState;
   if (!INSTAGRAM_CLIENT_ID || !INSTAGRAM_CLIENT_SECRET) {
     return c.json({ error: "Instagram credentials not configured" }, 500);
   }
@@ -1871,14 +1880,14 @@ app.get("/instagram/callback", async (c) => {
     const profile = profileRes.ok ? await profileRes.json() : {};
 
     // Persist in KV
-    await kv.set(`instagram_token_${state}`, {
+    await kv.set(`instagram_token_${userId}`, {
       access_token: longToken.access_token,
       expires_at: Date.now() + longToken.expires_in * 1000,
       instagram_user_id: shortToken.user_id,
       username: (profile as { username?: string }).username || null,
     });
 
-    return c.json({ success: true, userId: state, profile });
+    return c.json({ success: true, userId, profile });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error(`[Instagram] Callback error: ${msg}`);

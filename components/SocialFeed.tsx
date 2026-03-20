@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, Instagram, Loader2, ExternalLink, Trophy, ArrowUpRight, Users } from 'lucide-react';
+import { MapPin, Instagram, Loader2, ExternalLink, Trophy, ArrowUpRight, Users, Music, Check } from 'lucide-react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { motion } from 'motion/react';
 import { supabase } from '../utils/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 const filters = ['All', 'Friends', 'Clubs', 'Lounges'];
 
@@ -72,10 +73,55 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
   const [instagramHandle, setInstagramHandle] = useState<string | null>(null);
   const [soundcloudUsername, setSoundcloudUsername] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState('All');
+  const [spotifyConnected, setSpotifyConnected] = useState(false);
+  const [spotifyConnecting, setSpotifyConnecting] = useState(false);
+  const [instagramConnecting, setInstagramConnecting] = useState(false);
 
   const { userId } = useAuth();
 
+  const connectSpotify = async () => {
+    if (!userId) return;
+    setSpotifyConnecting(true);
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/spotify/login?userId=${userId}`,
+        { headers: { Authorization: `Bearer ${publicAnonKey}` } }
+      );
+      const data = await res.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        setSpotifyConnecting(false);
+      }
+    } catch {
+      setSpotifyConnecting(false);
+    }
+  };
+
+  const connectInstagram = async () => {
+    if (!userId) return;
+    setInstagramConnecting(true);
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/instagram/login?userId=${userId}`,
+        { headers: { Authorization: `Bearer ${publicAnonKey}` } }
+      );
+      const data = await res.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        setInstagramConnecting(false);
+      }
+    } catch {
+      setInstagramConnecting(false);
+    }
+  };
+
   useEffect(() => {
+    // Check Spotify via localStorage (set by SpotifyCallback on success)
+    const spotifyUserId = localStorage.getItem('spotify_user_id');
+    if (spotifyUserId) setSpotifyConnected(true);
+
     if (!userId) { setLoading(false); return; }
     supabase
       .from('profiles')
@@ -320,6 +366,60 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
             )}
           </div>
         </div>
+
+        {/* Connected Accounts */}
+        <div className="space-y-6 px-6">
+          <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/40">Connected Accounts</h2>
+
+          {/* Spotify */}
+          <button
+            onClick={spotifyConnected ? undefined : connectSpotify}
+            disabled={spotifyConnecting}
+            className={`w-full flex items-center justify-between px-5 py-4 border transition-all group ${spotifyConnected ? 'border-[#1DB954]/30 bg-[#1DB954]/5 cursor-default' : 'border-white/10 hover:border-[#1DB954]/40 hover:bg-[#1DB954]/5'} disabled:opacity-50`}
+          >
+            <div className="flex items-center gap-3">
+              <Music size={16} className={spotifyConnected ? 'text-[#1DB954]' : 'text-white/40 group-hover:text-[#1DB954]'} />
+              <div className="text-left">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/70">Spotify</p>
+                <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">
+                  {spotifyConnected ? 'Account linked' : 'Connect for music recommendations'}
+                </p>
+              </div>
+            </div>
+            {spotifyConnecting ? (
+              <Loader2 size={14} className="text-white/30 animate-spin" />
+            ) : spotifyConnected ? (
+              <Check size={14} className="text-[#1DB954]" />
+            ) : (
+              <span className="text-[9px] font-bold uppercase tracking-widest text-white/30 group-hover:text-[#1DB954]/70 transition-colors">Connect</span>
+            )}
+          </button>
+
+          {/* Instagram OAuth */}
+          <button
+            onClick={instagramHandle ? undefined : connectInstagram}
+            disabled={instagramConnecting}
+            className={`w-full flex items-center justify-between px-5 py-4 border transition-all group ${instagramHandle ? 'border-pink-500/30 bg-pink-500/5 cursor-default' : 'border-white/10 hover:border-pink-500/40 hover:bg-pink-500/5'} disabled:opacity-50`}
+          >
+            <div className="flex items-center gap-3">
+              <Instagram size={16} className={instagramHandle ? 'text-pink-400' : 'text-white/40 group-hover:text-pink-400'} />
+              <div className="text-left">
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/70">Instagram</p>
+                <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">
+                  {instagramHandle ? `@${instagramHandle}` : 'Connect your profile'}
+                </p>
+              </div>
+            </div>
+            {instagramConnecting ? (
+              <Loader2 size={14} className="text-white/30 animate-spin" />
+            ) : instagramHandle ? (
+              <Check size={14} className="text-pink-400" />
+            ) : (
+              <span className="text-[9px] font-bold uppercase tracking-widest text-white/30 group-hover:text-pink-400/70 transition-colors">Connect</span>
+            )}
+          </button>
+        </div>
+
       </div>
     </div>
   );

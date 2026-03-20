@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronRight, ChevronLeft, Check, User, Camera, MapPin,
   Instagram, Headphones, Lock, Plus, Trash2, Eye, EyeOff,
-  Building2, Zap, ShieldCheck, PartyPopper, X, Loader2,
+  Building2, Zap, ShieldCheck, PartyPopper, X, Loader2, Music,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
@@ -65,6 +65,50 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
   // ── Step 1: Social handles (manual entry — no OAuth required) ───────────
   const [instagramHandle, setInstagramHandle] = useState('');
   const [soundcloudUsername, setSoundcloudUsername] = useState('');
+  const [spotifyConnecting, setSpotifyConnecting] = useState(false);
+  const [instagramConnecting, setInstagramConnecting] = useState(false);
+
+  const connectSpotify = async () => {
+    if (!userId) return;
+    setSpotifyConnecting(true);
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/spotify/login?userId=${userId}`,
+        { headers: { Authorization: `Bearer ${publicAnonKey}` } }
+      );
+      const data = await res.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        toast.error('Could not initiate Spotify login', { description: data.error });
+        setSpotifyConnecting(false);
+      }
+    } catch {
+      toast.error('Failed to connect to Spotify');
+      setSpotifyConnecting(false);
+    }
+  };
+
+  const connectInstagramOAuth = async () => {
+    if (!userId) return;
+    setInstagramConnecting(true);
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/instagram/login?userId=${userId}`,
+        { headers: { Authorization: `Bearer ${publicAnonKey}` } }
+      );
+      const data = await res.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        toast.error('Could not initiate Instagram login', { description: data.error });
+        setInstagramConnecting(false);
+      }
+    } catch {
+      toast.error('Failed to connect to Instagram');
+      setInstagramConnecting(false);
+    }
+  };
 
   // ── Step 2: Private Clubs ────────────────────────────────────────────────
   const [clubs, setClubs] = useState<PrivateClub[]>(() => {
@@ -375,6 +419,55 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
                   )}
                 </div>
               </div>
+
+              {/* OAuth Connect Divider */}
+              <div className="flex items-center gap-4 pt-2">
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-[8px] uppercase tracking-[0.3em] text-white/25">Or Connect Directly</span>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
+
+              {/* Spotify OAuth */}
+              <button
+                type="button"
+                onClick={connectSpotify}
+                disabled={spotifyConnecting}
+                className="w-full flex items-center justify-between px-5 py-4 border border-white/10 hover:border-[#1DB954]/40 hover:bg-[#1DB954]/5 transition-all group disabled:opacity-50"
+              >
+                <div className="flex items-center gap-3">
+                  <Music size={16} className="text-[#1DB954]/70 group-hover:text-[#1DB954]" />
+                  <div className="text-left">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/70">Connect Spotify</p>
+                    <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">Personalise your music recommendations</p>
+                  </div>
+                </div>
+                {spotifyConnecting ? (
+                  <Loader2 size={14} className="text-white/30 animate-spin" />
+                ) : (
+                  <ChevronRight size={14} className="text-white/20 group-hover:text-[#1DB954]/60 transition-colors" />
+                )}
+              </button>
+
+              {/* Instagram OAuth */}
+              <button
+                type="button"
+                onClick={connectInstagramOAuth}
+                disabled={instagramConnecting}
+                className="w-full flex items-center justify-between px-5 py-4 border border-white/10 hover:border-pink-500/40 hover:bg-pink-500/5 transition-all group disabled:opacity-50"
+              >
+                <div className="flex items-center gap-3">
+                  <Instagram size={16} className="text-pink-400/70 group-hover:text-pink-400" />
+                  <div className="text-left">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/70">Connect Instagram</p>
+                    <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">Link your profile for social feed</p>
+                  </div>
+                </div>
+                {instagramConnecting ? (
+                  <Loader2 size={14} className="text-white/30 animate-spin" />
+                ) : (
+                  <ChevronRight size={14} className="text-white/20 group-hover:text-pink-400/60 transition-colors" />
+                )}
+              </button>
 
               <p className="text-[8px] uppercase tracking-[0.2em] text-white/20 leading-loose">
                 Handles are used only to populate your profile. We never post on your behalf.
