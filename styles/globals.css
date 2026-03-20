@@ -165,10 +165,25 @@ html {
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Safe cross-browser full-height scroll container.
+     100vh is the universally-supported fallback.
+     100dvh (dynamic viewport height) adjusts on mobile when browser chrome
+     shows/hides. We layer them so older browsers get 100vh. */
+  .app-scroll-container {
+    height: 100vh;
+  }
+
+  @supports (height: 100dvh) {
+    .app-scroll-container {
+      height: 100dvh;
+    }
   }
 
   .platinum-gradient {

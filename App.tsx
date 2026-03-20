@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Home } from "./components/Home";
 import { VIPStatus } from "./components/VIPStatus";
@@ -72,6 +72,7 @@ export default function App() {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [joinCrewToken, setJoinCrewToken] = useState<string | null>(null);
   const [unreadInvites, setUnreadInvites] = useState(0);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const AVATAR_KEY = 'alist_avatar_url';
 
@@ -232,6 +233,7 @@ export default function App() {
     setSelectedVenue(venue);
     setCurrentView("venue");
     setMenuOpen(false);
+    scrollContainerRef.current?.scrollTo({ top: 0 });
   };
 
   const handleBookTable = (venue: any, table?: any) => {
@@ -252,6 +254,8 @@ export default function App() {
   const navigateTo = (view: ViewType) => {
     setCurrentView(view);
     setMenuOpen(false);
+    // Reset scroll position so new screens always start at the top
+    scrollContainerRef.current?.scrollTo({ top: 0 });
   };
 
   // Show splash screen
@@ -436,7 +440,14 @@ export default function App() {
           </AnimatePresence>
 
           {/* Main Content Area */}
-          <div className="h-dvh overflow-y-auto pb-28 pt-20 no-scrollbar scroll-smooth">
+          <div
+            ref={scrollContainerRef}
+            className="app-scroll-container overflow-y-auto no-scrollbar scroll-smooth"
+            style={{
+              paddingTop: 'calc(5rem + env(safe-area-inset-top, 0px))',
+              paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))',
+            }}
+          >
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentView}
