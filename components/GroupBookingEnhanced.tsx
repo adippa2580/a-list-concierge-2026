@@ -169,6 +169,10 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
   const [savedBookingId, setSavedBookingId] = useState<number | null>(null);
   const [inviteCode] = useState('ALIST-' + Math.random().toString(36).substring(2, 8).toUpperCase());
 
+  // Manual member entry when booking without a crew
+  const [manualMembers, setManualMembers] = useState<{name: string; avatar: string; role: string; spend: number}[]>([]);
+  const [newMemberName, setNewMemberName] = useState('');
+
   useEffect(() => { fetchCrews(); }, []);
 
   const fetchCrews = async () => {
@@ -189,14 +193,16 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
   const totalCost = tableMin + liquorCost + mixerCost;
 
   // Crew members treated as "confirmed" if in the crew; map to SplitMember
+  // When no crew is selected, use the manually entered members instead
   const crewMembers: SplitMember[] = useMemo(() => {
-    if (!selectedCrew) return [];
-    return (selectedCrew.members ?? []).map(m => ({
+    const source = selectedCrew ? (selectedCrew.members ?? []) : manualMembers;
+    if (!source.length) return [];
+    return source.map(m => ({
       ...m,
       confirmed: true,
-      amount: Math.ceil(totalCost / (selectedCrew.members?.length ?? 1)),
+      amount: Math.ceil(totalCost / source.length),
     }));
-  }, [selectedCrew, totalCost]);
+  }, [selectedCrew, manualMembers, totalCost]);
 
   // ── Split calculations ────────────────────────────────────────────────────
   const splitData: SplitMember[] = useMemo(() => {
@@ -229,13 +235,18 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
   };
 
   // ── Handlers ────────────────────────────────────────────────────────────
-  const handleConfirm = async () => {
+  const handleConfirm = () => {
     if (splitMethod === 'custom' && !customBalanced) {
       toast.error(`Split is $${Math.abs(customDiff)} ${customDiff > 0 ? 'over' : 'short'}`);
       return;
     }
+    setScreen('confirm');
+  };
+
+  const handleSendRequests = async () => {
     setConfirming(true);
     try {
+      // Save the booking now (after payment rails + handles are confirmed)
       const bookingPayload = {
         crewId: selectedCrew?.id,
         crewName: selectedCrew?.name,
@@ -271,29 +282,27 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
       if (res.ok) {
         const data = await res.json();
         setSavedBookingId(data.booking?.id ?? null);
-        setScreen('confirm');
       } else {
-        toast.error('Failed to save booking');
+        toast.error('Failed to save booking — payment links still sent');
       }
-    } catch (_e) { toast.error('Network error'); }
-    finally { setConfirming(false); }
-  };
 
-  const handleSendRequests = async () => {
-    setConfirming(true);
-    // Open payment links for each member
-    for (const member of splitData.filter(m => m.role !== 'Captain')) {
-      const rail = PAYMENT_RAILS.find(r => r.id === memberRails[member.name]);
-      const handle = memberHandles[member.name];
-      if (rail && handle && rail.id !== 'cash' && rail.id !== 'applepay' && rail.id !== 'zelle') {
-        const url = rail.buildUrl(handle, member.amount, `A-List table @ ${venue?.name ?? 'venue'}`);
-        if (url) window.open(url, '_blank');
+      // Open payment deep-links for each non-Captain member
+      for (const member of splitData.filter(m => m.role !== 'Captain')) {
+        const rail = PAYMENT_RAILS.find(r => r.id === memberRails[member.name]);
+        const handle = memberHandles[member.name];
+        if (rail && handle && rail.id !== 'cash' && rail.id !== 'applepay' && rail.id !== 'zelle') {
+          const url = rail.buildUrl(handle, member.amount, `A-List table @ ${venue?.name ?? 'venue'}`);
+          if (url) window.open(url, '_blank');
+        }
       }
+
+      setScreen('sent');
+      toast.success('Payment requests sent!');
+    } catch (_e) {
+      toast.error('Network error');
+    } finally {
+      setConfirming(false);
     }
-    await new Promise(r => setTimeout(r, 1000));
-    setConfirming(false);
-    setScreen('sent');
-    toast.success('Payment requests sent!');
   };
 
   // ── Screens ──────────────────────────────────────────────────────────────
@@ -473,6 +482,76 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
             </div>
           </div>
         </div>
+
+        {/* Manual Member Entry — shown only when continuing without a crew */}
+        {!selectedCrew && (
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Add Members</h3>
+            <div className="flex gap-2">
+              <input
+                value={newMemberName}
+                onChange={e => setNewMemberName(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && newMemberName.trim()) {
+                    const name = newMemberName.trim();
+                    const initials = name.split(/\s+/).map(w => w[0]?.toUpperCase() ?? '').join('').slice(0, 2) || '??';
+                    const role = manualMembers.length === 0 ? 'Captain' : 'Member';
+                    setManualMembers(prev => [...prev, { name, avatar: initials, role, spend: 0 }]);
+                    setNewMemberName('');
+                  }
+                }}
+                placeholder="Member name..."
+                className="flex-1 bg-transparent border border-white/10 focus:border-white outline-none text-[10px] tracking-widest placeholder:text-white/20 px-4 py-3 transition-colors text-white"
+              />
+              <button
+                onClick={() => {
+                  const name = newMemberName.trim();
+                  if (!name) return;
+                  const initials = name.split(/\s+/).map(w => w[0]?.toUpperCase() ?? '').join('').slice(0, 2) || '??';
+                  const role = manualMembers.length === 0 ? 'Captain' : 'Member';
+                  setManualMembers(prev => [...prev, { name, avatar: initials, role, spend: 0 }]);
+                  setNewMemberName('');
+                }}
+                disabled={!newMemberName.trim()}
+                className="w-12 h-12 border border-white/10 flex items-center justify-center hover:bg-white/10 disabled:opacity-30 transition-all"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            {manualMembers.length === 0 && (
+              <p className="text-[8px] uppercase tracking-widest text-white/20 text-center py-2">
+                Add at least yourself to configure split
+              </p>
+            )}
+            <AnimatePresence initial={false}>
+              {manualMembers.map((m, i) => (
+                <motion.div
+                  key={`${m.name}-${i}`}
+                  initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
+                  className="flex items-center justify-between p-4 border border-white/10 bg-zinc-950/40"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-white/5 border border-white/10 flex items-center justify-center">
+                      <span className="text-[9px] font-bold">{m.avatar}</span>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest">{m.name}</p>
+                      <p className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">{m.role}</p>
+                    </div>
+                  </div>
+                  {i !== 0 && (
+                    <button
+                      onClick={() => setManualMembers(prev => prev.filter((_, idx) => idx !== i))}
+                      className="text-red-400/40 hover:text-red-400 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Split Method */}
         <div className="space-y-6">

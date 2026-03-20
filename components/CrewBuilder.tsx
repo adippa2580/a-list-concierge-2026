@@ -50,6 +50,8 @@ export function CrewBuilder() {
   const [generatingLink, setGeneratingLink] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [removingMemberIdx, setRemovingMemberIdx] = useState<number | null>(null);
+  const [addMemberName, setAddMemberName] = useState('');
+  const [addingMember, setAddingMember] = useState(false);
 
   // Create crew form
   const [newCrewName, setNewCrewName] = useState('');
@@ -196,6 +198,32 @@ export function CrewBuilder() {
       toast.error('Failed to remove member');
     } finally {
       setRemovingMemberIdx(null);
+    }
+  };
+
+  // ── Add Member by Name ────────────────────────────────────────────────────
+  const handleAddMember = async () => {
+    if (!selectedCrew || !addMemberName.trim() || addingMember) return;
+    setAddingMember(true);
+    try {
+      const res = await fetch(`${API}/crews/${selectedCrew.id}/invite?userId=${USER_ID}`, {
+        method: 'POST',
+        headers: HEADERS,
+        body: JSON.stringify({ name: addMemberName.trim() }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        syncSelected(data.crews);
+        setAddMemberName('');
+        toast.success(`${addMemberName.trim()} added to ${selectedCrew.name}`);
+      } else {
+        const err = await res.json();
+        toast.error(err.error || 'Failed to add member');
+      }
+    } catch (_e) {
+      toast.error('Failed to add member');
+    } finally {
+      setAddingMember(false);
     }
   };
 
@@ -391,6 +419,25 @@ export function CrewBuilder() {
                 >
                   {generatingLink ? <Loader2 size={12} className="animate-spin" /> : <Share2 size={12} />}
                   {generatingLink ? 'Generating...' : 'Share Invite'}
+                </button>
+              </div>
+
+              {/* Inline Add Member */}
+              <div className="flex gap-2">
+                <Input
+                  value={addMemberName}
+                  onChange={(e) => setAddMemberName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddMember()}
+                  placeholder="Add member by name..."
+                  disabled={addingMember}
+                  className="flex-1 bg-transparent border-white/10 rounded-none h-10 text-[10px] uppercase tracking-widest placeholder:text-white/20 focus:border-white/40 transition-all"
+                />
+                <button
+                  onClick={handleAddMember}
+                  disabled={!addMemberName.trim() || addingMember}
+                  className="w-10 h-10 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/30 disabled:opacity-30 transition-all"
+                >
+                  {addingMember ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={14} />}
                 </button>
               </div>
 
