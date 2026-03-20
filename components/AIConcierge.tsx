@@ -49,9 +49,22 @@ export function AIConcierge() {
   const [isTyping, setIsTyping] = useState(false);
   const [bookingModal, setBookingModal] = useState<{ isOpen: boolean; tile: Tile | null }>({ isOpen: false, tile: null });
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+  };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Immediate scroll when message first appears
+    scrollToBottom('smooth');
+
+    // The latest message — check if it has tiles
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.tiles && lastMsg.tiles.length > 0) {
+      // Re-scroll after tile animations finish expanding the container
+      const tileAnimDuration = (lastMsg.tiles.length * 100) + 200; // stagger delay + buffer
+      const t = setTimeout(() => scrollToBottom('smooth'), tileAnimDuration);
+      return () => clearTimeout(t);
+    }
   }, [messages]);
 
   const handleSend = async (text?: string) => {
@@ -146,7 +159,7 @@ export function AIConcierge() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 pb-48">
+      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 pb-56">
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] space-y-4 ${msg.role === 'user' ? 'items-end flex flex-col' : ''}`}>
