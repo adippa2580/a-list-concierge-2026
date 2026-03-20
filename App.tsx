@@ -339,7 +339,7 @@ export default function App() {
         <div className="max-w-md mx-auto bg-[#000504] min-h-screen relative shadow-2xl overflow-hidden">
 
           {/* Top Bar — Platinum Theme */}
-          <div className="fixed top-0 left-0 right-0 max-w-md mx-auto bg-gradient-to-b from-[#000504]/90 to-transparent backdrop-blur-md px-5 py-4 z-50 flex items-center justify-between pointer-events-auto border-b border-[#E5E4E2]/5">
+          <div className="fixed top-0 left-0 right-0 max-w-md mx-auto bg-gradient-to-b from-[#000504]/90 to-transparent backdrop-blur-md px-5 py-4 z-50 flex items-center justify-between pointer-events-auto border-b border-[#E5E4E2]/5" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
             <div className="flex items-center gap-3">
               <button onClick={() => navigateTo("profile")} className="relative group">
                 <div className="w-10 h-10 platinum-border overflow-hidden bg-[#011410] flex items-center justify-center">
@@ -436,7 +436,7 @@ export default function App() {
           </AnimatePresence>
 
           {/* Main Content Area */}
-          <div className="h-screen overflow-y-auto pb-24 pt-20 no-scrollbar scroll-smooth">
+          <div className="h-dvh overflow-y-auto pb-28 pt-20 no-scrollbar scroll-smooth">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentView}
@@ -490,7 +490,7 @@ export default function App() {
           {/* Bottom Navigation — Platinum */}
           <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-30">
             <div className="absolute inset-0 bg-gradient-to-t from-[#000504] via-[#000504]/95 to-transparent h-24 pointer-events-none" />
-            <div className="relative px-6 pb-6 pt-4 flex items-center justify-between">
+            <div className="relative px-6 pt-4 flex items-center justify-between" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
               <NavButton
                 icon={HomeIcon}
                 label="Home"
