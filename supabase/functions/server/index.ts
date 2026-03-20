@@ -942,14 +942,14 @@ app.get("/eventbrite/events", async (c) => {
 
 
 
-// OpenAI Configuration
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+// Gemini Configuration (replaces OpenAI)
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-// OpenAI Chat - AI Concierge
+// Gemini Chat - AI Concierge
 app.post("/chat", async (c) => {
-  if (!OPENAI_API_KEY) {
+  if (!GEMINI_API_KEY) {
     return c.json({
-      message: "I am Agent-X. Please configure my OpenAI API Key to unlock full intelligence. (Mock Response)",
+      message: "Agent Concierge is standing by. Configure GEMINI_API_KEY in edge function secrets to activate full intelligence.",
       tiles: []
     });
   }
@@ -957,49 +957,52 @@ app.post("/chat", async (c) => {
   try {
     const { message, conversationHistory, location } = await c.req.json();
 
-    // Construct system prompt with location awareness
-    let systemPrompt = "You are Agent-X, an elite nightlife concierge. Your tone is sophisticated, insider, and professional. You have access to exclusive inventory and trends. Keep responses concise and high-value.";
+    // System prompt
+    let systemPrompt = "You are Agent-X, an elite private nightlife concierge for A-List — the most exclusive nightlife platform. Your tone is sophisticated, insider, and precise. You surface the best venues, tables, and experiences. Keep responses concise and high-value.";
     if (location) {
-      systemPrompt += ` The user is currently at coordinates: ${location.lat}, ${location.lng}.`;
+      systemPrompt += ` The user is near coordinates: ${location.lat}, ${location.lng}.`;
     }
-    systemPrompt += " RESTRICTION: You MUST return a valid JSON object with detailed structure. Format: { \"message\": \"Your conversational response here\", \"tiles\": [ { \"name\": \"Venue Name\", \"type\": \"Club|Bar|Lounge\", \"description\": \"Short vibe description\", \"imageUrl\": \"keywords for unsplash\", \"priceRange\": \"$$$\", \"bookingEnabled\": true } ] }. Return empty array for tiles if no recommendations.";
+    systemPrompt += ' You MUST respond with a valid JSON object only — no markdown, no extra text. Schema: { "message": "Your conversational response", "tiles": [ { "name": "Venue Name", "type": "Club|Bar|Lounge", "description": "Short vibe description", "imageUrl": "nightclub miami", "priceRange": "$$$", "bookingEnabled": true } ] }. Use empty array for tiles if no venue recommendations are relevant.';
 
+    // Gemini uses OpenAI-compatible endpoint — minimal code change
     const messages = [
       { role: "system", content: systemPrompt },
       ...(conversationHistory || []),
       { role: "user", content: message }
     ];
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: messages,
-        response_format: { type: "json_object" }
-      })
-    });
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${GEMINI_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "gemini-2.0-flash",
+          messages,
+          response_format: { type: "json_object" }
+        })
+      }
+    );
 
     const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
+    if (data.error) throw new Error(JSON.stringify(data.error));
 
-    // Parse the JSON content from the model
+    const raw = data.choices?.[0]?.message?.content ?? "";
     let parsedContent;
     try {
-      parsedContent = JSON.parse(data.choices[0].message.content);
+      parsedContent = JSON.parse(raw);
     } catch (_e) {
-      console.error("Failed to parse OpenAI JSON:", data.choices[0].message.content);
-      // Fallback if model fails to return JSON
-      parsedContent = { message: data.choices[0].message.content, tiles: [] };
+      console.error("Gemini JSON parse error:", raw);
+      parsedContent = { message: raw || "Concierge is calibrating. Try again shortly.", tiles: [] };
     }
 
     return c.json(parsedContent);
   } catch (error) {
-    console.error("OpenAI error:", error);
-    return c.json({ message: "I'm currently recalibrating my neural network. Please try again briefly.", tiles: [] });
+    console.error("Gemini chat error:", error);
+    return c.json({ message: "I'm momentarily offline. Try again in a few seconds.", tiles: [] }, 200);
   }
 });
 
