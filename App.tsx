@@ -123,17 +123,49 @@ export default function App() {
     }
   };
 
-  // Check for OAuth callbacks and crew invite links on mount
+  // Check for OAuth callbacks, email confirmation links, and crew invite links on mount
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
     const pathname = window.location.pathname;
 
-    // Crew invite deep link: ?joinCrew=TOKEN
+    // ── Email confirmation / magic link ─────────────────────────────────────
+    // Supabase sends ?token_hash=xxx&type=email or #access_token=xxx&type=recovery
+    const tokenHash = urlParams.get('token_hash');
+    const type = urlParams.get('type') ?? hashParams.get('type');
+    const accessToken = hashParams.get('access_token');
+
+    if (tokenHash && type) {
+      // Exchange the token for a session then route appropriately
+      supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as any })
+        .then(({ data, error }) => {
+          window.history.replaceState({}, document.title, '/');
+          if (!error && data.session) {
+            setAppState('app');
+          } else {
+            setAppState('login');
+          }
+        });
+      return;
+    }
+
+    if (accessToken) {
+      // Fragment-based session (older Supabase flows)
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: hashParams.get('refresh_token') ?? '',
+      }).then(({ error }) => {
+        window.history.replaceState({}, document.title, '/');
+        setAppState(error ? 'login' : 'app');
+      });
+      return;
+    }
+
+    // ── Crew invite deep link: ?joinCrew=TOKEN ───────────────────────────────
     const joinToken = urlParams.get('joinCrew');
     if (joinToken) {
       setJoinCrewToken(joinToken);
       setAppState('join-crew');
-      // Clean up the URL so refresh doesn't re-trigger
       window.history.replaceState({}, document.title, window.location.pathname);
       return;
     }
