@@ -942,61 +942,154 @@ app.get("/eventbrite/events", async (c) => {
 
 
 
-// Gemini Configuration (replaces OpenAI)
+// ── Gemini Configuration ──────────────────────────────────────────────────────
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? `https://ofjcnikfebfgopytsgbm.supabase.co`;
+const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-// Gemini Chat - AI Concierge
+async function callGemini(messages: object[], jsonMode = true): Promise<string> {
+  const body: Record<string, unknown> = { model: "gemini-2.5-flash", messages };
+  if (jsonMode) body.response_format = { type: "json_object" };
+  const res = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GEMINI_API_KEY}` },
+      body: JSON.stringify(body)
+    }
+  );
+  const data = await res.json();
+  if (data.error) throw new Error(JSON.stringify(data.error));
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
+async function getUserIntelligence(userId: string): Promise<Record<string, unknown> | null> {
+  if (!SUPABASE_SERVICE_KEY || !userId) return null;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/user_intelligence?id=eq.${userId}&select=*`,
+      { headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY } }
+    );
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  } catch { return null; }
+}
+
+async function extractAndSaveIntelligence(userId: string, history: { role: string; content: string }[]): Promise<void> {
+  if (!SUPABASE_SERVICE_KEY || !userId || history.length < 2) return;
+  try {
+    const existing = await getUserIntelligence(userId);
+    const existingContext = existing?.context_summary ?? "";
+    const extractPrompt = `You are a preference extraction engine. Analyse this nightlife concierge conversation and extract signals about the user.
+Existing context: ${existingContext}
+Conversation: ${history.map(m => `${m.role}: ${m.content}`).join("\n")}
+Return ONLY valid JSON: { "favorite_venues": ["venue names mentioned positively"], "music_genres": ["genres"], "preferred_vibes": ["vibe keywords"], "cities": ["cities"], "typical_party_size": null_or_number, "price_tier": null_or_"mid"_or_"high"_or_"ultra", "context_summary": "2-3 sentence natural language memory of who this user is and what they like" }
+If nothing new can be inferred for a field, return its existing value or null. Merge with existing context rather than replacing.`;
+    const raw = await callGemini([{ role: "user", content: extractPrompt }], true);
+    const extracted = JSON.parse(raw);
+    const turnCount = ((existing?.turn_count as number) ?? 0) + history.length;
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/user_intelligence`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`,
+          "apikey": SUPABASE_SERVICE_KEY,
+          "Prefer": "resolution=merge-duplicates"
+        },
+        body: JSON.stringify({ id: userId, ...extracted, turn_count: turnCount, updated_at: new Date().toISOString() })
+      }
+    );
+  } catch { /* fire-and-forget — never block the main response */ }
+}
+
+function buildSystemPrompt(intelligence: Record<string, unknown> | null, location: { lat: number; lng: number } | null): string {
+  let prompt = "You are A-List Assist — an elite private nightlife concierge. Your tone is sophisticated, insider, warm but precise. You remember this user's preferences and proactively tailor every response to them.";
+
+  if (intelligence) {
+    const parts: string[] = [];
+    if (intelligence.context_summary) parts.push(`User memory: ${intelligence.context_summary}`);
+    if ((intelligence.favorite_venues as string[])?.length) parts.push(`Favourite venues: ${(intelligence.favorite_venues as string[]).join(", ")}`);
+    if ((intelligence.music_genres as string[])?.length) parts.push(`Music taste: ${(intelligence.music_genres as string[]).join(", ")}`);
+    if ((intelligence.preferred_vibes as string[])?.length) parts.push(`Preferred vibes: ${(intelligence.preferred_vibes as string[]).join(", ")}`);
+    if (intelligence.price_tier) parts.push(`Budget: ${intelligence.price_tier}`);
+    if (intelligence.typical_party_size) parts.push(`Typical party size: ${intelligence.typical_party_size}`);
+    if ((intelligence.cities as string[])?.length) parts.push(`Cities: ${(intelligence.cities as string[]).join(", ")}`);
+    if (parts.length) prompt += `\n\nKNOWN USER PROFILE:\n${parts.join("\n")}`;
+    prompt += "\n\nUse this profile to personalise recommendations proactively. Reference specific preferences when relevant — it should feel like they're talking to someone who knows them.";
+  }
+
+  if (location) prompt += ` User location: ${location.lat}, ${location.lng}.`;
+
+  prompt += '\n\nYou MUST respond with valid JSON only — no markdown, no extra text. Schema: { "message": "Your conversational response", "tiles": [ { "name": "Venue Name", "type": "Club|Bar|Lounge", "description": "Short vibe description", "imageUrl": "search keywords for unsplash", "priceRange": "$$$", "bookingEnabled": true } ] }. Use empty tiles array if no venue recommendations are relevant.';
+  return prompt;
+}
+
+// ── Personalised greeting ─────────────────────────────────────────────────────
+app.get("/chat/greet", async (c) => {
+  if (!GEMINI_API_KEY) {
+    return c.json({ message: "Good evening. I'm your A-List Concierge. How may I assist you tonight?" });
+  }
+  const userId = c.req.query("userId");
+  const intelligence = userId ? await getUserIntelligence(userId) : null;
+  const systemPrompt = buildSystemPrompt(intelligence, null);
+  const hour = new Date().getUTCHours(); // approximate, good enough for greeting
+  const timeOfDay = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
+  const greetPrompt = intelligence?.context_summary
+    ? `Generate a short, warm, personalised opening greeting for this returning user. Reference something specific about their preferences to show you remember them. It is ${timeOfDay}. Keep it under 30 words. Tone: elite concierge, like they just walked into a private members club.`
+    : `Generate a short, sophisticated first-time opening greeting. It is ${timeOfDay}. Introduce yourself as A-List Assist. Keep it under 25 words. Tone: elite nightlife concierge.`;
+
+  try {
+    const raw = await callGemini([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: greetPrompt }
+    ], true);
+    const parsed = JSON.parse(raw);
+    return c.json({ message: parsed.message || raw });
+  } catch {
+    return c.json({ message: `Good ${timeOfDay}. I'm A-List Assist — your private concierge. What are we doing tonight?` });
+  }
+});
+
+// ── Main chat ─────────────────────────────────────────────────────────────────
 app.post("/chat", async (c) => {
   if (!GEMINI_API_KEY) {
     return c.json({
-      message: "Agent Concierge is standing by. Configure GEMINI_API_KEY in edge function secrets to activate full intelligence.",
+      message: "A-List Assist is standing by. Configure GEMINI_API_KEY in edge function secrets to activate full intelligence.",
       tiles: []
     });
   }
 
   try {
-    const { message, conversationHistory, location } = await c.req.json();
+    const { message, conversationHistory, location, userId } = await c.req.json();
 
-    // System prompt
-    let systemPrompt = "You are Agent-X, an elite private nightlife concierge for A-List — the most exclusive nightlife platform. Your tone is sophisticated, insider, and precise. You surface the best venues, tables, and experiences. Keep responses concise and high-value.";
-    if (location) {
-      systemPrompt += ` The user is near coordinates: ${location.lat}, ${location.lng}.`;
-    }
-    systemPrompt += ' You MUST respond with a valid JSON object only — no markdown, no extra text. Schema: { "message": "Your conversational response", "tiles": [ { "name": "Venue Name", "type": "Club|Bar|Lounge", "description": "Short vibe description", "imageUrl": "nightclub miami", "priceRange": "$$$", "bookingEnabled": true } ] }. Use empty array for tiles if no venue recommendations are relevant.';
+    // Fetch user intelligence (non-blocking if unavailable)
+    const intelligence = userId ? await getUserIntelligence(userId) : null;
+    const systemPrompt = buildSystemPrompt(intelligence, location);
 
-    // Gemini uses OpenAI-compatible endpoint — minimal code change
     const messages = [
       { role: "system", content: systemPrompt },
       ...(conversationHistory || []),
       { role: "user", content: message }
     ];
 
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${GEMINI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: "gemini-2.5-flash",
-          messages,
-          response_format: { type: "json_object" }
-        })
-      }
-    );
-
-    const data = await response.json();
-    if (data.error) throw new Error(JSON.stringify(data.error));
-
-    const raw = data.choices?.[0]?.message?.content ?? "";
+    const raw = await callGemini(messages, true);
     let parsedContent;
     try {
       parsedContent = JSON.parse(raw);
-    } catch (_e) {
-      console.error("Gemini JSON parse error:", raw);
+    } catch {
       parsedContent = { message: raw || "Concierge is calibrating. Try again shortly.", tiles: [] };
+    }
+
+    // Fire-and-forget: extract preferences from this conversation turn
+    if (userId) {
+      const fullHistory = [
+        ...(conversationHistory || []),
+        { role: "user", content: message },
+        { role: "assistant", content: parsedContent.message }
+      ];
+      extractAndSaveIntelligence(userId, fullHistory);
     }
 
     return c.json(parsedContent);

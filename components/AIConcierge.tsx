@@ -9,6 +9,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Message {
   id: number;
@@ -34,24 +35,37 @@ const suggestions = [
   "Book me a table for 6"
 ];
 
-const initialMessages: Message[] = [
-  {
-    id: 1,
-    role: 'ai',
-    content: "Good evening. I'm your A-List Concierge — your private intelligence layer for Miami's nightlife. How may I assist you tonight?",
-    tiles: []
-  }
-];
-
 export function AIConcierge() {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const { userId } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [greetingLoading, setGreetingLoading] = useState(true);
   const [bookingModal, setBookingModal] = useState<{ isOpen: boolean; tile: Tile | null }>({ isOpen: false, tile: null });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
   };
+
+  // Personalised greeting on mount
+  useEffect(() => {
+    const fetchGreeting = async () => {
+      setGreetingLoading(true);
+      try {
+        const url = userId
+          ? `https://${projectId}.supabase.co/functions/v1/server/chat/greet?userId=${userId}`
+          : `https://${projectId}.supabase.co/functions/v1/server/chat/greet`;
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${publicAnonKey}` } });
+        const data = await res.json();
+        setMessages([{ id: 1, role: 'ai', content: data.message || "Good evening. How may I assist you tonight?", tiles: [] }]);
+      } catch {
+        setMessages([{ id: 1, role: 'ai', content: "Good evening. I'm A-List Assist — your private concierge. What are we doing tonight?", tiles: [] }]);
+      } finally {
+        setGreetingLoading(false);
+      }
+    };
+    fetchGreeting();
+  }, [userId]);
 
   useEffect(() => {
     // Immediate scroll when message first appears
@@ -98,7 +112,8 @@ export function AIConcierge() {
           body: JSON.stringify({
             message,
             conversationHistory: history,
-            location: null
+            location: null,
+            userId: userId ?? null
           })
         }
       );
@@ -160,6 +175,26 @@ export function AIConcierge() {
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 pb-56">
+        {/* Greeting loading pulse */}
+        {greetingLoading && (
+          <div className="flex justify-start">
+            <div className="max-w-[85%] space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-5 h-5 bg-[#E5E4E2]/10 border border-[#E5E4E2]/20 flex items-center justify-center">
+                  <Sparkles size={10} className="text-[#E5E4E2] animate-pulse" />
+                </div>
+                <span className="text-[7px] font-bold uppercase tracking-[0.3em] text-white/20">Agent Concierge</span>
+              </div>
+              <div className="bg-zinc-950 border border-white/10 px-5 py-4">
+                <div className="flex gap-1 items-center h-5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-1.5 h-1.5 rounded-full bg-white/30 animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[85%] space-y-4 ${msg.role === 'user' ? 'items-end flex flex-col' : ''}`}>
