@@ -20,12 +20,19 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [error, setError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [displayNameError, setDisplayNameError] = useState('');
 
   const validateForm = () => {
     let isValid = true;
     setEmailError('');
     setPasswordError('');
+    setDisplayNameError('');
     setError('');
+
+    if (mode === 'signup' && !displayName.trim()) {
+      setDisplayNameError('Display name is required');
+      isValid = false;
+    }
 
     if (!email) {
       setEmailError('Email address is required');
@@ -166,15 +173,18 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
             {mode === 'signup' && (
               <div className="space-y-2">
                 <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">
-                  Display Name
+                  Display Name <span className="text-red-400">*</span>
                 </label>
                 <Input
                   type="text"
                   placeholder="YOUR NAME"
                   value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all"
+                  onChange={(e) => { setDisplayName(e.target.value); setDisplayNameError(''); }}
+                  className={`bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${displayNameError ? 'border-red-500/50' : ''}`}
                 />
+                {displayNameError && (
+                  <p className="text-red-300 text-[9px] uppercase tracking-widest mt-1">{displayNameError}</p>
+                )}
               </div>
             )}
 

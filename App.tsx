@@ -23,6 +23,7 @@ import { MemberClubsFeed } from "./components/MemberClubsFeed";
 import { AIConcierge } from "./components/AIConcierge";
 import { AListLogo } from "./components/AListLogo";
 import { projectId, publicAnonKey } from './utils/supabase/info';
+import { supabase } from './utils/supabase/client';
 import { useAuth } from './contexts/AuthContext';
 import {
   Home as HomeIcon,
@@ -156,10 +157,28 @@ export default function App() {
     }
   }, [appState]);
 
-  const handleLogin = () => {
-    // First-time users see onboarding; returning users go straight home
-    const done = localStorage.getItem(ONBOARDING_DONE_KEY);
-    setAppState(done ? "app" : "onboarding");
+  const handleLogin = async () => {
+    // DB is the source of truth — check onboarding_complete on the profile.
+    // Fall back to localStorage only if the DB check fails (e.g. offline).
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('onboarding_complete')
+          .eq('id', user.id)
+          .single();
+        if (profile?.onboarding_complete) {
+          setAppState('app');
+          return;
+        }
+      }
+    } catch {
+      // Network failure — fall back to localStorage
+      const done = localStorage.getItem(ONBOARDING_DONE_KEY);
+      if (done) { setAppState('app'); return; }
+    }
+    setAppState('onboarding');
   };
 
   const handleVenueClick = (venue: any) => {

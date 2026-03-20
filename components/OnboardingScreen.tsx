@@ -4,11 +4,12 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   ChevronRight, ChevronLeft, Check, User, Camera, MapPin,
-  Instagram, Music, Headphones, Lock, Plus, Trash2, Eye, EyeOff,
+  Instagram, Headphones, Lock, Plus, Trash2, Eye, EyeOff,
   Building2, Zap, ShieldCheck, PartyPopper, X, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { supabase } from '../utils/supabase/client';
 import { useAuth } from '../contexts/AuthContext';
 import { AListLogo } from './AListLogo';
 
@@ -61,13 +62,9 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
   const [uploading, setUploading]   = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // ── Step 1: Social ───────────────────────────────────────────────────────
-  const [socialStatus, setSocialStatus] = useState({
-    instagram: false,
-    spotify: false,
-    soundcloud: false,
-  });
-  const [socialLoading, setSocialLoading] = useState(false);
+  // ── Step 1: Social handles (manual entry — no OAuth required) ───────────
+  const [instagramHandle, setInstagramHandle] = useState('');
+  const [soundcloudUsername, setSoundcloudUsername] = useState('');
 
   // ── Step 2: Private Clubs ────────────────────────────────────────────────
   const [clubs, setClubs] = useState<PrivateClub[]>(() => {
@@ -85,63 +82,6 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
 
   // ── Step 3: Done ─────────────────────────────────────────────────────────
   const [finishing, setFinishing] = useState(false);
-
-  // Check social connections on enter step 1
-  useEffect(() => {
-    if (step === 1) fetchSocialStatus();
-  }, [step]);
-
-  // ── Social fetch ──────────────────────────────────────────────────────────
-  const fetchSocialStatus = async () => {
-    setSocialLoading(true);
-    try {
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/social/profile?userId=${userId}`,
-        { headers: { Authorization: `Bearer ${publicAnonKey}` } }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setSocialStatus({
-          instagram: data.instagram?.connected ?? false,
-          spotify:   data.spotify?.connected   ?? false,
-          soundcloud: data.soundcloud?.connected ?? false,
-        });
-      }
-    } catch {}
-    setSocialLoading(false);
-  };
-
-  // ── Social connect ────────────────────────────────────────────────────────
-  const connectSocial = async (platform: 'spotify' | 'soundcloud' | 'instagram') => {
-    try {
-      let url = '';
-      if (platform === 'spotify') {
-        const r = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/server/spotify/login?userId=${userId}`,
-          { headers: { Authorization: `Bearer ${publicAnonKey}` } }
-        );
-        const d = await r.json();
-        url = d.authUrl;
-      } else if (platform === 'soundcloud') {
-        const r = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/server/soundcloud/login?userId=${userId}`,
-          { headers: { Authorization: `Bearer ${publicAnonKey}` } }
-        );
-        const d = await r.json();
-        url = d.url;
-      } else {
-        const r = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/server/instagram/auth-url?userId=${userId}`,
-          { headers: { Authorization: `Bearer ${publicAnonKey}` } }
-        );
-        const d = await r.json();
-        url = d.url;
-      }
-      if (url) window.location.href = url;
-    } catch {
-      toast.error(`Could not connect ${platform}`);
-    }
-  };
 
   // ── Avatar upload ─────────────────────────────────────────────────────────
   const handleAvatar = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,8 +101,15 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
   };
 
   // ── Save profile step ─────────────────────────────────────────────────────
+  const [nameError, setNameError] = useState('');
+
   const saveProfile = () => {
-    if (name.trim()) localStorage.setItem(NAME_KEY, name.trim());
+    if (!name.trim()) {
+      setNameError('Display name is required');
+      return;
+    }
+    setNameError('');
+    localStorage.setItem(NAME_KEY, name.trim());
     if (bio.trim())  localStorage.setItem(BIO_KEY,  bio.trim());
     if (location.trim()) localStorage.setItem(LOC_KEY, location.trim());
     nextStep();
@@ -222,7 +169,22 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
 
   const finish = async () => {
     setFinishing(true);
-    await new Promise(r => setTimeout(r, 1200));
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('profiles').upsert({
+          id: user.id,
+          display_name: name.trim() || localStorage.getItem(NAME_KEY) || '',
+          city: location.trim() || null,
+          instagram_handle: instagramHandle.replace(/^@/, '').trim() || null,
+          soundcloud_connected: soundcloudUsername.trim() ? true : false,
+          onboarding_complete: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
+      }
+    } catch (e) {
+      console.error('Failed to save onboarding to DB:', e);
+    }
     localStorage.setItem(ONBOARDING_DONE_KEY, 'true');
     onComplete();
   };
@@ -318,13 +280,18 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
               {/* Fields */}
               <div className="space-y-5">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase tracking-[0.25em] text-white/40">Display Name</label>
+                  <label className="text-[9px] font-bold uppercase tracking-[0.25em] text-white/40">
+                    Display Name <span className="text-red-400">*</span>
+                  </label>
                   <input
                     value={name}
-                    onChange={e => setName(e.target.value)}
+                    onChange={e => { setName(e.target.value); setNameError(''); }}
                     placeholder="Your Name"
-                    className="w-full bg-transparent border-b border-white/10 focus:border-[#E5E4E2] text-white text-base font-serif italic uppercase tracking-wider py-2 focus:outline-none transition-colors placeholder:text-white/20"
+                    className={`w-full bg-transparent border-b focus:border-[#E5E4E2] text-white text-base font-serif italic uppercase tracking-wider py-2 focus:outline-none transition-colors placeholder:text-white/20 ${nameError ? 'border-red-500/50' : 'border-white/10'}`}
                   />
+                  {nameError && (
+                    <p className="text-red-300 text-[9px] uppercase tracking-widest">{nameError}</p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[9px] font-bold uppercase tracking-[0.25em] text-white/40">Short Bio</label>
@@ -362,48 +329,55 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
             >
               <div>
                 <p className="text-[9px] font-bold uppercase tracking-[0.4em] text-white/30 mb-2">Step 2 of 4</p>
-                <h1 className="text-3xl font-serif italic uppercase tracking-wider">Connect Your World</h1>
+                <h1 className="text-3xl font-serif italic uppercase tracking-wider">Your Social Identity</h1>
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mt-2">
-                  Sync your social presence — optional but recommended
+                  Link your social presence — optional but recommended
                 </p>
               </div>
 
-              {socialLoading ? (
-                <div className="flex items-center gap-3 py-8">
-                  <Loader2 size={16} className="animate-spin text-white/30" />
-                  <span className="text-[9px] uppercase tracking-widest text-white/30">Checking connections...</span>
+              <div className="space-y-5">
+                {/* Instagram handle */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">
+                    <Instagram size={14} className="text-white/30" />
+                    Instagram Handle
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 text-sm font-light">@</span>
+                    <input
+                      type="text"
+                      value={instagramHandle}
+                      onChange={e => setInstagramHandle(e.target.value.replace(/^@/, ''))}
+                      placeholder="yourhandle"
+                      className="w-full bg-zinc-950 border border-white/10 rounded-none h-12 pl-8 pr-4 text-[11px] uppercase tracking-widest text-white placeholder:text-white/20 focus:border-[#E5E4E2]/40 focus:outline-none transition-all"
+                    />
+                  </div>
+                  {instagramHandle.trim() && (
+                    <p className="text-[8px] text-green-400/70 uppercase tracking-widest">Handle saved</p>
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {/* Instagram */}
-                  <SocialConnectRow
-                    icon={<Instagram size={18} />}
-                    label="Instagram"
-                    sublabel="Profile photo & handle"
-                    connected={socialStatus.instagram}
-                    onConnect={() => connectSocial('instagram')}
+
+                {/* SoundCloud username */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">
+                    <Headphones size={14} className="text-white/30" />
+                    SoundCloud Username
+                  </label>
+                  <input
+                    type="text"
+                    value={soundcloudUsername}
+                    onChange={e => setSoundcloudUsername(e.target.value)}
+                    placeholder="soundcloud.com/yourname"
+                    className="w-full bg-zinc-950 border border-white/10 rounded-none h-12 px-4 text-[11px] uppercase tracking-widest text-white placeholder:text-white/20 focus:border-[#E5E4E2]/40 focus:outline-none transition-all"
                   />
-                  {/* Spotify */}
-                  <SocialConnectRow
-                    icon={<Music size={18} />}
-                    label="Spotify"
-                    sublabel="Music taste & profile"
-                    connected={socialStatus.spotify}
-                    onConnect={() => connectSocial('spotify')}
-                  />
-                  {/* SoundCloud */}
-                  <SocialConnectRow
-                    icon={<Headphones size={18} />}
-                    label="SoundCloud"
-                    sublabel="DJ / producer identity"
-                    connected={socialStatus.soundcloud}
-                    onConnect={() => connectSocial('soundcloud')}
-                  />
+                  {soundcloudUsername.trim() && (
+                    <p className="text-[8px] text-green-400/70 uppercase tracking-widest">Username saved</p>
+                  )}
                 </div>
-              )}
+              </div>
 
               <p className="text-[8px] uppercase tracking-[0.2em] text-white/20 leading-loose">
-                Social accounts are used only to populate your profile. We never post on your behalf.
+                Handles are used only to populate your profile. We never post on your behalf.
               </p>
             </motion.div>
           )}
@@ -622,19 +596,14 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
                 {name && (
                   <SummaryRow icon={<User size={12} />} label="Profile" value={name} />
                 )}
-                {[
-                  socialStatus.instagram && 'Instagram',
-                  socialStatus.spotify && 'Spotify',
-                  socialStatus.soundcloud && 'SoundCloud',
-                ].filter(Boolean).length > 0 && (
+                {(instagramHandle.trim() || soundcloudUsername.trim()) && (
                   <SummaryRow
                     icon={<Zap size={12} />}
                     label="Socials"
                     value={[
-                      socialStatus.instagram && 'Instagram',
-                      socialStatus.spotify && 'Spotify',
-                      socialStatus.soundcloud && 'SoundCloud',
-                    ].filter(Boolean).join(', ')}
+                      instagramHandle.trim() && `@${instagramHandle.replace(/^@/, '')}`,
+                      soundcloudUsername.trim() && `SoundCloud: ${soundcloudUsername}`,
+                    ].filter(Boolean).join(' · ')}
                   />
                 )}
                 {clubs.length > 0 && (
