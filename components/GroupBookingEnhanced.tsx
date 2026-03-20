@@ -11,10 +11,11 @@ import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { useAuth } from '../contexts/AuthContext';
 
 const API = `https://${projectId}.supabase.co/functions/v1/server`;
 const HEADERS = { Authorization: `Bearer ${publicAnonKey}`, 'Content-Type': 'application/json' };
-const USER_ID = 'default_user';
+
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type SplitMethod = 'even' | 'host' | 'custom';
@@ -149,6 +150,7 @@ const getMixersInTier = (tier: string) => {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 export function GroupBooking({ venue, onBack }: GroupBookingProps) {
+  const { userId: USER_ID } = useAuth();
   const [screen, setScreen] = useState<Screen>('crew-select');
   const [crews, setCrews] = useState<Crew[]>([]);
   const [loadingCrews, setLoadingCrews] = useState(true);

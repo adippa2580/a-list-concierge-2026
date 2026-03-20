@@ -9,6 +9,7 @@ import { AListLogo } from './AListLogo';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { useAuth } from '../contexts/AuthContext';
 
 interface InboxProps {
   onBack?: () => void;
@@ -18,6 +19,7 @@ const API = `https://${projectId}.supabase.co/functions/v1/server`;
 const HEADERS = { 'Authorization': `Bearer ${publicAnonKey}`, 'Content-Type': 'application/json' };
 
 export function Inbox({ onBack }: InboxProps) {
+  const { userId } = useAuth();
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterActive, setFilterActive] = useState(false);
@@ -31,7 +33,7 @@ export function Inbox({ onBack }: InboxProps) {
   const fetchInvites = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/invites?userId=default_user`, { headers: HEADERS });
+      const res = await fetch(`${API}/invites?userId=${userId}`, { headers: HEADERS });
       if (res.ok) setInviteData(await res.json());
     } catch (e) {
       console.error('Failed to load invites', e);
@@ -42,7 +44,7 @@ export function Inbox({ onBack }: InboxProps) {
 
   const handleAccept = async (id: number) => {
     try {
-      const res = await fetch(`${API}/invites?userId=default_user`, {
+      const res = await fetch(`${API}/invites?userId=${userId}`, {
         method: 'PATCH',
         headers: HEADERS,
         body: JSON.stringify({ id, status: 'accepted' })
@@ -58,7 +60,7 @@ export function Inbox({ onBack }: InboxProps) {
 
   const handleDecline = async (id: number) => {
     try {
-      const res = await fetch(`${API}/invites?userId=default_user`, {
+      const res = await fetch(`${API}/invites?userId=${userId}`, {
         method: 'PATCH',
         headers: HEADERS,
         body: JSON.stringify({ id, status: 'declined' })

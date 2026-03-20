@@ -23,6 +23,7 @@ import { MemberClubsFeed } from "./components/MemberClubsFeed";
 import { AIConcierge } from "./components/AIConcierge";
 import { AListLogo } from "./components/AListLogo";
 import { projectId, publicAnonKey } from './utils/supabase/info';
+import { useAuth } from './contexts/AuthContext';
 import {
   Home as HomeIcon,
   Users,
@@ -59,6 +60,7 @@ type ViewType =
 type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify-callback" | "soundcloud-callback" | "join-crew";
 
 export default function App() {
+  const { userId } = useAuth();
   const [appState, setAppState] = useState<AppState>("splash");
   const [currentView, setCurrentView] =
     useState<ViewType>("home");
@@ -105,7 +107,7 @@ export default function App() {
 
   const fetchProfile = async () => {
     try {
-      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=default_user`, {
+      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
         headers: { 'Authorization': `Bearer ${publicAnonKey}` }
       });
       if (res.ok) {

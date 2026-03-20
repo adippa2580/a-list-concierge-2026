@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { AListLogo } from './AListLogo';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { useAuth } from '../contexts/AuthContext';
 
 const API = `https://${projectId}.supabase.co/functions/v1/server`;
 const HEADERS = { Authorization: `Bearer ${publicAnonKey}`, 'Content-Type': 'application/json' };
@@ -34,6 +35,7 @@ const LEVEL_COLORS: Record<string, string> = {
 };
 
 export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreenProps) {
+  const { userId } = useAuth();
   const [preview, setPreview] = useState<CrewPreview | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [joinerName, setJoinerName] = useState('');
@@ -67,7 +69,7 @@ export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreen
       const res = await fetch(`${API}/crews/join`, {
         method: 'POST',
         headers: HEADERS,
-        body: JSON.stringify({ token, joinerName: joinerName.trim(), joinerUserId: 'default_user' }),
+        body: JSON.stringify({ token, joinerName: joinerName.trim(), joinerUserId: userId }),
       });
       const data = await res.json();
       if (!res.ok) {

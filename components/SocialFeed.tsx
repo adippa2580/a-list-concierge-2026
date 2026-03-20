@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { motion, AnimatePresence } from 'motion/react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { useAuth } from '../contexts/AuthContext';
 
 const API = `https://${projectId}.supabase.co/functions/v1/server`;
 const HEADERS = { Authorization: `Bearer ${publicAnonKey}` };
@@ -92,9 +93,7 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
   const [disconnecting, setDisconnecting] = useState(false);
   const [showSetupGuide, setShowSetupGuide] = useState(false);
 
-  const userId = typeof localStorage !== 'undefined'
-    ? localStorage.getItem('alist_user_id') || 'default_user'
-    : 'default_user';
+  const { userId } = useAuth();
 
   useEffect(() => {
     fetchInstagramStatus();

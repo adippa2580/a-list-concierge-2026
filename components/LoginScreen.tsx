@@ -5,16 +5,17 @@ import { AListLogo } from './AListLogo';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
-import { createClient } from '@supabase/supabase-js';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { supabase } from '../utils/supabase/client';
 
 interface LoginScreenProps {
   onSuccess: () => void;
 }
 
 export function LoginScreen({ onSuccess }: LoginScreenProps) {
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [emailError, setEmailError] = useState('');
@@ -45,91 +46,147 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     return isValid;
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
     setError('');
 
     try {
-      const supabase = createClient(
-        `https://${projectId}.supabase.co`,
-        publicAnonKey
-      );
-
-      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (authError) {
-        console.warn('Auth error (prototype bypass):', authError.message);
+      if (mode === 'signin') {
+        const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        if (authError) {
+          if (authError.message.toLowerCase().includes('invalid login')) {
+            setError('Incorrect email or password.');
+          } else {
+            setError(authError.message);
+          }
+          return;
+        }
+        toast.success('Identity Verified', { description: 'Access Granted' });
+        setTimeout(() => onSuccess(), 600);
+      } else {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { display_name: displayName || email.split('@')[0] },
+          },
+        });
+        if (signUpError) {
+          setError(signUpError.message);
+          return;
+        }
+        if (data.session) {
+          if (displayName && data.user) {
+            await supabase
+              .from('profiles')
+              .update({ display_name: displayName })
+              .eq('id', data.user.id);
+          }
+          toast.success('Account Created', { description: 'Welcome to A-List' });
+          setTimeout(() => onSuccess(), 600);
+        } else {
+          toast.success('Check Your Inbox', {
+            description: 'Confirm your email to complete registration',
+          });
+          setMode('signin');
+        }
       }
-
-      // Always proceed in prototype mode
-      toast.success('Identity Verified', {
-        description: 'Access Granted'
-      });
-
-      setTimeout(() => onSuccess(), 800);
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : 'An unexpected error occurred';
-      setError(errMsg);
-      toast.error('Verification Failed', {
-        description: errMsg
-      });
+      const msg = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(msg);
+      toast.error('Verification Failed', { description: msg });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSocialLogin = (provider: string) => {
+  const handleSocialLogin = async (provider: 'google') => {
     setLoading(true);
-    toast.info(`Connecting ${provider} Identity...`);
-    setTimeout(() => {
-      toast.success('Access Granted');
-      setTimeout(() => onSuccess(), 500);
-    }, 1200);
+    const { error } = await supabase.auth.signInWithOAuth({ provider });
+    if (error) {
+      toast.error(`${provider} login failed`, { description: error.message });
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-6 overflow-hidden bg-[#000504] text-white">
       {/* Background */}
       <div className="absolute inset-0 z-0">
-         <div 
-           className="absolute inset-0 bg-cover bg-center opacity-15 scale-105"
-           style={{ 
-             backgroundImage: 'url(https://images.unsplash.com/photo-1767713421795-ca09a9d05c38?q=80&w=1080&auto=format&fit=crop)'
-           }}
-         />
-         <div className="absolute inset-0 bg-gradient-to-t from-[#000504] via-[#000504]/95 to-[#000504]/50" />
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-15 scale-105"
+          style={{
+            backgroundImage:
+              'url(https://images.unsplash.com/photo-1767713421795-ca09a9d05c38?q=80&w=1080&auto=format&fit=crop)',
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#000504] via-[#000504]/95 to-[#000504]/50" />
       </div>
 
-      <div className="relative z-10 w-full max-w-sm space-y-12">
+      <div className="relative z-10 w-full max-w-sm space-y-10">
         {/* Logo */}
         <div className="flex flex-col items-center gap-6">
           <AListLogo variant="splash" size="xl" theme="gradient" animated />
         </div>
 
-        {/* Login Form */}
-        <form onSubmit={handleLogin} className="space-y-6">
+        {/* Mode toggle */}
+        <div className="flex border border-white/10">
+          <button
+            type="button"
+            onClick={() => { setMode('signin'); setError(''); }}
+            className={`flex-1 py-3 text-[9px] font-bold uppercase tracking-[0.25em] transition-all ${
+              mode === 'signin' ? 'bg-white text-[#000504]' : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Sign In
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('signup'); setError(''); }}
+            className={`flex-1 py-3 text-[9px] font-bold uppercase tracking-[0.25em] transition-all ${
+              mode === 'signup' ? 'bg-white text-[#000504]' : 'text-white/40 hover:text-white/60'
+            }`}
+          >
+            Create Account
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-300 text-[11px] uppercase tracking-widest">
               {error}
             </div>
           )}
+
           <div className="space-y-4">
+            {mode === 'signup' && (
+              <div className="space-y-2">
+                <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">
+                  Display Name
+                </label>
+                <Input
+                  type="text"
+                  placeholder="YOUR NAME"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className="bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all"
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
-              <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Secure Identifier</label>
+              <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">
+                Secure Identifier
+              </label>
               <Input
                 type="email"
                 placeholder="EMAIL ADDRESS"
                 value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setEmailError('');
-                }}
+                onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
                 className={`bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${
                   emailError ? 'border-red-500/50' : ''
                 }`}
@@ -138,16 +195,16 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
                 <p className="text-red-300 text-[9px] uppercase tracking-widest mt-1">{emailError}</p>
               )}
             </div>
+
             <div className="space-y-2">
-              <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Access Key</label>
+              <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">
+                Access Key
+              </label>
               <Input
                 type="password"
                 placeholder="PASSWORD"
                 value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setPasswordError('');
-                }}
+                onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
                 className={`bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${
                   passwordError ? 'border-red-500/50' : ''
                 }`}
@@ -161,9 +218,9 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] active:bg-[#D5D4D2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] active:bg-[#D5D4D2] active:scale-95 rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-white/30"
           >
-            {loading ? 'Verifying Identity...' : 'Verify & Enter'}
+            {loading ? 'Verifying...' : mode === 'signin' ? 'Verify & Enter' : 'Create Account'}
           </Button>
         </form>
 
@@ -176,17 +233,20 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
         {/* Social Login */}
         <div className="grid grid-cols-2 gap-3">
-          <button 
-            onClick={() => handleSocialLogin('Instagram')}
-            className="py-4 border border-white/10 text-[9px] font-bold uppercase tracking-widest text-white/60 hover:bg-white/5 hover:border-white/30 transition-all"
+          <button
+            type="button"
+            onClick={() => handleSocialLogin('google')}
+            disabled={loading}
+            className="py-4 border border-white/10 text-[9px] font-bold uppercase tracking-widest text-white/60 hover:bg-white/5 hover:border-white/30 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:opacity-40"
+          >
+            Google
+          </button>
+          <button
+            type="button"
+            disabled={loading}
+            className="py-4 border border-white/10 text-[9px] font-bold uppercase tracking-widest text-white/20 cursor-not-allowed opacity-30"
           >
             Instagram
-          </button>
-          <button 
-            onClick={() => handleSocialLogin('SoundCloud')}
-            className="py-4 border border-white/10 text-[9px] font-bold uppercase tracking-widest text-white/60 hover:bg-white/5 hover:border-white/30 transition-all"
-          >
-            SoundCloud
           </button>
         </div>
 

@@ -8,6 +8,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { useAuth } from '../contexts/AuthContext';
 
 interface UserProfileProps {
   onProfileUpdate?: () => void;
@@ -66,6 +67,7 @@ interface SocialProfile {
 }
 
 export function UserProfile({ onProfileUpdate }: UserProfileProps) {
+  const { userId, user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('identity');
 
   // Avatar
@@ -159,7 +161,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     setLoading(true);
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/profile?userId=default_user`,
+        `https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`,
         { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
       if (res.ok) setProfile(await res.json());
@@ -174,7 +176,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     setSocialLoading(true);
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/social/profile?userId=default_user`,
+        `https://${projectId}.supabase.co/functions/v1/server/social/profile?userId=${userId}`,
         { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
       if (res.ok) setSocial(await res.json());
@@ -291,7 +293,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
   const connectSpotify = async () => {
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/spotify/login?userId=default_user`,
+        `https://${projectId}.supabase.co/functions/v1/server/spotify/login?userId=${userId}`,
         { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
       if (res.ok) {
@@ -304,7 +306,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
   const connectSoundCloud = async () => {
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/soundcloud/login?userId=default_user`,
+        `https://${projectId}.supabase.co/functions/v1/server/soundcloud/login?userId=${userId}`,
         { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
       if (res.ok) {
@@ -317,7 +319,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
   const connectInstagram = async () => {
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/instagram/auth-url?userId=default_user`,
+        `https://${projectId}.supabase.co/functions/v1/server/instagram/auth-url?userId=${userId}`,
         { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
       if (res.ok) {

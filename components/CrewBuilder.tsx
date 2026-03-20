@@ -9,10 +9,10 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { useAuth } from '../contexts/AuthContext';
 
 const API = `https://${projectId}.supabase.co/functions/v1/server`;
 const HEADERS = { 'Authorization': `Bearer ${publicAnonKey}`, 'Content-Type': 'application/json' };
-const USER_ID = 'default_user';
 
 type Member = { name: string; avatar: string; role: string; spend: number };
 type NextLevel = { name: string; spend: number } | null;
@@ -38,6 +38,7 @@ const LEVEL_COLORS: Record<string, string> = {
 };
 
 export function CrewBuilder() {
+  const { userId: USER_ID } = useAuth();
   const [activeTab, setActiveTab] = useState('crews');
   const [selectedCrew, setSelectedCrew] = useState<Crew | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);

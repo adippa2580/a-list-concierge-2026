@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { useAuth } from '../contexts/AuthContext';
 import { AListLogo } from './AListLogo';
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
@@ -48,6 +49,7 @@ interface OnboardingProps {
 }
 
 export function OnboardingScreen({ onComplete }: OnboardingProps) {
+  const { userId } = useAuth();
   const [step, setStep] = useState(0); // 0–3
   const TOTAL_STEPS = 4;
 
@@ -94,7 +96,7 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
     setSocialLoading(true);
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/social/profile?userId=default_user`,
+        `https://${projectId}.supabase.co/functions/v1/server/social/profile?userId=${userId}`,
         { headers: { Authorization: `Bearer ${publicAnonKey}` } }
       );
       if (res.ok) {
@@ -115,21 +117,21 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
       let url = '';
       if (platform === 'spotify') {
         const r = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/server/spotify/login?userId=default_user`,
+          `https://${projectId}.supabase.co/functions/v1/server/spotify/login?userId=${userId}`,
           { headers: { Authorization: `Bearer ${publicAnonKey}` } }
         );
         const d = await r.json();
         url = d.authUrl;
       } else if (platform === 'soundcloud') {
         const r = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/server/soundcloud/login?userId=default_user`,
+          `https://${projectId}.supabase.co/functions/v1/server/soundcloud/login?userId=${userId}`,
           { headers: { Authorization: `Bearer ${publicAnonKey}` } }
         );
         const d = await r.json();
         url = d.url;
       } else {
         const r = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/server/instagram/auth-url?userId=default_user`,
+          `https://${projectId}.supabase.co/functions/v1/server/instagram/auth-url?userId=${userId}`,
           { headers: { Authorization: `Bearer ${publicAnonKey}` } }
         );
         const d = await r.json();

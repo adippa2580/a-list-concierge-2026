@@ -6,6 +6,7 @@ import { AListLogo } from './AListLogo';
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { useAuth } from '../contexts/AuthContext';
 
 const vipTiers = [
   { name: 'Silver', minSpend: 0, color: 'text-white/40', borderColor: 'border-white/10' },
@@ -65,6 +66,7 @@ const NEXT_TIER: Record<string, { name: string; spend: number }> = {
 };
 
 export function VIPStatus() {
+  const { userId } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -75,7 +77,7 @@ export function VIPStatus() {
   const fetchProfile = async () => {
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/profile?userId=default_user`,
+        `https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`,
         { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
       if (res.ok) setProfile(await res.json());
