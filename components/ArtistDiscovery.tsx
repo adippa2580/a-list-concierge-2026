@@ -8,6 +8,81 @@ import { Avatar, AvatarFallback } from './ui/avatar';
 import { motion, AnimatePresence } from 'motion/react';
 import { useState } from 'react';
 
+const eventRecaps = [
+  {
+    id: 1,
+    artist: 'Sonoshvq',
+    venue: 'Soho Beach House',
+    date: 'March 15, 2026',
+    vibeDescription: 'Electric peak hour set with curated house selection',
+    attendanceCount: '340+',
+    image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: 2,
+    artist: 'Charlotte de Witte',
+    venue: 'Factory Town',
+    date: 'March 13, 2026',
+    vibeDescription: 'Hypnotic techno voyage pushing boundaries',
+    attendanceCount: '520+',
+    image: 'https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: 3,
+    artist: 'Peggy Gou',
+    venue: 'LIV Miami',
+    date: 'March 10, 2026',
+    vibeDescription: 'Disco-tinged deep house journey',
+    attendanceCount: '680+',
+    image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600&auto=format&fit=crop'
+  }
+];
+
+const tracksOfTheWeek = [
+  {
+    id: 1,
+    trackName: 'Phosphene',
+    artist: 'Sonoshvq',
+    vibe: 'PEAK HOUR',
+    playCount: '3.2K'
+  },
+  {
+    id: 2,
+    trackName: 'Berghain',
+    artist: 'Charlotte de Witte',
+    vibe: 'DEEP CUT',
+    playCount: '2.8K'
+  },
+  {
+    id: 3,
+    trackName: 'Eyes',
+    artist: 'Peggy Gou',
+    vibe: 'OPENER',
+    playCount: '4.1K'
+  },
+  {
+    id: 4,
+    trackName: 'Frequency of Love',
+    artist: 'John Summit',
+    vibe: 'PEAK HOUR',
+    playCount: '3.9K'
+  },
+  {
+    id: 5,
+    trackName: 'Motions',
+    artist: 'Fisher',
+    vibe: 'DEEP CUT',
+    playCount: '2.4K'
+  },
+  {
+    id: 6,
+    trackName: 'You Can Leave in a Body Bag',
+    artist: 'Black Coffee',
+    vibe: 'CLOSER',
+    playCount: '1.8K'
+  }
+];
+
 const artists = [
   {
     id: 1,
@@ -249,7 +324,100 @@ export function ArtistDiscovery() {
       </div>
 
       <div className="px-6 py-8 space-y-10">
-        
+
+        {/* EVENT RECAPS Section */}
+        <div className="space-y-6">
+          <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Event Recaps</h2>
+
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+            {eventRecaps.map((recap, index) => (
+              <motion.div
+                key={recap.id}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="flex-shrink-0 w-72 platinum-border rounded-sm overflow-hidden bg-gradient-to-br from-[#0a0a0a] to-[#000504] group cursor-pointer transition-all"
+              >
+                {/* Image Section */}
+                <div className="relative h-40 overflow-hidden bg-zinc-900">
+                  <img
+                    src={recap.image}
+                    alt={recap.artist}
+                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+
+                  {/* Attendance Badge */}
+                  <div className="absolute top-4 right-4 bg-white/10 backdrop-blur-sm text-white text-[9px] font-bold uppercase tracking-widest px-3 py-2 border border-white/20">
+                    {recap.attendanceCount}
+                  </div>
+                </div>
+
+                {/* Content Section */}
+                <div className="p-4 space-y-3">
+                  <div>
+                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#E5E4E2] group-hover:platinum-gradient transition-all">
+                      {recap.artist}
+                    </h4>
+                    <p className="text-[9px] uppercase tracking-widest text-white/40 mt-1">{recap.venue}</p>
+                  </div>
+
+                  <div className="pt-2 border-t border-white/10">
+                    <p className="text-[10px] text-white/70 leading-relaxed">{recap.vibeDescription}</p>
+                  </div>
+
+                  <div className="pt-2">
+                    <p className="text-[9px] uppercase tracking-[0.15em] text-white/50">{recap.date}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* TRACKS OF THE WEEK Section */}
+        <div className="space-y-6">
+          <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Tracks of the Week</h2>
+
+          <div className="space-y-2">
+            {tracksOfTheWeek.map((track, index) => (
+              <motion.div
+                key={track.id}
+                initial={{ opacity: 0, x: -10 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: index * 0.05 }}
+                className="group platinum-border rounded-sm p-4 bg-gradient-to-br from-[#0a0a0a] to-[#000504] hover:bg-white/5 transition-all cursor-pointer flex items-center justify-between gap-4"
+              >
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wide text-white group-hover:platinum-gradient transition-all truncate">
+                    {track.trackName}
+                  </h4>
+                  <p className="text-[10px] uppercase tracking-widest text-white/50 mt-1">{track.artist}</p>
+
+                  <div className="flex gap-3 mt-2 flex-wrap">
+                    <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-2 py-1 bg-white/10 text-[#E5E4E2] border border-white/20">
+                      {track.vibe}
+                    </span>
+                    <span className="inline-block text-[9px] uppercase tracking-widest text-white/40">
+                      {track.playCount} Plays
+                    </span>
+                  </div>
+                </div>
+
+                {/* Play Button */}
+                <button
+                  className="flex-shrink-0 w-12 h-12 rounded-full border border-[#E5E4E2]/40 text-[#E5E4E2] hover:bg-white/10 hover:border-[#E5E4E2] transition-all flex items-center justify-center group/play"
+                  aria-label="Play track"
+                >
+                  <Play size={16} fill="currentColor" className="group-hover/play:scale-110 transition-transform" />
+                </button>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
         {/* Following Section */}
         {followedArtists.length > 0 && (
           <div className="space-y-6">

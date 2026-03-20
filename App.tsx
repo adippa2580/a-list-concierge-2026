@@ -11,6 +11,7 @@ import { Inbox } from "./components/Inbox";
 import { CrewBuilder } from "./components/CrewBuilder";
 import { YearInReview } from "./components/YearInReview";
 import { EventCalendar } from "./components/EventCalendar";
+import { BookingsSchedule } from "./components/BookingsSchedule";
 import { SplashScreen } from "./components/SplashScreen";
 import { WelcomeScreen } from "./components/WelcomeScreen";
 import { LoginScreen } from "./components/LoginScreen";
@@ -52,7 +53,8 @@ type ViewType =
   | "year-review"
   | "ai-concierge"
   | "calendar"
-  | "member-clubs";
+  | "member-clubs"
+  | "bookings";
 
 type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify-callback" | "soundcloud-callback" | "join-crew";
 
@@ -328,6 +330,7 @@ export default function App() {
                         <MenuButton icon={Users} label="My Crews" onClick={() => navigateTo("crews")} />
                         <MenuButton icon={Building2} label="Member Clubs" onClick={() => navigateTo("member-clubs")} highlight />
                         <MenuButton icon={Calendar} label="Events Calendar" onClick={() => navigateTo("calendar")} />
+                        <MenuButton icon={Calendar} label="My Bookings" onClick={() => navigateTo("bookings")} highlight />
                         <MenuButton icon={Shield} label="VIP Status" onClick={() => navigateTo("vip")} />
                         <MenuButton icon={Trophy} label="2025 Year in Review" onClick={() => navigateTo("year-review")} />
                         <MenuButton icon={Sparkles} label="AI Concierge" onClick={() => navigateTo("ai-concierge")} highlight />
@@ -395,6 +398,7 @@ export default function App() {
                 {currentView === "year-review" && <YearInReview />}
                 {currentView === "ai-concierge" && <AIConcierge />}
                 {currentView === "calendar" && <EventCalendar />}
+                {currentView === "bookings" && <BookingsSchedule />}
                 {currentView === "member-clubs" && (
                   <MemberClubsFeed onManageClubs={() => navigateTo("profile")} />
                 )}

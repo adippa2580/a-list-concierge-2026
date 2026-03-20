@@ -25,15 +25,71 @@ interface CrewMember { name: string; avatar: string; role: string; spend: number
 interface Crew { id: number; name: string; emoji: string; level: string; members: CrewMember[]; }
 interface SplitMember extends CrewMember { amount: number; confirmed: boolean; }
 
-// ── Static packages (fetched from backend in future; defined here for speed) ──
+// ── Liquor Inventory (Brand Partnerships/Sponsorships) ──────────────────────────
+const LIQUOR_INVENTORY = {
+  vodka: [
+    { name: 'Grey Goose', brand: 'Vodka', tier: 'Standard', price: 280 },
+    { name: 'Belvedere', brand: 'Vodka', tier: 'Premium', price: 450 },
+    { name: 'Belvedere 10', brand: 'Vodka', tier: 'Elite', price: 950 },
+  ],
+  tequila: [
+    { name: 'Don Julio', brand: 'Tequila', tier: 'Standard', price: 300 },
+    { name: 'Clase Azul', brand: 'Tequila', tier: 'Premium', price: 600 },
+    { name: 'Clase Azul Ultra', brand: 'Tequila', tier: 'Elite', price: 1400 },
+  ],
+  cognac: [
+    { name: 'Hennessy VSOP', brand: 'Cognac', tier: 'Standard', price: 350 },
+    { name: 'Hennessy XO', brand: 'Cognac', tier: 'Premium', price: 950 },
+    { name: 'Louis XIII', brand: 'Cognac', tier: 'Elite', price: 4200 },
+  ],
+  champagne: [
+    { name: 'Moët & Chandon', brand: 'Champagne', tier: 'Standard', price: 220 },
+    { name: 'Dom Pérignon', brand: 'Champagne', tier: 'Premium', price: 750 },
+    { name: 'Dom Pérignon Rosé', brand: 'Champagne', tier: 'Elite', price: 1200 },
+  ],
+  whiskey: [
+    { name: 'Macallan 12', brand: 'Whiskey', tier: 'Standard', price: 320 },
+    { name: 'Macallan 18', brand: 'Whiskey', tier: 'Premium', price: 800 },
+    { name: 'Macallan 25', brand: 'Whiskey', tier: 'Elite', price: 2500 },
+  ],
+};
+
+// ── Mixer Inventory (Brand Partnerships/Sponsorships) ────────────────────────────
+const MIXER_INVENTORY = {
+  energy: [
+    { name: 'Red Bull', brand: 'Energy Drink', tier: 'Standard', price: 8 },
+    { name: 'Red Bull Sugar Free', brand: 'Energy Drink', tier: 'Premium', price: 10 },
+  ],
+  water: [
+    { name: 'San Pellegrino', brand: 'Sparkling', tier: 'Standard', price: 6 },
+    { name: 'San Pellegrino Limonata', brand: 'Sparkling', tier: 'Premium', price: 8 },
+  ],
+  tonic: [
+    { name: 'Schweppes Tonic', brand: 'Mixer', tier: 'Standard', price: 5 },
+    { name: 'Fever-Tree Premium Tonic', brand: 'Mixer', tier: 'Premium', price: 9 },
+    { name: 'Fever-Tree Elderflower Tonic', brand: 'Mixer', tier: 'Elite', price: 12 },
+  ],
+  juice: [
+    { name: 'Fresh OJ', brand: 'Juice', tier: 'Standard', price: 6 },
+    { name: 'Pressed Juice', brand: 'Premium Juice', tier: 'Premium', price: 12 },
+  ],
+  specialty: [
+    { name: 'Ginger Beer', brand: 'Mixer', tier: 'Premium', price: 8 },
+    { name: 'Fever-Tree Ginger Beer', brand: 'Premium Mixer', tier: 'Elite', price: 11 },
+  ],
+};
+
+// ── Static packages with tier info ──────────────────────────────────────────────
 const LIQUOR_PACKAGES = [
-  { name: 'Standard Selection', bottles: 2, price: 800,  items: ['Grey Goose', 'Don Julio'] },
-  { name: 'Premium Reserve',    bottles: 3, price: 1500, items: ['Dom Pérignon', 'Clase Azul', 'Macallan 18'] },
-  { name: 'Elite Package',      bottles: 5, price: 3200, items: ['Louis XIII', 'Dom Pérignon Rosé', 'Clase Azul Ultra', 'Macallan 25', 'Belvedere 10'] },
+  { id: 0, name: 'Standard Selection', tier: 'Standard', bottles: 2, price: 800, description: 'Perfect for the night' },
+  { id: 1, name: 'Premium Reserve', tier: 'Premium', bottles: 3, price: 1500, description: 'Elevated experience' },
+  { id: 2, name: 'Elite Package', tier: 'Elite', bottles: 5, price: 3200, description: 'The ultimate selection' },
 ];
+
 const MIXER_PACKAGES = [
-  { name: 'Basic Mixer Set',   price: 150, items: ['Cranberry', 'OJ', 'Tonic', 'Soda', 'Red Bull ×6'] },
-  { name: 'Premium Mixer Set', price: 300, items: ['Fresh Juices', 'Coconut Water', 'Premium Tonics', 'Red Bull ×12', 'Ginger Beer'] },
+  { id: 0, name: 'Standard Set', tier: 'Standard', price: 150, description: 'Essential mixers' },
+  { id: 1, name: 'Premium Set', tier: 'Premium', price: 300, description: 'Premium selections' },
+  { id: 2, name: 'Elite Set', tier: 'Elite', price: 450, description: 'Signature mixers' },
 ];
 
 // ── Payment rails with real deep-link generators ──────────────────────────────
@@ -80,6 +136,17 @@ const PAYMENT_RAILS: {
 
 interface GroupBookingProps { venue?: any; onBack?: () => void; }
 
+// ── Helper to get bottles/mixers available in a tier ──────────────────────────────
+const getBottlesInTier = (tier: string) => {
+  const all = Object.values(LIQUOR_INVENTORY).flat();
+  return all.filter(b => b.tier === tier);
+};
+
+const getMixersInTier = (tier: string) => {
+  const all = Object.values(MIXER_INVENTORY).flat();
+  return all.filter(m => m.tier === tier);
+};
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 export function GroupBooking({ venue, onBack }: GroupBookingProps) {
   const [screen, setScreen] = useState<Screen>('crew-select');
@@ -90,6 +157,8 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
   const [splitMethod, setSplitMethod] = useState<SplitMethod>('even');
   const [selectedLiquor, setSelectedLiquor] = useState(1);
   const [selectedMixer, setSelectedMixer] = useState(0);
+  const [selectedBottles, setSelectedBottles] = useState<Set<string>>(new Set());
+  const [selectedMixerItems, setSelectedMixerItems] = useState<Set<string>>(new Set());
   const [customAmounts, setCustomAmounts] = useState<Record<string, number>>({});
   const [memberRails, setMemberRails] = useState<Record<string, PaymentRail>>({});
   const [memberHandles, setMemberHandles] = useState<Record<string, string>>({});
@@ -171,8 +240,19 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
         venue: venue?.name ?? 'Venue',
         tableName: venue?.selectedTable?.name ?? 'VIP Table',
         tableMin,
-        liquorPackage: { name: LIQUOR_PACKAGES[selectedLiquor].name, price: liquorCost, bottles: LIQUOR_PACKAGES[selectedLiquor].bottles },
-        mixerPackage: { name: MIXER_PACKAGES[selectedMixer].name, price: mixerCost },
+        liquorPackage: {
+          name: LIQUOR_PACKAGES[selectedLiquor].name,
+          tier: LIQUOR_PACKAGES[selectedLiquor].tier,
+          price: liquorCost,
+          bottles: LIQUOR_PACKAGES[selectedLiquor].bottles,
+          selectedBottles: Array.from(selectedBottles),
+        },
+        mixerPackage: {
+          name: MIXER_PACKAGES[selectedMixer].name,
+          tier: MIXER_PACKAGES[selectedMixer].tier,
+          price: mixerCost,
+          selectedMixers: Array.from(selectedMixerItems),
+        },
         splitMethod,
         totalCost,
         members: splitData.map(m => ({
@@ -223,6 +303,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
       memberRails={memberRails} setMemberRails={setMemberRails}
       memberHandles={memberHandles} setMemberHandles={setMemberHandles}
       venue={venue} liquorPkg={LIQUOR_PACKAGES[selectedLiquor]} mixerPkg={MIXER_PACKAGES[selectedMixer]}
+      selectedBottles={Array.from(selectedBottles)} selectedMixers={Array.from(selectedMixerItems)}
       confirming={confirming} onBack={() => setScreen('builder')} onSend={handleSendRequests}
     />
   );
@@ -274,7 +355,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
             {crews.length > 0 && (
               <AnimatePresence initial={false}>
                 {crews
-                  .sort((a, b) => (b.totalSpend || 0) - (a.totalSpend || 0))
+                  .sort((a, b) => ((b as any).totalSpend || 0) - ((a as any).totalSpend || 0))
                   .map((crew, i) => (
                     <motion.button
                       key={crew.id}
@@ -519,48 +600,183 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
         )}
 
         {/* Liquor Selection */}
-        <div className="space-y-4">
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Liquor Selection</h3>
+        <div className="space-y-6">
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Liquor Package</h3>
+
+          {/* Package Tier Selection */}
           <div className="space-y-2">
-            {LIQUOR_PACKAGES.map((pkg, index) => (
-              <button key={index} onClick={() => setSelectedLiquor(index)}
-                className={`w-full p-5 border text-left transition-all ${selectedLiquor === index ? 'border-[#E5E4E2]/30 bg-white/5' : 'border-white/5 hover:border-white/20'}`}
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-widest">{pkg.name}</h4>
-                    <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{pkg.bottles} Bottles</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-lg font-light">${pkg.price.toLocaleString()}</span>
-                    {members.length > 0 && <p className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">+${Math.ceil(pkg.price / members.length).toLocaleString()}/person</p>}
-                  </div>
+            {LIQUOR_PACKAGES.map((pkg, index) => {
+              const isSelected = selectedLiquor === index;
+              const tierBottles = getBottlesInTier(pkg.tier);
+              return (
+                <div
+                  key={index}
+                  className={`border transition-all ${isSelected ? 'border-[#E5E4E2]/30 bg-white/5' : 'border-white/5 hover:border-white/20'}`}
+                >
+                  {/* Package Header - Always Clickable */}
+                  <button
+                    onClick={() => {
+                      setSelectedLiquor(index);
+                      setSelectedBottles(new Set(tierBottles.slice(0, pkg.bottles).map(b => b.name)));
+                    }}
+                    className="w-full p-5 text-left"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="text-xs font-bold uppercase tracking-widest">{pkg.name}</h4>
+                          <span className="text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 border border-[#E5E4E2]/30 bg-[#E5E4E2]/5 text-[#E5E4E2]">
+                            {pkg.tier}
+                          </span>
+                        </div>
+                        <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{pkg.description} • {pkg.bottles} bottles included</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-lg font-light">${pkg.price.toLocaleString()}</span>
+                        {members.length > 0 && <p className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">+${Math.ceil(pkg.price / members.length).toLocaleString()}/person</p>}
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Expandable Bottle Selection */}
+                  <AnimatePresence>
+                    {isSelected && tierBottles.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="border-t border-white/5 p-5 bg-zinc-950/40"
+                      >
+                        <p className="text-[7px] uppercase tracking-widest text-white/40 mb-3 font-bold">Select {pkg.bottles} bottle(s)</p>
+                        <div className="grid grid-cols-1 gap-2">
+                          {tierBottles.map(bottle => {
+                            const isChecked = selectedBottles.has(bottle.name);
+                            const canDeselect = selectedBottles.size > pkg.bottles || isChecked;
+                            return (
+                              <button
+                                key={bottle.name}
+                                onClick={() => {
+                                  if (isChecked) {
+                                    if (selectedBottles.size > pkg.bottles) {
+                                      const newSet = new Set(selectedBottles);
+                                      newSet.delete(bottle.name);
+                                      setSelectedBottles(newSet);
+                                    }
+                                  } else {
+                                    if (selectedBottles.size < pkg.bottles) {
+                                      setSelectedBottles(new Set([...selectedBottles, bottle.name]));
+                                    }
+                                  }
+                                }}
+                                disabled={!isChecked && selectedBottles.size >= pkg.bottles}
+                                className={`p-3 border text-left text-[8px] font-bold uppercase tracking-widest transition-all ${
+                                  isChecked
+                                    ? 'border-[#E5E4E2]/40 bg-[#E5E4E2]/10 text-white'
+                                    : 'border-white/10 text-white/40 hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span>{bottle.name}</span>
+                                  <span className="text-[7px] text-white/30">${bottle.price}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {pkg.items.map((item, i) => <span key={i} className="text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 border border-white/5 bg-white/5 text-white/40">{item}</span>)}
-                </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         {/* Mixer Selection */}
-        <div className="space-y-4">
+        <div className="space-y-6">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Mixer Package</h3>
+
+          {/* Package Tier Selection */}
           <div className="space-y-2">
-            {MIXER_PACKAGES.map((pkg, index) => (
-              <button key={index} onClick={() => setSelectedMixer(index)}
-                className={`w-full p-5 border text-left transition-all ${selectedMixer === index ? 'border-[#E5E4E2]/30 bg-white/5' : 'border-white/5 hover:border-white/20'}`}
-              >
-                <div className="flex justify-between items-center mb-3">
-                  <h4 className="text-xs font-bold uppercase tracking-widest">{pkg.name}</h4>
-                  <span className="text-sm font-light">${pkg.price.toLocaleString()}</span>
+            {MIXER_PACKAGES.map((pkg, index) => {
+              const isSelected = selectedMixer === index;
+              const tierMixers = getMixersInTier(pkg.tier);
+              const mixerCount = Math.ceil(tierMixers.length / 2); // Suggest ~half available
+              return (
+                <div
+                  key={index}
+                  className={`border transition-all ${isSelected ? 'border-[#E5E4E2]/30 bg-white/5' : 'border-white/5 hover:border-white/20'}`}
+                >
+                  {/* Package Header - Always Clickable */}
+                  <button
+                    onClick={() => {
+                      setSelectedMixer(index);
+                      setSelectedMixerItems(new Set(tierMixers.slice(0, mixerCount).map(m => m.name)));
+                    }}
+                    className="w-full p-5 text-left"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="text-xs font-bold uppercase tracking-widest">{pkg.name}</h4>
+                          <span className="text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 border border-[#E5E4E2]/30 bg-[#E5E4E2]/5 text-[#E5E4E2]">
+                            {pkg.tier}
+                          </span>
+                        </div>
+                        <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{pkg.description}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-lg font-light">${pkg.price.toLocaleString()}</span>
+                        {members.length > 0 && <p className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">+${Math.ceil(pkg.price / members.length).toLocaleString()}/person</p>}
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* Expandable Mixer Selection */}
+                  <AnimatePresence>
+                    {isSelected && tierMixers.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="border-t border-white/5 p-5 bg-zinc-950/40"
+                      >
+                        <p className="text-[7px] uppercase tracking-widest text-white/40 mb-3 font-bold">Select mixers</p>
+                        <div className="space-y-2">
+                          {tierMixers.map(mixer => {
+                            const isChecked = selectedMixerItems.has(mixer.name);
+                            return (
+                              <button
+                                key={mixer.name}
+                                onClick={() => {
+                                  if (isChecked) {
+                                    const newSet = new Set(selectedMixerItems);
+                                    newSet.delete(mixer.name);
+                                    setSelectedMixerItems(newSet);
+                                  } else {
+                                    setSelectedMixerItems(new Set([...selectedMixerItems, mixer.name]));
+                                  }
+                                }}
+                                className={`w-full p-3 border text-left text-[8px] font-bold uppercase tracking-widest transition-all ${
+                                  isChecked
+                                    ? 'border-[#E5E4E2]/40 bg-[#E5E4E2]/10 text-white'
+                                    : 'border-white/10 text-white/40 hover:border-white/20'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span>{mixer.name}</span>
+                                  <span className="text-[7px] text-white/30">${mixer.price}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {pkg.items.map((item, i) => <span key={i} className="text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 border border-white/5 bg-white/5 text-white/40">{item}</span>)}
-                </div>
-              </button>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -595,11 +811,11 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
 }
 
 // ── Confirm Screen ─────────────────────────────────────────────────────────────
-function ConfirmScreen({ splitData, totalCost, splitMethod, memberRails, setMemberRails, memberHandles, setMemberHandles, venue, liquorPkg, mixerPkg, confirming, onBack, onSend }: {
+function ConfirmScreen({ splitData, totalCost, splitMethod, memberRails, setMemberRails, memberHandles, setMemberHandles, venue, liquorPkg, mixerPkg, selectedBottles, selectedMixers, confirming, onBack, onSend }: {
   splitData: SplitMember[]; totalCost: number; splitMethod: SplitMethod;
   memberRails: Record<string, PaymentRail>; setMemberRails: (r: any) => void;
   memberHandles: Record<string, string>; setMemberHandles: (h: any) => void;
-  venue: any; liquorPkg: any; mixerPkg: any;
+  venue: any; liquorPkg: any; mixerPkg: any; selectedBottles: string[]; selectedMixers: string[];
   confirming: boolean; onBack: () => void; onSend: () => void;
 }) {
   const others = splitData.filter(m => m.role !== 'Captain');
@@ -642,6 +858,38 @@ function ConfirmScreen({ splitData, totalCost, splitMethod, memberRails, setMemb
             ))}
           </div>
         </div>
+
+        {/* Selected Bottles & Mixers */}
+        {(selectedBottles.length > 0 || selectedMixers.length > 0) && (
+          <div className="space-y-4">
+            {selectedBottles.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Selected Bottles</h3>
+                <div className="bg-zinc-950 border border-white/10 p-4 space-y-2">
+                  {selectedBottles.map(bottle => (
+                    <div key={bottle} className="flex items-center gap-2 text-[8px] uppercase tracking-widest text-white/70">
+                      <span className="w-1.5 h-1.5 bg-[#E5E4E2] rounded-full" />
+                      {bottle}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {selectedMixers.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Selected Mixers</h3>
+                <div className="bg-zinc-950 border border-white/10 p-4 space-y-2">
+                  {selectedMixers.map(mixer => (
+                    <div key={mixer} className="flex items-center gap-2 text-[8px] uppercase tracking-widest text-white/70">
+                      <span className="w-1.5 h-1.5 bg-[#E5E4E2] rounded-full" />
+                      {mixer}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Per-member payment rail + handle */}
         <div className="space-y-6">
