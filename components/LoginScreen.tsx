@@ -120,7 +120,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-6 overflow-hidden bg-[#000504] text-white">
+    <div className="min-h-screen relative flex items-center justify-center p-6 overflow-y-auto bg-[#000504] text-white">
       {/* Background */}
       <div className="absolute inset-0 z-0">
         <div
