@@ -251,6 +251,22 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
           >
             Google
           </button>
+          <button
+            type="button"
+            onClick={() => toast.info('Instagram connect available after sign in')}
+            disabled={loading}
+            className="py-4 border border-[#E1306C]/20 text-[9px] font-bold uppercase tracking-widest text-[#E1306C]/60 hover:bg-[#E1306C]/5 hover:border-[#E1306C]/40 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#E1306C]/20 disabled:opacity-40"
+          >
+            Instagram
+          </button>
+          <button
+            type="button"
+            onClick={() => toast.info('SoundCloud connect available after sign in')}
+            disabled={loading}
+            className="py-4 border border-[#FF5500]/20 text-[9px] font-bold uppercase tracking-widest text-[#FF5500]/60 hover:bg-[#FF5500]/5 hover:border-[#FF5500]/40 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#FF5500]/20 disabled:opacity-40"
+          >
+            SoundCloud
+          </button>
         </div>
 
         <p className="text-center text-[7px] uppercase tracking-[0.2em] text-white/20 leading-loose">
