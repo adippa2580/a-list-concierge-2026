@@ -386,6 +386,84 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
       ? (event.tmTicketUrl || event.ticketUrl)
       : event.ticketUrl;
 
+    const isGridMode = viewMode === 'grid';
+
+    if (isGridMode) {
+      // Grid card layout
+      return (
+        <motion.div
+          key={event.id}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`bg-zinc-950/60 border overflow-hidden group hover:border-[#E5E4E2]/30 transition-all cursor-pointer relative flex flex-col h-full ${
+            event.isVenueSource || isTmEnriched
+              ? 'border-amber-500/40'
+              : event.isTicketmaster
+              ? 'border-blue-500/20'
+              : 'border-white/5'
+          }`}
+          onClick={() => {
+            if (primaryTicketUrl) {
+              window.open(primaryTicketUrl, '_blank', 'noopener,noreferrer');
+            } else if (onBookTable) {
+              onBookTable(event);
+            }
+          }}
+        >
+          {/* Image */}
+          {displayImage && (
+            <div className="w-full aspect-square platinum-border overflow-hidden relative">
+              <ImageWithFallback
+                src={displayImage}
+                alt={displayName}
+                className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+              />
+              {/* Corner source badge */}
+              {event.isVenueSource && (
+                <div className="absolute top-1 left-1 p-1 bg-amber-500">
+                  <Ticket size={8} className="text-black" />
+                </div>
+              )}
+              {event.isTicketmaster && (
+                <div className="absolute top-1 left-1 p-1 bg-blue-500">
+                  <Ticket size={8} className="text-white" />
+                </div>
+              )}
+            </div>
+          )}
+          {/* Info */}
+          <div className="flex-1 p-3 flex flex-col">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-white group-hover:platinum-gradient transition-colors line-clamp-2 mb-1">
+              {displayName}
+            </h3>
+            <div className="flex items-center gap-1 text-white/40 mb-2">
+              <MapPin size={9} className="text-[#E5E4E2]/40 flex-shrink-0" />
+              <p className="text-[8px] uppercase tracking-[0.1em] truncate">{displayVenue}</p>
+            </div>
+            <p className="text-[7px] text-white/30 uppercase tracking-widest mb-2">{event.date}</p>
+            {displaySnippet && (
+              <p className="text-[7px] text-white/40 line-clamp-2 leading-relaxed normal-case tracking-normal flex-1">
+                {displaySnippet}
+              </p>
+            )}
+            {primaryTicketUrl && (
+              <button
+                className="mt-2 text-[7px] font-bold uppercase tracking-[0.1em] text-[#E5E4E2] hover:text-white transition-colors flex items-center gap-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(primaryTicketUrl, '_blank', 'noopener,noreferrer');
+                }}
+              >
+                <ExternalLink size={8} />
+                {event.isTicketmaster || isTmEnriched ? 'Get Tickets' : 'Open'}
+              </button>
+            )}
+          </div>
+        </motion.div>
+      );
+    }
+
+    // List card layout (original)
     return (
       <motion.div
         key={event.id}
@@ -669,49 +747,55 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
 
         {/* Venue Results WITH photo — shown FIRST */}
         {venueWithPhoto.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold text-amber-400/90 uppercase tracking-widest border-b border-amber-500/20 pb-2 flex items-center gap-2">
-              <Building2 size={12} />
-              Venue Results
-              <span className="text-[8px] text-white/30 font-normal ml-auto tracking-wider">
-                {webSourcedEvents.length} {webSourcedEvents.length === 1 ? 'result' : 'results'}
-                {webSourcedEvents.filter(e => e.tmVenueMatch).length > 0 &&
-                  <span className="ml-1 text-blue-400">· {webSourcedEvents.filter(e => e.tmVenueMatch).length} enriched with TM</span>
-                }
-              </span>
-            </h3>
+          <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
+            {viewMode === 'list' && (
+              <h3 className="text-xs font-bold text-amber-400/90 uppercase tracking-widest border-b border-amber-500/20 pb-2 flex items-center gap-2 col-span-2">
+                <Building2 size={12} />
+                Venue Results
+                <span className="text-[8px] text-white/30 font-normal ml-auto tracking-wider">
+                  {webSourcedEvents.length} {webSourcedEvents.length === 1 ? 'result' : 'results'}
+                  {webSourcedEvents.filter(e => e.tmVenueMatch).length > 0 &&
+                    <span className="ml-1 text-blue-400">· {webSourcedEvents.filter(e => e.tmVenueMatch).length} enriched with TM</span>
+                  }
+                </span>
+              </h3>
+            )}
             {venueWithPhoto.map(e => renderEventCard(e))}
           </div>
         )}
 
         {/* Ticketmaster Results — shown AFTER venue photo results */}
         {tmOnlyEvents.length > 0 && (
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold text-blue-400/90 uppercase tracking-widest border-b border-blue-500/20 pb-2 flex items-center gap-2">
-              <Ticket size={12} />
-              Ticketmaster
-              <span className="text-[8px] text-white/30 font-normal ml-auto tracking-wider">
-                {tmOnlyEvents.length} {tmOnlyEvents.length === 1 ? 'result' : 'results'}
-              </span>
-            </h3>
+          <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
+            {viewMode === 'list' && (
+              <h3 className="text-xs font-bold text-blue-400/90 uppercase tracking-widest border-b border-blue-500/20 pb-2 flex items-center gap-2 col-span-2">
+                <Ticket size={12} />
+                Ticketmaster
+                <span className="text-[8px] text-white/30 font-normal ml-auto tracking-wider">
+                  {tmOnlyEvents.length} {tmOnlyEvents.length === 1 ? 'result' : 'results'}
+                </span>
+              </h3>
+            )}
             {tmOnlyEvents.map(e => renderEventCard(e))}
           </div>
         )}
 
         {/* Venue Results WITHOUT photo — demoted after Ticketmaster */}
         {venueNoPhoto.length > 0 && (
-          <div className="space-y-4">
-            <h3 className={`text-xs font-bold uppercase tracking-widest pb-2 flex items-center gap-2 border-b ${
-              venueWithPhoto.length > 0
-                ? 'text-amber-400/50 border-amber-500/10'   // dimmed — photo results already shown above
-                : 'text-amber-400/90 border-amber-500/20'   // full — only venue section
-            }`}>
-              <Building2 size={12} className={venueWithPhoto.length > 0 ? 'opacity-50' : ''} />
-              {venueWithPhoto.length > 0 ? 'More from Venue' : 'Venue Results'}
-              <span className={`text-[8px] font-normal ml-auto tracking-wider ${venueWithPhoto.length > 0 ? 'text-white/20' : 'text-white/30'}`}>
-                {venueNoPhoto.length} {venueNoPhoto.length === 1 ? 'result' : 'results'}
-              </span>
-            </h3>
+          <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
+            {viewMode === 'list' && (
+              <h3 className={`text-xs font-bold uppercase tracking-widest pb-2 flex items-center gap-2 border-b col-span-2 ${
+                venueWithPhoto.length > 0
+                  ? 'text-amber-400/50 border-amber-500/10'   // dimmed — photo results already shown above
+                  : 'text-amber-400/90 border-amber-500/20'   // full — only venue section
+              }`}>
+                <Building2 size={12} className={venueWithPhoto.length > 0 ? 'opacity-50' : ''} />
+                {venueWithPhoto.length > 0 ? 'More from Venue' : 'Venue Results'}
+                <span className={`text-[8px] font-normal ml-auto tracking-wider ${venueWithPhoto.length > 0 ? 'text-white/20' : 'text-white/30'}`}>
+                  {venueNoPhoto.length} {venueNoPhoto.length === 1 ? 'result' : 'results'}
+                </span>
+              </h3>
+            )}
             {venueNoPhoto.map(e => renderEventCard(e))}
           </div>
         )}

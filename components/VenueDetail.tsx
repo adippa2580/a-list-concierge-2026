@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Star, MapPin, Users, Clock, Shield, ChevronRight, Share2, Heart, Camera, Map } from 'lucide-react';
+import { ArrowLeft, Star, MapPin, Users, Clock, Shield, ChevronRight, Share2, Heart, Camera, Map, Navigation } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -51,13 +51,29 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
     <div className="min-h-screen bg-[#000504] text-white pb-32 marble-bg">
       {/* Hero Section */}
       <div className="relative h-72 overflow-hidden">
-        <ImageWithFallback 
-          src={venue.image} 
-          alt={venue.name}
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#000504] via-[#000504]/40 to-transparent" />
-        
+        {mediaView === 'gallery' ? (
+          <>
+            <ImageWithFallback
+              src={venue.image}
+              alt={venue.name}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#000504] via-[#000504]/40 to-transparent" />
+          </>
+        ) : (
+          <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+            <div className="text-center">
+              <Navigation size={32} className="mx-auto text-white/20 mb-3" />
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-bold">
+                {venue.location || 'Venue Location'}
+              </p>
+              <p className="text-[8px] uppercase tracking-widest text-white/20 mt-2">
+                Map View
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Top Controls */}
         <div className="absolute top-0 left-0 right-0 px-6 py-6 flex justify-between items-center">
           <button onClick={onBack} className="w-10 h-10 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/60 transition-all">
