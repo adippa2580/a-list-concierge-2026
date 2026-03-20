@@ -147,7 +147,7 @@ export function AIConcierge() {
           <div className="flex items-center gap-4">
             <AListLogo variant="icon" size="sm" />
             <div>
-              <h1 className="text-[10px] font-bold tracking-[0.4em] uppercase text-white/30">AI Intelligence</h1>
+              <h1 className="text-[10px] font-bold tracking-[0.4em] uppercase text-white/30">A-List Assist</h1>
               <h2 className="text-xl font-serif italic platinum-gradient tracking-tight">Agent Concierge</h2>
             </div>
           </div>
