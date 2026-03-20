@@ -406,10 +406,11 @@ export function ArtistDiscovery() {
                   </div>
                 </div>
 
-                {/* Play Button */}
+                {/* Play Button — opens Spotify search */}
                 <button
+                  onClick={() => window.open(`https://open.spotify.com/search/${encodeURIComponent(`${track.trackName} ${track.artist}`)}`, '_blank', 'noopener,noreferrer')}
                   className="flex-shrink-0 w-12 h-12 rounded-full border border-[#E5E4E2]/40 text-[#E5E4E2] hover:bg-white/10 hover:border-[#E5E4E2] transition-all flex items-center justify-center group/play"
-                  aria-label="Play track"
+                  aria-label={`Play ${track.trackName} on Spotify`}
                 >
                   <Play size={16} fill="currentColor" className="group-hover/play:scale-110 transition-transform" />
                 </button>

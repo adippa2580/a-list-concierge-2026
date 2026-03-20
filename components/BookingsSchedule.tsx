@@ -1,10 +1,12 @@
 'use client';
 
-import { Calendar, Clock, MapPin, Users, CheckCircle2, Clock3, X } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, CheckCircle2, Clock3, X, Loader2, RefreshCw } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { useAuth } from '../contexts/AuthContext';
 
 interface Booking {
   id: string;
@@ -20,80 +22,54 @@ interface Booking {
   notes?: string;
 }
 
-// Mock bookings data - 5 future bookings
-const MOCK_BOOKINGS: Booking[] = [
-  {
-    id: '1',
-    venueId: 'venue-001',
-    venueName: 'Mansion',
-    date: new Date(2026, 2, 28, 23, 0),
-    time: '11:00 PM',
-    tableType: 'VIP Corner Booth',
-    capacity: '6-8 people',
-    crewMembers: ['Alex Chen', 'Sarah Williams', 'Marcus Reid'],
-    reference: 'ALT-20260328-001',
-    status: 'confirmed',
-    notes: 'Bottle service included'
-  },
-  {
-    id: '2',
-    venueId: 'venue-002',
-    venueName: 'LIV',
-    date: new Date(2026, 3, 5, 0, 30),
-    time: '12:30 AM',
-    tableType: 'Platinum Lounge',
-    capacity: '8-10 people',
-    crewMembers: ['Jordan Lee', 'Nina Patel', 'Chris Mitchell', 'Sophia Bennett'],
-    reference: 'ALT-20260405-002',
-    status: 'confirmed'
-  },
-  {
-    id: '3',
-    venueId: 'venue-003',
-    venueName: 'E11even Miami',
-    date: new Date(2026, 3, 12, 1, 0),
-    time: '1:00 AM',
-    tableType: 'Suite Level',
-    capacity: '4-6 people',
-    crewMembers: ['Taylor Swift', 'James Park'],
-    reference: 'ALT-20260412-003',
-    status: 'pending'
-  },
-  {
-    id: '4',
-    venueId: 'venue-004',
-    venueName: 'Strawberry Moon',
-    date: new Date(2026, 3, 19, 22, 0),
-    time: '10:00 PM',
-    tableType: 'Garden Terrace',
-    capacity: '10-12 people',
-    crewMembers: ['Elena Rodriguez', 'David Kim', 'Lisa Wang', 'Robert Hall', 'Monica Torres'],
-    reference: 'ALT-20260419-004',
-    status: 'confirmed'
-  },
-  {
-    id: '5',
-    venueId: 'venue-005',
-    venueName: 'SoHo House Miami',
-    date: new Date(2026, 4, 3, 19, 30),
-    time: '7:30 PM',
-    tableType: 'Private Dining',
-    capacity: '8 people',
-    crewMembers: ['Victor Santos', 'Priya Kapoor'],
-    reference: 'ALT-20260503-005',
-    status: 'confirmed'
-  }
-];
+// No mock data — bookings are fetched live from /bookings API
 
 export function BookingsSchedule() {
+  const { userId } = useAuth();
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
-  const [selectedMonth, setSelectedMonth] = useState(new Date(2026, 2)); // March 2026
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+  const [allBookings, setAllBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchBookings = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/bookings?userId=${userId}`,
+        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        // Normalise API booking shape to local Booking interface
+        const normalised: Booking[] = (data.bookings || []).map((b: any) => ({
+          id: String(b.id),
+          venueId: b.venueId || String(b.id),
+          venueName: b.venueName || 'Venue',
+          date: new Date(b.date || b.createdAt),
+          time: b.time || '',
+          tableType: b.tableType || 'Table',
+          capacity: b.guestCount ? `${b.guestCount} guests` : '',
+          crewMembers: (b.members || []).map((m: any) => m.name),
+          reference: `ALT-${String(b.id).slice(-8).toUpperCase()}`,
+          status: b.status || 'pending',
+          notes: b.notes,
+        }));
+        setAllBookings(normalised);
+      }
+    } catch (_e) {
+      // silently retain empty state
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchBookings(); }, [userId]);
 
   const upcomingBookings = useMemo(() => {
-    return MOCK_BOOKINGS
-      .filter(b => b.date > new Date())
+    return allBookings
+      .filter(b => b.date >= new Date(Date.now() - 86_400_000)) // include today
       .sort((a, b) => a.date.getTime() - b.date.getTime());
-  }, []);
+  }, [allBookings]);
 
   const monthBookings = useMemo(() => {
     return upcomingBookings.filter(b => {
@@ -156,9 +132,16 @@ export function BookingsSchedule() {
               {upcomingBookings.length} upcoming reservation{upcomingBookings.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <div className="w-12 h-12 platinum-border flex items-center justify-center bg-[#011410]">
-            <Calendar size={20} className="text-[#E5E4E2]" strokeWidth={1.5} />
-          </div>
+          <button
+            onClick={fetchBookings}
+            disabled={loading}
+            className="w-12 h-12 platinum-border flex items-center justify-center bg-[#011410] hover:bg-white/5 transition-colors disabled:opacity-40"
+          >
+            {loading
+              ? <Loader2 size={18} className="text-[#E5E4E2] animate-spin" strokeWidth={1.5} />
+              : <RefreshCw size={18} className="text-[#E5E4E2]" strokeWidth={1.5} />
+            }
+          </button>
         </div>
 
         {/* View Toggle */}
@@ -188,6 +171,13 @@ export function BookingsSchedule() {
 
       {/* Content */}
       <div className="px-6 py-8">
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <Loader2 size={24} className="animate-spin text-white/30" />
+            <p className="text-[9px] uppercase tracking-[0.3em] text-white/20 font-bold">Loading reservations</p>
+          </div>
+        ) : (
         <AnimatePresence mode="wait">
           {viewMode === 'list' ? (
             // LIST VIEW
@@ -203,8 +193,15 @@ export function BookingsSchedule() {
                 <div className="text-center py-16 border border-dashed border-white/10">
                   <Calendar size={32} className="mx-auto text-white/10 mb-4" />
                   <p className="text-[10px] uppercase tracking-[0.3em] text-white/20 font-bold">
-                    No upcoming bookings
+                    No upcoming reservations
                   </p>
+                  <button
+                    onClick={fetchBookings}
+                    className="mt-4 flex items-center gap-2 mx-auto text-[9px] uppercase tracking-widest text-white/20 hover:text-white/50 transition-colors"
+                  >
+                    <RefreshCw size={12} />
+                    <span>Refresh</span>
+                  </button>
                 </div>
               ) : (
                 upcomingBookings.map((booking, index) => (
@@ -391,6 +388,7 @@ export function BookingsSchedule() {
             </motion.div>
           )}
         </AnimatePresence>
+        )}
       </div>
     </div>
   );

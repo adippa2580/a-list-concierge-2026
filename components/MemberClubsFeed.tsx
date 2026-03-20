@@ -362,21 +362,17 @@ export function MemberClubsFeed({ onManageClubs }: MemberClubsFeedProps) {
 
     await Promise.all(vClubs.map(async vc => {
       try {
-        console.log(`[MemberClubsFeed] Fetching "${vc.fetchName}" for tab ${vc.id}…`);
         const real = await fetchRealEvents(vc.fetchName, vc.id, vc.name, vc.location);
-        console.log(`[MemberClubsFeed] "${vc.fetchName}" returned ${real.length} events`, real.map(e => e.title));
         if (real.length > 0) {
           allEvents.push(...real);
           live.add(vc.id);
         } else {
-          console.warn(`[MemberClubsFeed] "${vc.fetchName}" returned 0 events → falling back to curated`);
           allEvents.push(...getCuratedEvents(
             list.find(c => c.id === vc.parentId)!,
             vc.id, vc.name, vc.location,
           ));
         }
-      } catch (err) {
-        console.error(`[MemberClubsFeed] "${vc.fetchName}" threw error → curated fallback`, err);
+      } catch {
         allEvents.push(...getCuratedEvents(
           list.find(c => c.id === vc.parentId)!,
           vc.id, vc.name, vc.location,

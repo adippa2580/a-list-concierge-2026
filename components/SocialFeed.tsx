@@ -503,7 +503,10 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                         <span className="text-[#E5E4E2]/60">${post.totalCost.toLocaleString()}</span>
                       </div>
                     </div>
-                    <button className="text-[10px] font-bold uppercase tracking-widest text-[#E5E4E2] border border-[#E5E4E2]/40 px-4 py-2 hover:bg-white/5 hover:border-[#E5E4E2]/70 transition-all">
+                    <button
+                      onClick={() => onVenueClick(post.venue)}
+                      className="text-[10px] font-bold uppercase tracking-widest text-[#E5E4E2] border border-[#E5E4E2]/40 px-4 py-2 hover:bg-white/5 hover:border-[#E5E4E2]/70 transition-all active:scale-95"
+                    >
                       Join Group
                     </button>
                   </div>
@@ -513,11 +516,18 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
           </div>
         </div>
 
-        <div className="px-6">
-          <Button variant="outline" className="w-full h-12 border-white/20 text-white/60 hover:text-white hover:bg-white/5 hover:border-white/40 rounded-none uppercase tracking-widest text-[10px] font-bold">
-            Load More
-          </Button>
-        </div>
+        {/* Load More hidden until social feed pagination is wired to API */}
+        {connected && (
+          <div className="px-6">
+            <Button
+              variant="outline"
+              onClick={fetchInstagramStatus}
+              className="w-full h-12 border-white/20 text-white/60 hover:text-white hover:bg-white/5 hover:border-white/40 rounded-none uppercase tracking-widest text-[10px] font-bold"
+            >
+              Refresh Feed
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

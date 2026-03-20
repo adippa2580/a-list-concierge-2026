@@ -113,7 +113,19 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
             >
               <Heart size={16} fill={isSaved ? 'currentColor' : 'none'} className={isSaved ? 'text-red-500' : ''} />
             </button>
-            <button className="min-w-[44px] min-h-[44px] w-11 h-11 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/60 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50">
+            <button
+              onClick={async () => {
+                const shareData = { title: venue.name, text: `${venue.name} — ${venue.location}`, url: window.location.href };
+                if (navigator.share) {
+                  try { await navigator.share(shareData); } catch (_) {}
+                } else {
+                  await navigator.clipboard.writeText(`${venue.name} — ${venue.location} | A-List`);
+                  // brief visual feedback via aria-label change handled by browser
+                }
+              }}
+              className="min-w-[44px] min-h-[44px] w-11 h-11 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/60 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"
+              aria-label="Share venue"
+            >
               <Share2 size={16} />
             </button>
           </div>

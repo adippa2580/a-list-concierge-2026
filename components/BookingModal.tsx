@@ -1,11 +1,14 @@
 'use client';
 
-import { X, Calendar, Users, Clock, CreditCard, ChevronRight, MapPin } from 'lucide-react';
+import { X, Calendar, Users, Clock, CreditCard, ChevronRight, MapPin, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { toast } from 'sonner';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { useAuth } from '../contexts/AuthContext';
 
 interface BookingModalProps {
   isOpen: boolean;
@@ -20,7 +23,9 @@ interface BookingModalProps {
 }
 
 export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
+  const { userId } = useAuth();
   const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     guests: '2',
@@ -33,13 +38,38 @@ export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
 
   const handleClose = () => {
     onClose();
-    // Small timeout so reset isn't visible during exit animation
-    setTimeout(() => setStep(1), 300);
+    setTimeout(() => { setStep(1); setSubmitting(false); }, 300);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStep(3);
+    if (!formData.name.trim()) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/bookings?userId=${userId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
+          body: JSON.stringify({
+            venueName: tile.name,
+            tableType: tile.type || 'Table',
+            date: formData.date,
+            time: formData.time,
+            guestCount: parseInt(formData.guests),
+            notes: formData.request,
+            members: [{ name: formData.name, amount: 0, paid: false }],
+            totalCost: 0,
+          }),
+        }
+      );
+      if (!res.ok) throw new Error('Booking failed');
+      setStep(3);
+    } catch {
+      toast.error('Could not submit request', { description: 'Please try again.' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -157,12 +187,16 @@ export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
                 </div>
               </div>
 
-              <Button 
+              <Button
                 type="submit"
-                className="w-full h-14 bg-white text-zinc-950 hover:bg-zinc-200 rounded-none font-bold text-[10px] uppercase tracking-[0.3em] flex items-center justify-between px-8 !text-black"
+                disabled={submitting || !formData.name.trim()}
+                className="w-full h-14 bg-white text-zinc-950 hover:bg-zinc-200 rounded-none font-bold text-[10px] uppercase tracking-[0.3em] flex items-center justify-between px-8 !text-black disabled:opacity-50"
               >
-                Submit Reservation
-                <ChevronRight size={16} />
+                {submitting ? (
+                  <><Loader2 size={14} className="animate-spin !text-black" /><span>Submitting...</span></>
+                ) : (
+                  <><span>Submit Reservation</span><ChevronRight size={16} /></>
+                )}
               </Button>
 
               <div className="flex items-center gap-2 justify-center py-2 opacity-40">
