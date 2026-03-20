@@ -246,58 +246,92 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
           <div className="flex items-center justify-center py-20">
             <Loader2 size={22} className="text-white/20 animate-spin" />
           </div>
-        ) : crews.length === 0 ? (
-          <div className="text-center py-20 space-y-4">
-            <Users size={32} className="text-white/10 mx-auto" />
-            <p className="text-[9px] uppercase tracking-[0.3em] text-white/30">No crews yet — create one in My Crews</p>
-          </div>
         ) : (
-          <AnimatePresence initial={false}>
-            {crews.map((crew, i) => (
-              <motion.button
-                key={crew.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                onClick={() => { setSelectedCrew(crew); setScreen('builder'); }}
-                className="w-full border border-white/10 hover:border-white/40 p-5 text-left transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <span className="text-2xl">{crew.emoji}</span>
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-widest">{crew.name}</p>
-                      <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">
-                        {crew.level} · {crew.members?.length ?? 0} members
-                      </p>
-                    </div>
+          <>
+            {/* Create Crew Button — Always First */}
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0 }}
+              onClick={() => { setSelectedCrew(null); setScreen('builder'); }}
+              className="w-full border border-dashed border-[#E5E4E2]/30 hover:border-[#E5E4E2] p-5 text-left transition-all group bg-[#E5E4E2]/5 hover:bg-[#E5E4E2]/10"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Plus size={20} className="text-[#E5E4E2]" />
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#E5E4E2]">Create New Crew</p>
+                    <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">
+                      Start your own alliance
+                    </p>
                   </div>
-                  <ChevronRight size={16} className="text-white/20 group-hover:text-white transition-colors" />
                 </div>
-                <div className="mt-3 flex gap-1.5 flex-wrap">
-                  {(crew.members ?? []).slice(0, 4).map((m, mi) => (
-                    <div key={mi} className="w-7 h-7 bg-zinc-900 border border-white/10 flex items-center justify-center">
-                      <span className="text-[7px] font-bold text-white/50">{m.avatar}</span>
-                    </div>
-                  ))}
-                  {(crew.members?.length ?? 0) > 4 && (
-                    <div className="w-7 h-7 bg-zinc-900 border border-white/10 flex items-center justify-center">
-                      <span className="text-[7px] text-white/30">+{crew.members.length - 4}</span>
-                    </div>
-                  )}
-                </div>
-              </motion.button>
-            ))}
-          </AnimatePresence>
-        )}
+                <ChevronRight size={16} className="text-[#E5E4E2]" />
+              </div>
+            </motion.button>
 
-        {/* Continue without crew */}
-        <button
-          onClick={() => { setSelectedCrew(null); setScreen('builder'); }}
-          className="w-full text-[9px] font-bold uppercase tracking-[0.3em] text-white/20 hover:text-white/50 transition-colors py-4 border border-white/5 hover:border-white/20"
-        >
-          Continue Without a Crew
-        </button>
+            {/* Existing Crews — Sorted by spend (top spend first) */}
+            {crews.length > 0 && (
+              <AnimatePresence initial={false}>
+                {crews
+                  .sort((a, b) => (b.totalSpend || 0) - (a.totalSpend || 0))
+                  .map((crew, i) => (
+                    <motion.button
+                      key={crew.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: (i + 1) * 0.04 }}
+                      onClick={() => { setSelectedCrew(crew); setScreen('builder'); }}
+                      className="w-full border border-white/10 hover:border-white/40 p-5 text-left transition-all group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <span className="text-2xl">{crew.emoji}</span>
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-widest">{crew.name}</p>
+                            <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">
+                              {crew.level} · {crew.members?.length ?? 0} members
+                            </p>
+                          </div>
+                        </div>
+                        <ChevronRight size={16} className="text-white/20 group-hover:text-white transition-colors" />
+                      </div>
+                      <div className="mt-3 flex gap-1.5 flex-wrap">
+                        {(crew.members ?? []).slice(0, 4).map((m, mi) => (
+                          <div key={mi} className="w-7 h-7 bg-zinc-900 border border-white/10 flex items-center justify-center">
+                            <span className="text-[7px] font-bold text-white/50">{m.avatar}</span>
+                          </div>
+                        ))}
+                        {(crew.members?.length ?? 0) > 4 && (
+                          <div className="w-7 h-7 bg-zinc-900 border border-white/10 flex items-center justify-center">
+                            <span className="text-[7px] text-white/30">+{crew.members.length - 4}</span>
+                          </div>
+                        )}
+                      </div>
+                    </motion.button>
+                  ))}
+              </AnimatePresence>
+            )}
+
+            {crews.length === 0 && (
+              <div className="text-center py-12 space-y-4">
+                <Users size={32} className="text-white/10 mx-auto" />
+                <p className="text-[9px] uppercase tracking-[0.3em] text-white/30">No crews yet — start with the option above</p>
+              </div>
+            )}
+
+            {/* Continue without crew */}
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: Math.max(1, crews.length + 1) * 0.04 }}
+              onClick={() => { setSelectedCrew(null); setScreen('builder'); }}
+              className="w-full text-[9px] font-bold uppercase tracking-[0.3em] text-white/20 hover:text-white/50 transition-colors py-4 border border-white/5 hover:border-white/20"
+            >
+              Continue Without a Crew
+            </motion.button>
+          </>
+        )}
       </div>
     </div>
   );

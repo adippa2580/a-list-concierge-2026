@@ -5,7 +5,7 @@ import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback } from './ui/avatar';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useState } from 'react';
 
 const artists = [
@@ -303,72 +303,104 @@ function ArtistRow({ artist, isFollowing, onToggleFollow }: any) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="border-b border-white/10 last:border-0 py-4 group">
-      <div className="flex items-center gap-4">
-        <Avatar className="w-12 h-12 rounded-none bg-zinc-900 gold-border overflow-hidden">
-          {artist.image && (
-            <img 
-              src={artist.image} 
-              alt={artist.name} 
-              className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
-            />
-          )}
-          <AvatarFallback className="rounded-none bg-zinc-900 text-[10px] font-bold text-white/40 border-0">
-            {artist.name.substring(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        
-        <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setExpanded(!expanded)}>
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-bold text-sm uppercase tracking-wider truncate text-white group-hover:gold-gradient transition-all">
-              {artist.name}
-            </h3>
-            {artist.trending && (
-               <span className="text-[10px] font-bold uppercase tracking-widest text-gold border border-gold/30 px-1 py-0.5">Hot</span>
-            )}
-          </div>
-          <p className="text-[10px] text-white/60 uppercase tracking-widest truncate">{artist.genre}</p>
-        </div>
+    <motion.div
+      layout
+      className="group platinum-border rounded-sm overflow-hidden bg-gradient-to-br from-[#0a0a0a] to-[#000504] mb-6 transition-all duration-500"
+    >
+      {/* Card Header with Image */}
+      <div className="relative h-48 overflow-hidden bg-zinc-900 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        {artist.image && (
+          <img
+            src={artist.image}
+            alt={artist.name}
+            className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
 
-        <button
-          onClick={onToggleFollow}
-          className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest border transition-all ${
-            isFollowing 
-              ? 'border-white/40 text-white/60 hover:text-white hover:border-white' 
-              : 'bg-white text-black border-white hover:bg-white/90 !text-black'
-          }`}
-        >
-          {isFollowing ? 'Following' : 'Follow'}
-        </button>
+        {/* Trending Badge */}
+        {artist.trending && (
+          <div className="absolute top-4 right-4 bg-white text-black text-[10px] font-bold uppercase tracking-widest px-3 py-2">
+            TRENDING
+          </div>
+        )}
+
+        {/* Artist Name Overlay */}
+        <div className="absolute bottom-0 left-0 right-0 p-6">
+          <h3 className="font-serif text-3xl font-light uppercase tracking-wider text-white mb-2 group-hover:platinum-gradient transition-all">
+            {artist.name}
+          </h3>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#E5E4E2]/60">{artist.genre}</p>
+        </div>
       </div>
 
-      {/* Expandable Upcoming Shows */}
-      {expanded && artist.upcomingShows.length > 0 && (
-        <div className="mt-4 pl-16 space-y-3 animate-in slide-in-from-top-2 duration-300">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">Upcoming</p>
-          {artist.upcomingShows.map((show: any, index: number) => (
-            <div
-              key={index}
-              className="bg-zinc-900/50 p-3 border border-white/10 hover:border-gold/40 transition-colors flex items-center justify-between group/show cursor-pointer marble-bg"
-              onClick={() => show.eventUrl && window.open(show.eventUrl, '_blank', 'noopener,noreferrer')}
-            >
-               <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wide text-white group-hover/show:gold-gradient transition-all">{show.venue}</h4>
-                  <p className="text-[10px] uppercase tracking-widest text-white/70 mt-1">{show.date}</p>
-               </div>
-               <ArrowUpRight size={14} className="text-white/50 group-hover/show:text-gold transition-colors" />
-            </div>
-          ))}
-          
-          <button
-            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gold hover:text-gold/70 mt-2"
-            onClick={() => artist.spotifyUrl && window.open(artist.spotifyUrl, '_blank', 'noopener,noreferrer')}
-          >
-            <Play size={10} fill="currentColor" />
-            <span>Listen on Spotify</span>
-          </button>
+      {/* Card Body */}
+      <div className="p-6 space-y-4">
+        {/* Stats Row */}
+        <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-white/50 border-b border-white/10 pb-4">
+          <span className="flex items-center gap-2">
+            <Users size={12} className="text-[#E5E4E2]/40" />
+            {artist.followers} FOLLOWERS
+          </span>
+          <span className="flex items-center gap-2">
+            <Music size={12} className="text-[#E5E4E2]/40" />
+            {artist.upcomingShows.length} SHOW
+            {artist.upcomingShows.length !== 1 ? 'S' : ''}
+          </span>
         </div>
-      )}
-    </div>
+
+        {/* Follow Button */}
+        <button
+          onClick={onToggleFollow}
+          className={`w-full py-3 text-[10px] font-bold uppercase tracking-widest border transition-all ${
+            isFollowing
+              ? 'border-[#E5E4E2]/40 text-[#E5E4E2] bg-white/5 hover:bg-white/10 hover:border-[#E5E4E2]'
+              : 'bg-white text-black border-white hover:bg-white/90'
+          }`}
+        >
+          {isFollowing ? '★ Following' : '+ Follow'}
+        </button>
+
+        {/* Expandable Shows Section */}
+        <AnimatePresence>
+          {expanded && artist.upcomingShows.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-3 pt-4 border-t border-white/10"
+            >
+              <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-white/40">UPCOMING SETS</p>
+              {artist.upcomingShows.map((show: any, index: number) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="p-4 border border-white/20 hover:border-[#E5E4E2]/50 bg-white/5 hover:bg-white/10 transition-all group/show cursor-pointer flex items-start justify-between gap-4"
+                  onClick={() => show.eventUrl && window.open(show.eventUrl, '_blank', 'noopener,noreferrer')}
+                >
+                  <div className="flex-1">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-white group-hover/show:platinum-gradient transition-all">{show.venue}</h4>
+                    <p className="text-[10px] uppercase tracking-widest text-white/50 mt-1">{show.date}</p>
+                    <p className="text-[9px] text-white/40 mt-2">{show.location}</p>
+                  </div>
+                  <ArrowUpRight size={14} className="text-white/30 group-hover/show:text-[#E5E4E2] transition-colors flex-shrink-0 mt-1" />
+                </motion.div>
+              ))}
+
+              <button
+                className="w-full flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#E5E4E2] hover:text-[#E5E4E2]/70 border border-[#E5E4E2]/20 py-3 mt-4 transition-all"
+                onClick={() => artist.spotifyUrl && window.open(artist.spotifyUrl, '_blank', 'noopener,noreferrer')}
+              >
+                <Play size={11} fill="currentColor" />
+                Listen on Spotify
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, Users, ChevronRight, Instagram, Loader2, ExternalLink, LogOut, RefreshCw, AlertTriangle } from 'lucide-react';
+import { MapPin, Users, ChevronRight, Instagram, Loader2, ExternalLink, LogOut, RefreshCw, AlertTriangle, Trophy, ArrowUpRight } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Avatar, AvatarFallback } from './ui/avatar';
@@ -203,25 +203,51 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: index * 0.1 }}
                 onClick={() => onVenueClick(venue)}
-                className="w-full aspect-video relative group cursor-pointer border border-white/5 bg-zinc-950 overflow-hidden shadow-2xl"
+                className="w-full group cursor-pointer platinum-border rounded-sm overflow-hidden bg-[#0a0a0a] shadow-2xl"
               >
-                <div
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-[2s] ease-out group-hover:scale-110 opacity-60 group-hover:opacity-100 grayscale group-hover:grayscale-0"
-                  style={{ backgroundImage: `url(${venue.image})` }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                {/* Featured Image */}
+                <div className="relative aspect-video overflow-hidden bg-zinc-900">
+                  <div
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-[2s] ease-out group-hover:scale-110 opacity-60 group-hover:opacity-100 grayscale group-hover:grayscale-0"
+                    style={{ backgroundImage: `url(${venue.image})` }}
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
 
-                <div className="absolute top-0 left-0 bg-white text-black text-[10px] font-bold px-4 py-2 uppercase tracking-[0.2em] !text-black z-10 shadow-lg">
-                  TRENDING #{venue.rank}
+                  {/* Ranking Badge */}
+                  <div className="absolute top-4 right-4 flex items-center gap-2 bg-white text-black text-[10px] font-bold uppercase tracking-widest px-4 py-2 shadow-lg">
+                    <Trophy size={12} className="text-black" />
+                    #{venue.rank}
+                  </div>
+
+                  {/* Price Tag */}
+                  <div className="absolute top-4 left-4 bg-[#E5E4E2]/90 text-black text-[10px] font-bold uppercase tracking-[0.2em] px-3 py-1.5">
+                    {venue.price}
+                  </div>
                 </div>
 
-                <div className="absolute bottom-0 left-0 right-0 p-8 transform group-hover:translate-y-[-8px] transition-transform duration-500">
-                  <h3 className="text-4xl font-light uppercase tracking-wide mb-2 font-serif text-white group-hover:gold-gradient transition-all">{venue.name}</h3>
-                  <div className="flex justify-between items-center border-t border-white/20 pt-4">
-                    <span className="text-[11px] uppercase tracking-[0.3em] text-white/60">{venue.location.split(',')[0]}</span>
-                    <div className="flex items-center gap-2">
-                      <Users size={12} className="text-white/40 group-hover:text-gold transition-colors" />
-                      <span className="text-[10px] uppercase tracking-widest text-white font-bold">{venue.attendees} IN THE SCENE</span>
+                {/* Card Content */}
+                <div className="p-8 space-y-5">
+                  {/* Venue Name */}
+                  <div>
+                    <h3 className="text-3xl font-serif font-light uppercase tracking-wider text-white group-hover:platinum-gradient transition-all mb-2">{venue.name}</h3>
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/50">
+                      <MapPin size={12} className="text-[#E5E4E2]/40" />
+                      {venue.location}
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent" />
+
+                  {/* Engagement Stats */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 rounded-full bg-green-500/60 animate-pulse" />
+                      <span className="text-[10px] uppercase tracking-widest text-white/60">{venue.attendees} In The Scene</span>
+                    </div>
+                    <div className="flex items-center gap-3 group-hover:gap-4 transition-all">
+                      <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#E5E4E2]/50">EXPLORE</span>
+                      <ArrowUpRight size={14} className="text-white/30 group-hover:text-[#E5E4E2] transition-colors" />
                     </div>
                   </div>
                 </div>
@@ -400,59 +426,89 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
             ) : (
               /* Not connected — show curated social posts */
               socialPosts.map((post) => (
-                <div key={post.id} className="p-6 space-y-4 hover:bg-white/5 transition-colors">
-                  {/* User Header */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="w-8 h-8 rounded-none ring-1 ring-white/40">
-                        <AvatarFallback className="bg-zinc-800 text-xs font-bold text-white rounded-none">
+                <motion.div
+                  key={post.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.6 }}
+                  className="px-6 py-8 platinum-border rounded-sm bg-gradient-to-br from-[#0a0a0a] to-[#000504] my-6 group"
+                >
+                  {/* User Header with Tier Badge */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="w-12 h-12 rounded-none platinum-border overflow-hidden bg-zinc-800">
+                        <AvatarFallback className="bg-[#0a0a0a] text-[11px] font-bold text-[#E5E4E2] rounded-none">
                           {post.user.avatar}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold uppercase tracking-widest">{post.user.name}</span>
-                          <span className="text-[8px] bg-white/20 text-white/80 px-1 py-0.5 uppercase tracking-wider">
+                        <div className="flex items-center gap-3 mb-1">
+                          <span className="text-sm font-bold uppercase tracking-wider text-white">{post.user.name}</span>
+                          <span className="text-[9px] bg-[#E5E4E2]/10 text-[#E5E4E2] border border-[#E5E4E2]/30 px-2 py-1 uppercase tracking-widest font-bold">
                             {post.user.tier}
                           </span>
                         </div>
-                        <span className="text-[9px] text-white/50 uppercase tracking-widest">{post.postedTime}</span>
+                        <span className="text-[9px] text-white/40 uppercase tracking-widest">{post.postedTime}</span>
                       </div>
                     </div>
-                    <span className="text-[9px] uppercase tracking-widest text-white/60 border border-white/20 px-2 py-1">
+                    <div className="text-[9px] uppercase tracking-widest text-white/50 border border-[#E5E4E2]/20 px-3 py-2 bg-white/5">
                       {post.visibility}
-                    </span>
+                    </div>
                   </div>
 
-                  {/* Content */}
-                  <div className="pl-11 space-y-4">
-                    <p className="text-sm font-light leading-relaxed text-white">"{post.message}"</p>
+                  {/* Divider */}
+                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent mb-6" />
 
-                    {/* Venue Link */}
-                    <div
-                      className="flex items-center gap-4 group cursor-pointer border border-white/20 p-1 pr-4 bg-zinc-900/50 hover:bg-zinc-900 transition-colors"
-                      onClick={() => onVenueClick(post.venue)}
-                    >
-                      <div className="w-12 h-12 bg-cover bg-center grayscale group-hover:grayscale-0 transition-all" style={{ backgroundImage: `url(${post.venue.image})` }} />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-xs font-bold uppercase tracking-wide truncate">{post.venue.name}</h3>
-                        <p className="text-[9px] text-white/60 uppercase tracking-widest truncate">{post.venue.time}</p>
+                  {/* Message */}
+                  <p className="text-base font-serif font-light leading-relaxed text-white italic mb-6 text-[#E5E4E2]/95">
+                    "{post.message}"
+                  </p>
+
+                  {/* Venue Card */}
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    transition={{ duration: 0.3 }}
+                    className="mb-6 group/venue cursor-pointer platinum-border rounded-sm overflow-hidden bg-[#000504]"
+                    onClick={() => onVenueClick(post.venue)}
+                  >
+                    <div className="flex h-28 overflow-hidden">
+                      <div
+                        className="w-32 h-full bg-cover bg-center flex-shrink-0 grayscale group-hover/venue:grayscale-0 transition-all duration-700 group-hover/venue:scale-110"
+                        style={{ backgroundImage: `url(${post.venue.image})` }}
+                      />
+                      <div className="flex-1 p-5 flex flex-col justify-between">
+                        <div>
+                          <h3 className="text-sm font-bold uppercase tracking-wider text-white group-hover/venue:platinum-gradient transition-all">{post.venue.name}</h3>
+                          <p className="text-[10px] text-white/50 uppercase tracking-widest mt-1">{post.venue.time}</p>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-white/40">{post.venue.location}</span>
+                          <ArrowUpRight size={14} className="text-white/30 group-hover/venue:text-[#E5E4E2] transition-colors" />
+                        </div>
                       </div>
-                      <ChevronRight size={14} className="text-white/40 group-hover:text-white transition-colors" />
                     </div>
+                  </motion.div>
 
-                    {/* Stats & Action */}
-                    <div className="flex items-center justify-between pt-2">
-                      <div className="flex gap-4 text-[9px] uppercase tracking-widest text-white/60">
+                  {/* Divider */}
+                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent mb-6" />
+
+                  {/* Stats & CTA */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-6 text-[10px] uppercase tracking-widest text-white/60">
+                      <div className="flex items-center gap-2">
+                        <Users size={12} className="text-[#E5E4E2]/40" />
                         <span>{post.peopleGoing} Going</span>
-                        <span>Est. ${post.totalCost.toLocaleString()}</span>
                       </div>
-                      <button className="text-[9px] font-bold uppercase tracking-widest text-white hover:text-white/70 border-b border-white pb-0.5">
-                        Join Group
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[#E5E4E2]/60">${post.totalCost.toLocaleString()}</span>
+                      </div>
                     </div>
+                    <button className="text-[10px] font-bold uppercase tracking-widest text-[#E5E4E2] border border-[#E5E4E2]/40 px-4 py-2 hover:bg-white/5 hover:border-[#E5E4E2]/70 transition-all">
+                      Join Group
+                    </button>
                   </div>
-                </div>
+                </motion.div>
               ))
             )}
           </div>

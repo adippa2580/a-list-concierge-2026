@@ -33,6 +33,7 @@ interface VenueDetailProps {
   venue: any;
   onBack: () => void;
   onBookTable: (venue: any) => void;
+  selectedTableForBooking?: any;
 }
 
 export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
@@ -163,14 +164,13 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
 
           <TabsContent value="tables" className="space-y-4 mt-0">
             {tables.map((table, index) => (
-              <div 
+              <div
                 key={index}
                 className={`p-6 border transition-all ${
-                  table.available 
-                    ? 'border-white/10 hover:border-[#E5E4E2]/30 bg-zinc-950/40 cursor-pointer' 
+                  table.available
+                    ? 'border-white/10 hover:border-[#E5E4E2]/30 bg-zinc-950/40 cursor-pointer'
                     : 'border-white/5 opacity-30'
                 }`}
-                onClick={() => table.available && onBookTable({ ...venue, selectedTable: table })}
               >
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -191,7 +191,15 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                       <Shield size={10} />
                       <span className="text-[8px] font-bold uppercase tracking-widest">Available Tonight</span>
                     </div>
-                    <ChevronRight size={14} className="text-white/20" />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onBookTable({ ...venue, selectedTable: table });
+                      }}
+                      className="flex items-center gap-1.5 text-[#E5E4E2] hover:text-white transition-colors"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
                   </div>
                 ) : (
                   <p className="text-[8px] font-bold uppercase tracking-widest text-white/20 pt-3 border-t border-white/5">Sold Out</p>
