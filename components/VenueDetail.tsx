@@ -77,17 +77,17 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
 
         {/* Top Controls */}
         <div className="absolute top-0 left-0 right-0 px-6 py-6 flex justify-between items-center">
-          <button onClick={onBack} className="w-10 h-10 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/60 transition-all">
+          <button onClick={onBack} className="min-w-[44px] min-h-[44px] w-11 h-11 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/60 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50">
             <ArrowLeft size={18} />
           </button>
           <div className="flex gap-3">
-            <button 
+            <button
               onClick={() => setMediaView(mediaView === 'gallery' ? 'map' : 'gallery')}
-              className="w-10 h-10 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/60 transition-all"
+              className="min-w-[44px] min-h-[44px] w-11 h-11 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/60 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"
             >
               {mediaView === 'gallery' ? <Map size={16} /> : <Camera size={16} />}
             </button>
-            <button 
+            <button
               onClick={() => {
                 const favs = getFavourites();
                 const venueKey = (v: any) => v.id || v.name;
@@ -109,11 +109,11 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                 saveFavourites(next);
                 setIsSaved(!exists);
               }}
-              className="w-10 h-10 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/60 transition-all"
+              className="min-w-[44px] min-h-[44px] w-11 h-11 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/60 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"
             >
               <Heart size={16} fill={isSaved ? 'currentColor' : 'none'} className={isSaved ? 'text-red-500' : ''} />
             </button>
-            <button className="w-10 h-10 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/60 transition-all">
+            <button className="min-w-[44px] min-h-[44px] w-11 h-11 bg-black/40 backdrop-blur-md border border-white/10 flex items-center justify-center hover:bg-black/60 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50">
               <Share2 size={16} />
             </button>
           </div>
@@ -196,7 +196,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                         e.stopPropagation();
                         onBookTable({ ...venue, selectedTable: table });
                       }}
-                      className="flex items-center gap-1.5 text-[#E5E4E2] hover:text-white transition-colors"
+                      className="min-w-[44px] min-h-[44px] -mr-2 flex items-center justify-center text-[#E5E4E2] hover:text-white active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"
                     >
                       <ChevronRight size={14} />
                     </button>

@@ -16,10 +16,44 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
+  const validateForm = () => {
+    let isValid = true;
+    setEmailError('');
+    setPasswordError('');
+    setError('');
+
+    if (!email) {
+      setEmailError('Email address is required');
+      isValid = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError('Please enter a valid email address');
+      isValid = false;
+    }
+
+    if (!password) {
+      setPasswordError('Password is required');
+      isValid = false;
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      isValid = false;
+    }
+
+    return isValid;
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
+    setError('');
 
     try {
       const supabase = createClient(
@@ -27,10 +61,10 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         publicAnonKey
       );
 
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
-      if (error) {
-        console.warn('Auth error (prototype bypass):', error.message);
+      if (authError) {
+        console.warn('Auth error (prototype bypass):', authError.message);
       }
 
       // Always proceed in prototype mode
@@ -40,9 +74,11 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
       setTimeout(() => onSuccess(), 800);
     } catch (err) {
-      // Silent Bypass for Prototype
-      toast.success('Identity Verified');
-      setTimeout(() => onSuccess(), 800);
+      const errMsg = err instanceof Error ? err.message : 'An unexpected error occurred';
+      setError(errMsg);
+      toast.error('Verification Failed', {
+        description: errMsg
+      });
     } finally {
       setLoading(false);
     }
@@ -78,6 +114,11 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
 
         {/* Login Form */}
         <form onSubmit={handleLogin} className="space-y-6">
+          {error && (
+            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-300 text-[11px] uppercase tracking-widest">
+              {error}
+            </div>
+          )}
           <div className="space-y-4">
             <div className="space-y-2">
               <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Secure Identifier</label>
@@ -85,9 +126,17 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
                 type="email"
                 placeholder="EMAIL ADDRESS"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all"
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setEmailError('');
+                }}
+                className={`bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${
+                  emailError ? 'border-red-500/50' : ''
+                }`}
               />
+              {emailError && (
+                <p className="text-red-300 text-[9px] uppercase tracking-widest mt-1">{emailError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Access Key</label>
@@ -95,16 +144,24 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
                 type="password"
                 placeholder="PASSWORD"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all"
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setPasswordError('');
+                }}
+                className={`bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${
+                  passwordError ? 'border-red-500/50' : ''
+                }`}
               />
+              {passwordError && (
+                <p className="text-red-300 text-[9px] uppercase tracking-widest mt-1">{passwordError}</p>
+              )}
             </div>
           </div>
 
           <Button
             type="submit"
             disabled={loading}
-            className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black transition-all disabled:opacity-50"
+            className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] active:bg-[#D5D4D2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Verifying Identity...' : 'Verify & Enter'}
           </Button>

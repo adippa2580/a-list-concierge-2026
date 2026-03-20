@@ -313,7 +313,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
       <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-6 sticky top-0 z-20">
         <div className="flex items-center gap-4 mb-1">
-          {onBack && <button onClick={onBack} className="text-white/40 hover:text-white transition-colors"><X size={18} /></button>}
+          {onBack && <button onClick={onBack} className="min-w-[44px] min-h-[44px] -ml-2 flex items-center justify-center text-white/40 hover:text-white active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"><X size={18} /></button>}
           <div>
             <p className="text-[8px] uppercase tracking-[0.4em] text-white/30 font-bold">Group Booking</p>
             <h2 className="text-2xl font-serif italic platinum-gradient">Select Your Crew</h2>
@@ -425,7 +425,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
       {/* Header */}
       <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-8 sticky top-0 z-20">
         <div className="flex items-center gap-4 mb-1">
-          <button onClick={() => setScreen('crew-select')} className="text-white/40 hover:text-white transition-colors">
+          <button onClick={() => setScreen('crew-select')} className="min-w-[44px] min-h-[44px] -ml-2 flex items-center justify-center text-white/40 hover:text-white active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50">
             <X size={18} />
           </button>
           <div>

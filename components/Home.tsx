@@ -448,7 +448,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
             )}
             {primaryTicketUrl && (
               <button
-                className="mt-2 text-[7px] font-bold uppercase tracking-[0.1em] text-[#E5E4E2] hover:text-white transition-colors flex items-center gap-1"
+                className="mt-2 text-[7px] font-bold uppercase tracking-[0.1em] text-[#E5E4E2] hover:text-white active:scale-95 transition-all flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"
                 onClick={(e) => {
                   e.stopPropagation();
                   window.open(primaryTicketUrl, '_blank', 'noopener,noreferrer');
@@ -546,7 +546,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
             <div className="flex items-center gap-3 mt-3 pt-2 border-t border-white/5">
               {primaryTicketUrl && (
                 <button
-                  className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-[0.15em] text-[#E5E4E2] hover:text-white transition-colors"
+                  className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-[0.15em] text-[#E5E4E2] hover:text-white active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"
                   onClick={(e) => {
                     e.stopPropagation();
                     window.open(primaryTicketUrl, '_blank', 'noopener,noreferrer');
@@ -558,7 +558,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
               )}
               {event.venueWebsite && (
                 <button
-                  className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-[0.15em] text-white/50 hover:text-white/80 transition-colors"
+                  className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-[0.15em] text-white/50 hover:text-white/80 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"
                   onClick={(e) => {
                     e.stopPropagation();
                     window.open(event.venueWebsite, '_blank', 'noopener,noreferrer');
@@ -612,7 +612,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
               <button
                 key={fav.id || fav.name}
                 onClick={() => onVenueClick(fav)}
-                className="flex-shrink-0 w-36 group relative overflow-hidden border border-white/10 hover:border-[#E5E4E2]/40 transition-all bg-zinc-950/80 text-left"
+                className="flex-shrink-0 w-36 group relative overflow-hidden border border-white/10 hover:border-[#E5E4E2]/40 active:scale-95 transition-all bg-zinc-950/80 text-left focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"
               >
                 {/* Venue image */}
                 <div className="w-full h-20 overflow-hidden relative">
@@ -658,7 +658,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
       {privateClubs.length > 0 && onViewMemberClubs && (
         <button
           onClick={onViewMemberClubs}
-          className="mx-6 mb-4 w-[calc(100%-3rem)] flex items-center justify-between px-4 py-3 border border-[#E5E4E2]/20 bg-white/[0.02] hover:bg-white/[0.04] hover:border-[#E5E4E2]/40 transition-all group"
+          className="mx-6 mb-4 w-[calc(100%-3rem)] flex items-center justify-between px-4 py-3 border border-[#E5E4E2]/20 bg-white/[0.02] hover:bg-white/[0.04] active:scale-[0.98] hover:border-[#E5E4E2]/40 transition-all group focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"
         >
           <div className="flex items-center gap-3">
             <ShieldCheck size={12} className="text-[#E5E4E2]/60" />
@@ -692,13 +692,13 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           <div className="flex items-center gap-2">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-2 border transition-all ${viewMode === 'grid' ? 'border-white/30 bg-white/5' : 'border-white/5 text-white/30'}`}
+              className={`p-2 border transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50 ${viewMode === 'grid' ? 'border-white/30 bg-white/5 hover:bg-white/10' : 'border-white/5 text-white/30 hover:border-white/15 hover:bg-white/[0.02]'}`}
             >
               <LayoutGrid size={14} />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-2 border transition-all ${viewMode === 'list' ? 'border-white/30 bg-white/5' : 'border-white/5 text-white/30'}`}
+              className={`p-2 border transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50 ${viewMode === 'list' ? 'border-white/30 bg-white/5 hover:bg-white/10' : 'border-white/5 text-white/30 hover:border-white/15 hover:bg-white/[0.02]'}`}
             >
               <List size={14} />
             </button>
