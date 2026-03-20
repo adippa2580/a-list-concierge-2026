@@ -123,16 +123,21 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
     if (spotifyUserId) setSpotifyConnected(true);
 
     if (!userId) { setLoading(false); return; }
-    supabase
-      .from('profiles')
-      .select('instagram_handle, soundcloud_connected')
-      .eq('id', userId)
-      .single()
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('instagram_handle, soundcloud_connected')
+          .eq('id', userId)
+          .single();
         setInstagramHandle(data?.instagram_handle ?? null);
         setSoundcloudUsername(data?.soundcloud_connected ? 'connected' : null);
-      })
-      .finally(() => setLoading(false));
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [userId]);
 
   const filteredPosts = socialPosts.filter(post => {

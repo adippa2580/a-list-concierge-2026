@@ -818,7 +818,7 @@ app.get("/venue/search", async (c) => {
 
 // ── Events Search Endpoint (Multi-Source: Eventbrite + Ticketmaster + Ticket Tailor + Web) ──
 app.get("/eventbrite/events", async (c) => {
-  if (!EVENTBRITE_API_KEY) return c.json([]);
+  // Note: Eventbrite key is optional — web search, Ticketmaster, and curated fallbacks still run without it
 
   const city = c.req.query("city");
   const lat = c.req.query("lat");
