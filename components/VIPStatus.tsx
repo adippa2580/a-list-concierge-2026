@@ -88,12 +88,12 @@ export function VIPStatus() {
     }
   };
 
-  const currentTier = profile?.tier || 'Platinum';
-  const verifiedSpend = profile?.stats?.totalSpend ?? 24500;
-  const points = profile?.points ?? 8450;
-  const sessions = profile?.stats?.sessions ?? 47;
-  const name = profile?.name || 'Alex Rivera';
-  const memberSince = profile?.memberSince || 'January 2025';
+  const currentTier = profile?.tier || null;
+  const verifiedSpend = profile?.stats?.totalSpend ?? 0;
+  const points = profile?.points ?? 0;
+  const sessions = profile?.stats?.sessions ?? 0;
+  const name = profile?.name || 'Member';
+  const memberSince = profile?.memberSince || 'Unavailable';
   const nextTier = NEXT_TIER[currentTier] || NEXT_TIER.Platinum;
   const progress = Math.min((verifiedSpend / nextTier.spend) * 100, 100);
   const benefits = TIER_BENEFITS[currentTier] || TIER_BENEFITS.Platinum;
@@ -134,7 +134,7 @@ export function VIPStatus() {
             <div className="flex items-start justify-between">
               <AListLogo variant="minimal" size="sm" theme="monochrome" className="opacity-40" />
               <Badge className="bg-[#E5E4E2]/10 border border-[#E5E4E2]/20 text-[#E5E4E2] text-[8px] uppercase tracking-widest px-3 py-1 rounded-none font-bold">
-                {currentTier}
+                {currentTier || 'Unavailable'}
               </Badge>
             </div>
 
@@ -145,15 +145,15 @@ export function VIPStatus() {
 
             <div className="grid grid-cols-3 gap-6">
               <div>
-                <p className="text-2xl font-light font-serif italic">${(verifiedSpend / 1000).toFixed(1)}K</p>
+                <p className="text-2xl font-light font-serif italic">{verifiedSpend === 0 ? '—' : `$${(verifiedSpend / 1000).toFixed(1)}K`}</p>
                 <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-bold mt-1">Verified Spend</p>
               </div>
               <div>
-                <p className="text-2xl font-light font-serif italic">{points.toLocaleString()}</p>
+                <p className="text-2xl font-light font-serif italic">{points === 0 ? '—' : points.toLocaleString()}</p>
                 <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-bold mt-1">Points</p>
               </div>
               <div>
-                <p className="text-2xl font-light font-serif italic">{sessions}</p>
+                <p className="text-2xl font-light font-serif italic">{sessions === 0 ? '—' : sessions}</p>
                 <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-bold mt-1">Sessions</p>
               </div>
             </div>
@@ -162,22 +162,28 @@ export function VIPStatus() {
 
         {/* Progress to Next Tier */}
         <div className="space-y-4">
-          <div className="flex justify-between text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold">
-            <span>{currentTier}</span>
-            <span>{nextTier.name} (${nextTier.spend.toLocaleString()})</span>
-          </div>
-          <div className="h-1 w-full bg-white/5 overflow-hidden">
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 1.5, ease: 'easeOut' }}
-              className="h-full bg-gradient-to-r from-[#8E8E93] via-[#E5E4E2] to-[#F5F5F7]"
-            />
-          </div>
-          {currentTier !== 'Diamond' && (
-            <p className="text-[8px] uppercase tracking-[0.3em] text-white/20 font-bold text-center">
-              ${(nextTier.spend - verifiedSpend).toLocaleString()} remaining for {nextTier.name} Status
-            </p>
+          {currentTier ? (
+            <>
+              <div className="flex justify-between text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold">
+                <span>{currentTier}</span>
+                <span>{nextTier.name} (${nextTier.spend.toLocaleString()})</span>
+              </div>
+              <div className="h-1 w-full bg-white/5 overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 1.5, ease: 'easeOut' }}
+                  className="h-full bg-gradient-to-r from-[#8E8E93] via-[#E5E4E2] to-[#F5F5F7]"
+                />
+              </div>
+              {currentTier !== 'Diamond' && (
+                <p className="text-[8px] uppercase tracking-[0.3em] text-white/20 font-bold text-center">
+                  ${(nextTier.spend - verifiedSpend).toLocaleString()} remaining for {nextTier.name} Status
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-[9px] uppercase tracking-[0.3em] text-white/30 font-bold text-center">Tier data unavailable</p>
           )}
         </div>
 
@@ -189,7 +195,7 @@ export function VIPStatus() {
               <div
                 key={tier.name}
                 className={`p-4 border text-center space-y-2 ${
-                  tier.name === currentTier
+                  currentTier && tier.name === currentTier
                     ? `${tier.borderColor} bg-white/5`
                     : 'border-white/5 opacity-40'
                 }`}
@@ -206,31 +212,35 @@ export function VIPStatus() {
         <div className="space-y-6">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Unlocked Perks</h3>
           <div className="space-y-2">
-            {benefits.map((benefit, index) => (
-              <div
-                key={index}
-                className={`flex items-center justify-between p-5 border transition-all ${
-                  benefit.unlocked
-                    ? 'border-white/10 bg-zinc-950/40 hover:border-[#E5E4E2]/20'
-                    : 'border-white/5 opacity-30'
-                }`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-8 h-8 border ${benefit.unlocked ? 'border-[#E5E4E2]/20 bg-white/5' : 'border-white/5'} flex items-center justify-center`}>
-                    <benefit.icon size={14} className={benefit.unlocked ? 'text-[#E5E4E2]' : 'text-white/20'} />
+            {currentTier ? (
+              benefits.map((benefit, index) => (
+                <div
+                  key={index}
+                  className={`flex items-center justify-between p-5 border transition-all ${
+                    benefit.unlocked
+                      ? 'border-white/10 bg-zinc-950/40 hover:border-[#E5E4E2]/20'
+                      : 'border-white/5 opacity-30'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`w-8 h-8 border ${benefit.unlocked ? 'border-[#E5E4E2]/20 bg-white/5' : 'border-white/5'} flex items-center justify-center`}>
+                      <benefit.icon size={14} className={benefit.unlocked ? 'text-[#E5E4E2]' : 'text-white/20'} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest">{benefit.name}</p>
+                      <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{benefit.tier} Tier</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest">{benefit.name}</p>
-                    <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{benefit.tier} Tier</p>
-                  </div>
+                  {benefit.unlocked ? (
+                    <CheckCircle2 size={14} className="text-green-500" />
+                  ) : (
+                    <Lock size={14} className="text-white/20" />
+                  )}
                 </div>
-                {benefit.unlocked ? (
-                  <CheckCircle2 size={14} className="text-green-500" />
-                ) : (
-                  <Lock size={14} className="text-white/20" />
-                )}
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-[9px] uppercase tracking-[0.3em] text-white/30 font-bold text-center py-4">Perks unavailable</p>
+            )}
           </div>
         </div>
       </div>

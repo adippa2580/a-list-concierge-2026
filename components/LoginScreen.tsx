@@ -242,7 +242,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         </div>
 
         {/* Social Login */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           <button
             type="button"
             onClick={() => handleSocialLogin('google')}
@@ -250,13 +250,6 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
             className="py-4 border border-white/10 text-[9px] font-bold uppercase tracking-widest text-white/60 hover:bg-white/5 hover:border-white/30 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/20 disabled:opacity-40"
           >
             Google
-          </button>
-          <button
-            type="button"
-            disabled={loading}
-            className="py-4 border border-white/10 text-[9px] font-bold uppercase tracking-widest text-white/20 cursor-not-allowed opacity-30"
-          >
-            Instagram
           </button>
         </div>
 

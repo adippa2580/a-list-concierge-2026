@@ -71,6 +71,7 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
   const [loading, setLoading] = useState(true);
   const [instagramHandle, setInstagramHandle] = useState<string | null>(null);
   const [soundcloudUsername, setSoundcloudUsername] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState('All');
 
   const { userId } = useAuth();
 
@@ -88,6 +89,20 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
       .finally(() => setLoading(false));
   }, [userId]);
 
+  const filteredPosts = socialPosts.filter(post => {
+    if (activeFilter === 'All') return true;
+    if (activeFilter === 'Friends') return post.visibility === 'PUBLIC' || post.visibility === 'FRIENDS';
+    if (activeFilter === 'Clubs') {
+      const hasClubKeyword = post.venue.name.toLowerCase().includes('club') || post.venue.name === 'E11EVEN Miami';
+      return hasClubKeyword;
+    }
+    if (activeFilter === 'Lounges') {
+      const isLounge = !post.venue.name.toLowerCase().includes('club') && post.venue.name !== 'E11EVEN Miami';
+      return isLounge;
+    }
+    return true;
+  });
+
   return (
     <div className="min-h-screen bg-black text-white pb-32">
       {/* Header */}
@@ -96,10 +111,11 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
 
         {/* Filter Pills */}
         <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {filters.map((filter, index) => (
+          {filters.map((filter) => (
             <button
               key={filter}
-              className={`px-4 py-2 border text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${index === 0
+              onClick={() => setActiveFilter(filter)}
+              className={`px-4 py-2 border text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeFilter === filter
                   ? 'bg-white text-black border-white'
                   : 'bg-transparent text-white/80 border-white/20 hover:border-white hover:text-white'
                 }`}
@@ -208,7 +224,12 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
           </div>
 
           <div className="divide-y divide-white/5">
-            {socialPosts.map((post) => (
+            {filteredPosts.length === 0 ? (
+              <div className="px-6 py-12 text-center">
+                <p className="text-[10px] uppercase tracking-widest text-white/30">No posts available</p>
+              </div>
+            ) : (
+              filteredPosts.map((post) => (
                 <motion.div
                   key={post.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -295,7 +316,8 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                     </button>
                   </div>
                 </motion.div>
-              ))}
+              ))
+            )}
           </div>
         </div>
       </div>

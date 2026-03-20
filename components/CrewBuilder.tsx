@@ -77,8 +77,7 @@ export function CrewBuilder() {
         setCrewList(data.crews || []);
         setLeaderboard(data.leaderboard || []);
       }
-    } catch (e) {
-      console.error('Failed to load crews', e);
+    } catch (_e) {
       toast.error('Failed to load crews');
     } finally {
       setLoading(false);
@@ -164,7 +163,7 @@ export function CrewBuilder() {
         });
         toast.success('Invite sent!');
       } else {
-        await navigator.clipboard.writeText(joinUrl);
+        await navigator.clipboard.writeText(joinUrl).catch(() => {});
         toast.success('Invite link copied to clipboard!');
       }
     } catch (e: unknown) {

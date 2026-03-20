@@ -35,8 +35,8 @@ export function Inbox({ onBack }: InboxProps) {
     try {
       const res = await fetch(`${API}/invites?userId=${userId}`, { headers: HEADERS });
       if (res.ok) setInviteData(await res.json());
-    } catch (e) {
-      console.error('Failed to load invites', e);
+    } catch (_e) {
+      // silently fail
     } finally {
       setLoading(false);
     }

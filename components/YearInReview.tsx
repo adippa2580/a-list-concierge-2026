@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { TrendingUp, Music, MapPin, Users, DollarSign, Star, Calendar, Award, Share2, Download } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -57,6 +58,7 @@ const yearStats = {
 };
 
 export function YearInReview() {
+  const [archived, setArchived] = useState(false);
   const maxSpend = Math.max(...yearStats.monthlyActivity.map(m => m.spend));
 
   return (
@@ -96,13 +98,34 @@ export function YearInReview() {
         </div>
 
         <div className="mt-10 flex gap-3 justify-center relative z-10">
-          <Button className="bg-white text-black hover:bg-zinc-200 h-12 px-8 rounded-none uppercase tracking-widest text-[10px] font-bold !text-black">
+          <Button
+            className="bg-white text-black hover:bg-zinc-200 h-12 px-8 rounded-none uppercase tracking-widest text-[10px] font-bold !text-black"
+            onClick={async () => {
+              const text = `My A-List Year in Review — ${yearStats.venuesVisited} venues, ${yearStats.nightsOut} nights out. #AList`;
+              if (navigator.share) {
+                try {
+                  await navigator.share({ title: 'My A-List Year', text });
+                } catch {}
+              }
+              else {
+                await navigator.clipboard.writeText(text).catch(() => {});
+              }
+            }}
+          >
             <Share2 size={14} className="mr-2" />
             Export Story
           </Button>
-          <Button variant="outline" className="border-white/20 text-white hover:bg-white/5 h-12 px-8 rounded-none uppercase tracking-widest text-[10px] font-bold">
+          <Button
+            variant="outline"
+            className="border-white/20 text-white hover:bg-white/5 h-12 px-8 rounded-none uppercase tracking-widest text-[10px] font-bold"
+            onClick={() => {
+              localStorage.setItem('alist_year_archived', JSON.stringify({...yearStats, archivedAt: new Date().toISOString()}));
+              setArchived(true);
+              setTimeout(() => setArchived(false), 2000);
+            }}
+          >
             <Download size={14} className="mr-2" />
-            Archive
+            {archived ? 'Archived ✓' : 'Archive'}
           </Button>
         </div>
       </div>

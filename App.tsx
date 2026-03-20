@@ -70,7 +70,7 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [joinCrewToken, setJoinCrewToken] = useState<string | null>(null);
-  const unreadInvites = 3;
+  const [unreadInvites, setUnreadInvites] = useState(0);
 
   const AVATAR_KEY = 'alist_avatar_url';
 
@@ -105,6 +105,16 @@ export default function App() {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/invites?userId=${userId}`, {
+      headers: { Authorization: `Bearer ${publicAnonKey}` }
+    })
+      .then(r => r.json())
+      .then(data => setUnreadInvites((data.incoming || []).filter((i: any) => i.status === 'pending').length))
+      .catch(() => {});
+  }, [userId]);
 
   const fetchProfile = async () => {
     try {

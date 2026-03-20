@@ -33,7 +33,6 @@ async function searchWebForEvents(query: string, city: string): Promise<WebSearc
   const currentYear = new Date().getFullYear();
   const searchQuery = `${query} ${city} events tickets ${currentYear}`;
   
-  console.log(`[Web Search] Searching for: "${searchQuery}"`);
 
   // Try Google Custom Search first (if configured)
   if (GOOGLE_API_KEY && GOOGLE_CX) {
@@ -62,7 +61,6 @@ async function googleCustomSearch(searchQuery: string, venueName: string): Promi
     clearTimeout(timeout);
 
     if (!res.ok) {
-      console.warn(`[Google Search] API returned ${res.status}`);
       return results;
     }
 
@@ -87,10 +85,8 @@ async function googleCustomSearch(searchQuery: string, venueName: string): Promi
       });
     }
 
-    console.log(`[Google Search] Found ${results.length} results`);
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.warn(`[Google Search] Error: ${msg}`);
   }
 
   return results;
@@ -119,7 +115,6 @@ async function duckDuckGoSearch(searchQuery: string, venueName: string): Promise
     clearTimeout(timeout);
 
     if (!res.ok) {
-      console.warn(`[DuckDuckGo] HTTP ${res.status}`);
       return results;
     }
 
@@ -180,10 +175,8 @@ async function duckDuckGoSearch(searchQuery: string, venueName: string): Promise
       });
     }
 
-    console.log(`[DuckDuckGo] Found ${results.length} results`);
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.warn(`[DuckDuckGo] Error: ${msg}`);
   }
 
   return results;
@@ -329,7 +322,6 @@ async function searchResidentAdvisor(
 ): Promise<WebSearchResult[]> {
   const results: WebSearchResult[] = [];
   if (!APIFY_TOKEN) {
-    console.warn("[RA] APIFY_TOKEN not set — skipping Resident Advisor search");
     return results;
   }
 
@@ -358,7 +350,6 @@ async function searchResidentAdvisor(
     clearTimeout(timeout);
 
     if (!res.ok) {
-      console.warn(`[RA] Apify HTTP ${res.status}: ${await res.text()}`);
       return results;
     }
 
@@ -390,12 +381,8 @@ async function searchResidentAdvisor(
       });
     }
 
-    console.log(
-      `[RA] Found ${results.length} events for "${query}" in ${city} (slug: ${slug})`
-    );
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.warn(`[RA] Error: ${msg}`);
   }
   return results;
 }
@@ -405,7 +392,6 @@ async function searchResidentAdvisor(
  */
 async function searchTicketmaster(query: string, city: string): Promise<WebSearchResult[]> {
   if (!TICKETMASTER_API_KEY) {
-    console.log("[Ticketmaster] No API key configured, skipping");
     return [];
   }
 
@@ -420,7 +406,6 @@ async function searchTicketmaster(query: string, city: string): Promise<WebSearc
     clearTimeout(timeout);
 
     if (!res.ok) {
-      console.warn(`[Ticketmaster] API returned ${res.status}`);
       return results;
     }
 
@@ -451,10 +436,8 @@ async function searchTicketmaster(query: string, city: string): Promise<WebSearc
       });
     }
 
-    console.log(`[Ticketmaster] Found ${results.length} results for "${query}" in ${city}`);
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.warn(`[Ticketmaster] Error: ${msg}`);
   }
 
   return results;
@@ -487,7 +470,6 @@ async function searchTicketTailor(query: string, city: string): Promise<WebSearc
     clearTimeout(timeout);
 
     if (!res.ok) {
-      console.warn(`[TicketTailor] HTTP ${res.status}`);
       return results;
     }
 
@@ -535,10 +517,8 @@ async function searchTicketTailor(query: string, city: string): Promise<WebSearc
       });
     }
 
-    console.log(`[TicketTailor] Found ${results.length} results for "${query}" in ${city}`);
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.warn(`[TicketTailor] Error: ${msg}`);
   }
 
   return results;
@@ -568,16 +548,19 @@ const INSTAGRAM_REDIRECT_URI = Deno.env.get("INSTAGRAM_REDIRECT_URI") ||
   `https://${Deno.env.get("SUPABASE_URL")?.replace("https://", "")}/functions/v1/server/instagram/callback`;
 
 // Eventbrite configuration
-const EVENTBRITE_API_KEY = Deno.env.get("EVENTBRITE_API_KEY") || "VUASYGB2SRP4JRPDCR";
+const EVENTBRITE_API_KEY = Deno.env.get("EVENTBRITE_API_KEY");
 
 // Enable logger
-app.use('*', logger(console.log));
+app.use('*', logger());
 
 // Enable CORS for all routes and methods
 app.use(
   "/*",
   cors({
-    origin: "*",
+    origin: (origin) => {
+      const allowed = ["https://a-list-core-application.web.app", "http://localhost:5173", "http://localhost:3000"];
+      return allowed.includes(origin ?? "") ? origin : allowed[0];
+    },
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
@@ -599,7 +582,6 @@ app.get("/spotify/login", (c) => {
   }
 
   if (!SPOTIFY_CLIENT_ID) {
-    console.log("Spotify login error: SPOTIFY_CLIENT_ID not configured");
     return c.json({ error: "Spotify client ID not configured" }, 500);
   }
 
@@ -630,7 +612,6 @@ app.get("/spotify/callback", async (c) => {
   const error = c.req.query("error");
 
   if (error) {
-    console.log(`Spotify callback error: ${error}`);
     return c.json({ error: `Spotify authorization failed: ${error}` }, 400);
   }
 
@@ -639,7 +620,6 @@ app.get("/spotify/callback", async (c) => {
   }
 
   if (!SPOTIFY_CLIENT_ID || !SPOTIFY_CLIENT_SECRET) {
-    console.log("Spotify callback error: Client credentials not configured");
     return c.json({ error: "Spotify credentials not configured" }, 500);
   }
 
@@ -660,7 +640,6 @@ app.get("/spotify/callback", async (c) => {
 
     if (!tokenResponse.ok) {
       const error = await tokenResponse.text();
-      console.log(`Spotify token exchange error: ${tokenResponse.status} - ${error}`);
       return c.json({ error: "Failed to exchange code for token" }, tokenResponse.status as ContentfulStatusCode);
     }
 
@@ -681,7 +660,6 @@ app.get("/spotify/callback", async (c) => {
     });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.log(`Spotify callback processing error: ${msg}`);
     return c.json({ error: `Failed to process Spotify callback: ${msg}` }, 500);
   }
 });
@@ -837,6 +815,8 @@ app.get("/venue/search", async (c) => {
 
 // ── Events Search Endpoint (Multi-Source: Eventbrite + Ticketmaster + Ticket Tailor + Web) ──
 app.get("/eventbrite/events", async (c) => {
+  if (!EVENTBRITE_API_KEY) return c.json([]);
+
   const city = c.req.query("city");
   const lat = c.req.query("lat");
   const lon = c.req.query("lon");
@@ -852,7 +832,6 @@ app.get("/eventbrite/events", async (c) => {
   // 1. Web search (Google/DuckDuckGo)
   const webSearchPromise: Promise<WebSearchResult[]> = hasSearchQuery
     ? searchWebForEvents(query, locationName).catch(err => {
-        console.warn(`[Web Search] Error: ${err}`);
         return [] as WebSearchResult[];
       })
     : Promise.resolve([]);
@@ -860,7 +839,6 @@ app.get("/eventbrite/events", async (c) => {
   // 2. Ticketmaster Discovery API
   const ticketmasterPromise: Promise<WebSearchResult[]> = hasSearchQuery
     ? searchTicketmaster(query, locationName).catch(err => {
-        console.warn(`[Ticketmaster] Error: ${err}`);
         return [] as WebSearchResult[];
       })
     : Promise.resolve([]);
@@ -868,7 +846,6 @@ app.get("/eventbrite/events", async (c) => {
   // 3. Ticket Tailor search
   const ticketTailorPromise: Promise<WebSearchResult[]> = hasSearchQuery
     ? searchTicketTailor(query, locationName).catch(err => {
-        console.warn(`[TicketTailor] Error: ${err}`);
         return [] as WebSearchResult[];
       })
     : Promise.resolve([]);
@@ -878,7 +855,6 @@ app.get("/eventbrite/events", async (c) => {
   // Results include full lineup, flyer art, and direct ticket links.
   const raPromise: Promise<WebSearchResult[]> = APIFY_TOKEN
     ? searchResidentAdvisor(query ?? "", locationName).catch(err => {
-        console.warn(`[RA] Error: ${err}`);
         return [] as WebSearchResult[];
       })
     : Promise.resolve([]);
@@ -914,9 +890,6 @@ app.get("/eventbrite/events", async (c) => {
   const [webSearchResults, ticketmasterResults, ticketTailorResults, raResults, eventbriteEvents] =
     await Promise.all([webSearchPromise, ticketmasterPromise, ticketTailorPromise, raPromise, eventbritePromise]);
 
-  console.log(
-    `[Search Results] Web: ${webSearchResults.length}, Ticketmaster: ${ticketmasterResults.length}, TicketTailor: ${ticketTailorResults.length}, RA Guide: ${raResults.length}, Eventbrite: ${eventbriteEvents.length}`
-  );
 
   // ── Merge results ─────────────────────────────────────────────────────────
   // Priority order: RA Guide → Web Search (venue sites) → Ticketmaster → Ticket Tailor → Eventbrite
@@ -935,7 +908,6 @@ app.get("/eventbrite/events", async (c) => {
   }
 
   // Fallback: return curated events
-  console.log(`Returning curated events for: ${locationName}`);
   const curated = generateCuratedEvents(locationName, query || undefined);
   return c.json(curated.map(e => ({ ...e, source: "curated" })));
 });
@@ -1181,7 +1153,6 @@ app.get("/soundcloud/callback", async (c) => {
       avatar_url:    me?.avatar_url ?? null,
     });
 
-    console.log(`[SoundCloud] Connected userId=${state} sc_user=${me?.username}`);
     return c.json({ success: true, userId: state, username: me?.username, avatar_url: me?.avatar_url });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -1280,8 +1251,13 @@ app.get("/soundcloud/status", async (c) => {
 /** DELETE /soundcloud/disconnect — remove stored token */
 app.delete("/soundcloud/disconnect", async (c) => {
   const userId = c.req.query("userId") || "default_user";
-  await kv.del(`soundcloud_token_${userId}`);
-  return c.json({ success: true });
+  try {
+    await kv.del(`soundcloud_token_${userId}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.error(`[SoundCloud] Disconnect error: ${err}`);
+    return c.json({ success: false, error: "Failed to disconnect" }, 500);
+  }
 });
 
 // ── Profile: GET + PUT (KV-backed) ───────────────────────────────────────────
@@ -1902,7 +1878,6 @@ app.get("/instagram/callback", async (c) => {
       username: (profile as { username?: string }).username || null,
     });
 
-    console.log(`[Instagram] Connected userId=${state} ig_user=${shortToken.user_id}`);
     return c.json({ success: true, userId: state, profile });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -1994,8 +1969,13 @@ app.get("/instagram/status", async (c) => {
 /** DELETE /instagram/disconnect — revoke & remove token */
 app.delete("/instagram/disconnect", async (c) => {
   const userId = c.req.query("userId") || "default_user";
-  await kv.del(`instagram_token_${userId}`);
-  return c.json({ success: true });
+  try {
+    await kv.del(`instagram_token_${userId}`);
+    return c.json({ success: true });
+  } catch (err) {
+    console.error(`[Instagram] Disconnect error: ${err}`);
+    return c.json({ success: false, error: "Failed to disconnect" }, 500);
+  }
 });
 
 // ── Club registry: maps club name patterns → scrape config ──────────────────
@@ -2282,7 +2262,6 @@ function parseCrescentClubHtml(html: string, portalBase: string): ScrapedEvent[]
     }
   }
 
-  console.log(`[CrescentClub] parsed ${events.length} events from HTML`);
   return events;
 }
 
@@ -2363,7 +2342,6 @@ app.get("/member-club/events", async (c) => {
       return d ? d.getTime() >= nowMs - DAY : true;
     }).slice(0, 25);
 
-    console.log(`[MemberClub] ${clubName}: ${upcoming.length} upcoming / ${scraped.length} total`);
     return c.json({ events: upcoming, source: eventsUrl, total: upcoming.length });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
