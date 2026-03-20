@@ -1,0 +1,39 @@
+name: Firebase Preview Channel
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches-ignore: [main]   # every non-main branch gets a preview URL
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      contents: read
+      pull-requests: write    # allows posting the preview URL as a PR comment
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy Preview Channel
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: a-list-core-application
+          # channelId is omitted — Firebase auto-generates one per branch/PR
+          # Preview URLs expire after 7 days unless the PR/branch is still active
+          expires: 7d
