@@ -296,9 +296,11 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
         `https://${projectId}.supabase.co/functions/v1/server/spotify/login?userId=${userId}`,
         { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
-      if (res.ok) {
-        const data = await res.json();
-        if (data.authUrl) window.location.href = data.authUrl;
+      const data = await res.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        toast.error('Could not connect Spotify', { description: data.error || 'Check that Spotify credentials are configured' });
       }
     } catch { toast.error('Could not connect Spotify'); }
   };
@@ -309,9 +311,11 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
         `https://${projectId}.supabase.co/functions/v1/server/soundcloud/login?userId=${userId}`,
         { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) window.location.href = data.url;
+      const data = await res.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        toast.error('Could not connect SoundCloud', { description: data.error || 'Check that SoundCloud credentials are configured' });
       }
     } catch { toast.error('Could not connect SoundCloud'); }
   };
@@ -319,12 +323,14 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
   const connectInstagram = async () => {
     try {
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/server/instagram/auth-url?userId=${userId}`,
+        `https://${projectId}.supabase.co/functions/v1/server/instagram/login?userId=${userId}`,
         { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
-      if (res.ok) {
-        const data = await res.json();
-        if (data.url) window.location.href = data.url;
+      const data = await res.json();
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        toast.error('Could not connect Instagram', { description: data.error || 'Check that Instagram credentials are configured' });
       }
     } catch { toast.error('Could not connect Instagram'); }
   };
