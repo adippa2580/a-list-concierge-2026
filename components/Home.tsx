@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import { motion } from 'motion/react';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { toast } from 'sonner';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -266,6 +266,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
 
   const [editingLocation, setEditingLocation] = useState(false);
   const [locationInput, setLocationInput] = useState('');
+  const locationSubmittingRef = useRef(false); // prevents onBlur double-fire
 
   const saveLocation = (loc: string) => {
     setCurrentLocation(loc);
@@ -277,6 +278,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
       toast.error("Geolocation is not supported by your browser");
       return;
     }
+    locationSubmittingRef.current = true; // prevent onBlur firing
     setLoadingLocation(true);
     navigator.geolocation.getCurrentPosition(async (pos) => {
       const { latitude, longitude } = pos.coords;
@@ -297,11 +299,13 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
         toast.success("Location updated");
       } finally {
         setLoadingLocation(false);
+        locationSubmittingRef.current = false;
       }
     }, (err) => {
       console.error(err);
       toast.error("Unable to retrieve your location");
       setLoadingLocation(false);
+      locationSubmittingRef.current = false;
     });
   };
 
@@ -310,12 +314,14 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
     setEditingLocation(true);
   };
 
-  const handleLocationSubmit = (val: string) => {
+  const commitLocation = (val: string) => {
     const trimmed = val.trim();
-    if (trimmed && trimmed !== currentLocation) {
+    if (trimmed) {
       saveLocation(trimmed);
       setCoords(null);
-      toast.success(`Location set to ${trimmed.split(',')[0]}`);
+      if (trimmed !== currentLocation) {
+        toast.success(`Location set to ${trimmed.split(',')[0]}`);
+      }
     }
     setEditingLocation(false);
   };
@@ -755,21 +761,22 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
                   value={locationInput}
                   onChange={e => setLocationInput(e.target.value)}
                   onKeyDown={e => {
-                    if (e.key === 'Enter') handleLocationSubmit(locationInput);
-                    if (e.key === 'Escape') setEditingLocation(false);
+                    if (e.key === 'Enter') { locationSubmittingRef.current = true; commitLocation(locationInput); }
+                    if (e.key === 'Escape') { locationSubmittingRef.current = true; setEditingLocation(false); }
                   }}
-                  onBlur={e => {
-                    // Don't submit if focus moved to GPS or confirm button
-                    if (!e.relatedTarget || !(e.relatedTarget as HTMLElement).dataset.locationBtn) {
-                      handleLocationSubmit(locationInput);
+                  onBlur={() => {
+                    // Only auto-submit on blur if not already being handled by a button click
+                    if (!locationSubmittingRef.current) {
+                      commitLocation(locationInput);
                     }
+                    locationSubmittingRef.current = false;
                   }}
                   placeholder="Enter city..."
                   className="flex-1 min-w-0 bg-transparent border-b border-[#E5E4E2]/40 focus:border-[#E5E4E2] outline-none text-xl font-serif italic tracking-widest uppercase text-white pb-0.5 placeholder:text-white/20 transition-colors"
                 />
                 {/* GPS button */}
                 <button
-                  data-location-btn="true"
+                  onMouseDown={() => { locationSubmittingRef.current = true; }}
                   onClick={detectDeviceLocation}
                   disabled={loadingLocation}
                   className="flex-shrink-0 w-8 h-8 border border-white/20 flex items-center justify-center hover:border-[#E5E4E2]/40 hover:bg-white/5 transition-all disabled:opacity-40"
@@ -779,8 +786,8 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
                 </button>
                 {/* Confirm button */}
                 <button
-                  data-location-btn="true"
-                  onClick={() => handleLocationSubmit(locationInput)}
+                  onMouseDown={() => { locationSubmittingRef.current = true; }}
+                  onClick={() => commitLocation(locationInput)}
                   className="flex-shrink-0 w-8 h-8 border border-white/20 flex items-center justify-center hover:border-[#E5E4E2]/40 hover:bg-white/5 transition-all"
                   title="Set location"
                 >
