@@ -261,7 +261,10 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
     fetchEvents();
   }, [currentLocation, coords, debouncedQuery]);
 
-  const handleLocationCheck = () => {
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [locationInput, setLocationInput] = useState('');
+
+  const detectDeviceLocation = () => {
     if (!navigator.geolocation) {
       toast.error("Geolocation is not supported by your browser");
       return;
@@ -275,15 +278,19 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
         const data = await res.json();
         if (data.city) {
           const stateCode = data.principalSubdivisionCode ? `, ${data.principalSubdivisionCode}` : '';
-          setCurrentLocation(`${data.city}${stateCode}`);
+          const newLocation = `${data.city}${stateCode}`;
+          setCurrentLocation(newLocation);
+          setEditingLocation(false);
           toast.success(`Location updated to ${data.city}`);
         } else {
           setCurrentLocation("Current Location");
+          setEditingLocation(false);
           toast.success("Location updated");
         }
       } catch (e) {
         console.error(e);
         setCurrentLocation("Current Location");
+        setEditingLocation(false);
         toast.success("Location updated");
       } finally {
         setLoadingLocation(false);
@@ -293,6 +300,21 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
       toast.error("Unable to retrieve your location");
       setLoadingLocation(false);
     });
+  };
+
+  const handleLocationCheck = () => {
+    setLocationInput(currentLocation);
+    setEditingLocation(true);
+  };
+
+  const handleLocationSubmit = (val: string) => {
+    const trimmed = val.trim();
+    if (trimmed) {
+      setCurrentLocation(trimmed);
+      setCoords(null);
+      toast.success(`Location set to ${trimmed.split(',')[0]}`);
+    }
+    setEditingLocation(false);
   };
 
   // ── Section buckets (mutually exclusive, render in this order) ──────────────
@@ -695,16 +717,56 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
       {/* Location & Search Header */}
       <div className="pt-2 px-6 pb-6 space-y-6">
         <div className="flex items-end justify-between">
-          <div className="cursor-pointer group" onClick={handleLocationCheck}>
+          <div className="flex-1 min-w-0">
             <p className="text-[10px] text-white/40 uppercase tracking-[0.3em] mb-1 flex items-center gap-2 font-bold">
               Location {loadingLocation && <span className="animate-pulse">...</span>}
             </p>
-            <div className="flex items-center gap-2 text-white group-hover:text-white/80 transition-colors">
-              <MapPin size={16} className={`${loadingLocation ? "animate-spin" : ""} text-[#E5E4E2]`} />
-              <span className="text-2xl font-serif italic tracking-widest uppercase platinum-gradient">
-                {currentLocation.split(',')[0]}
-              </span>
-            </div>
+
+            {editingLocation ? (
+              <div className="flex items-center gap-2">
+                {/* Text input */}
+                <input
+                  autoFocus
+                  value={locationInput}
+                  onChange={e => setLocationInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleLocationSubmit(locationInput);
+                    if (e.key === 'Escape') setEditingLocation(false);
+                  }}
+                  placeholder="City, State..."
+                  className="flex-1 min-w-0 bg-transparent border-b border-[#E5E4E2]/40 focus:border-[#E5E4E2] outline-none text-xl font-serif italic tracking-widest uppercase platinum-gradient pb-0.5 placeholder:text-white/20 transition-colors"
+                />
+                {/* Use device GPS */}
+                <button
+                  onClick={detectDeviceLocation}
+                  disabled={loadingLocation}
+                  className="flex-shrink-0 w-8 h-8 border border-white/20 flex items-center justify-center hover:border-[#E5E4E2]/40 hover:bg-white/5 transition-all disabled:opacity-40"
+                  title="Use device location"
+                >
+                  <Navigation size={13} className={`text-[#E5E4E2] ${loadingLocation ? 'animate-spin' : ''}`} />
+                </button>
+                {/* Confirm */}
+                <button
+                  onClick={() => handleLocationSubmit(locationInput)}
+                  className="flex-shrink-0 w-8 h-8 border border-white/20 flex items-center justify-center hover:border-[#E5E4E2]/40 hover:bg-white/5 transition-all"
+                >
+                  <X size={13} className="text-white/40 hover:text-white transition-colors" />
+                </button>
+              </div>
+            ) : (
+              <div
+                className="flex items-center gap-2 cursor-pointer group"
+                onClick={handleLocationCheck}
+              >
+                <MapPin size={16} className="text-[#E5E4E2] flex-shrink-0" />
+                <span className="text-2xl font-serif italic tracking-widest uppercase platinum-gradient group-hover:opacity-80 transition-opacity truncate">
+                  {currentLocation.split(',')[0]}
+                </span>
+                <span className="text-[8px] uppercase tracking-widest text-white/20 group-hover:text-white/40 transition-colors flex-shrink-0">
+                  Change
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
