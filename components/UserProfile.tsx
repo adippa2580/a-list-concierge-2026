@@ -540,12 +540,12 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
       {/* ── Tabs ─────────────────────────────────────────────────────── */}
       <div className="px-6 mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-none h-auto p-0 justify-start gap-8">
-            {['Identity', 'History', 'Vault'].map(tab => (
+          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-none h-auto p-0 justify-start gap-6 overflow-x-auto scrollbar-hide">
+            {['Identity', 'Connections', 'History', 'Vault'].map(tab => (
               <TabsTrigger
                 key={tab}
                 value={tab.toLowerCase()}
-                className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 data-[state=active]:text-white transition-all"
+                className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 data-[state=active]:text-white transition-all whitespace-nowrap flex-shrink-0"
               >
                 {tab}
               </TabsTrigger>
@@ -734,6 +734,8 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
                 <Edit2 size={10} /> Customise Profile
               </button>
             </div>
+            {/* ── Discoverability / Privacy ────────────────────────── */}
+            <DiscoverabilityToggle />
           </>
         )}
 
@@ -787,7 +789,234 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
             </div>
           </div>
         )}
+
+        {/* CONNECTIONS TAB */}
+        {activeTab === 'connections' && (
+          <ConnectionsTab
+            instagramConnected={social?.instagram.connected ?? false}
+            instagramUsername={social?.instagram.username ?? null}
+            onConnectInstagram={connectInstagram}
+          />
+        )}
       </div>
+    </div>
+  );
+}
+
+// ── Discoverability Toggle ─────────────────────────────────────────────────────
+function DiscoverabilityToggle() {
+  const [discoverable, setDiscoverable] = useState(false); // off by default per spec
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">
+        Discoverability
+      </h3>
+      <div className="flex items-start justify-between p-4 border border-white/10 bg-zinc-950/40 gap-4">
+        <div className="flex-1">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-white mb-1">Vibe Matching</p>
+          <p className="text-[8px] uppercase tracking-widest text-white/30 leading-relaxed">
+            Allow A-List to use your Instagram graph for crew matching suggestions. Off by default.
+          </p>
+        </div>
+        <button
+          onClick={() => setDiscoverable(d => !d)}
+          className={`flex-shrink-0 w-11 h-6 border transition-all relative ${
+            discoverable ? 'bg-white border-white' : 'bg-transparent border-white/20 hover:border-white/40'
+          }`}
+          aria-label="Toggle discoverability"
+        >
+          <span className={`absolute top-0.5 w-5 h-5 transition-all ${
+            discoverable ? 'left-5 bg-[#000504]' : 'left-0.5 bg-white/30'
+          }`} />
+        </button>
+      </div>
+      {discoverable && (
+        <motion.p
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-[7px] uppercase tracking-widest text-[#E5E4E2]/40 px-1"
+        >
+          ✓ Your Instagram graph is active for crew matching. Switch off anytime.
+        </motion.p>
+      )}
+    </div>
+  );
+}
+
+// ── Connections Tab ────────────────────────────────────────────────────────────
+function ConnectionsTab({ instagramConnected, instagramUsername, onConnectInstagram }: {
+  instagramConnected: boolean;
+  instagramUsername: string | null;
+  onConnectInstagram: () => void;
+}) {
+  const [inviteSent, setInviteSent] = useState<Record<number, boolean>>({});
+
+  // Simulated vibe-matched connections derived from Instagram graph
+  const vibeMatches = [
+    {
+      id: 1,
+      name: 'Sofia R.',
+      handle: '@sofiaramos',
+      avatar: 'SR',
+      mutualVenues: ['LIV Miami', 'E11even'],
+      mutualCount: 3,
+      vibeScore: 94,
+      tags: ['House', 'Techno'],
+      status: 'mutual',
+    },
+    {
+      id: 2,
+      name: 'Marco D.',
+      handle: '@marcodeluca',
+      avatar: 'MD',
+      mutualVenues: ['Story', 'Treehouse'],
+      mutualCount: 2,
+      vibeScore: 87,
+      tags: ['Hip-Hop', 'Latin'],
+      status: 'mutual',
+    },
+    {
+      id: 3,
+      name: 'Jade K.',
+      handle: '@jadekwon',
+      avatar: 'JK',
+      mutualVenues: ['LIV Miami'],
+      mutualCount: 1,
+      vibeScore: 79,
+      tags: ['Afro House'],
+      status: 'following',
+    },
+    {
+      id: 4,
+      name: 'Alex V.',
+      handle: '@alexvera',
+      avatar: 'AV',
+      mutualVenues: ['Factory Town', 'E11even'],
+      mutualCount: 4,
+      vibeScore: 91,
+      tags: ['Techno', 'House'],
+      status: 'mutual',
+    },
+  ];
+
+  if (!instagramConnected) {
+    return (
+      <div className="space-y-6">
+        <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">
+          Connections
+        </h3>
+        <div className="border border-dashed border-white/10 p-10 text-center space-y-5">
+          <div className="w-12 h-12 border border-white/10 bg-white/5 flex items-center justify-center mx-auto">
+            <Instagram size={20} className="text-white/20" />
+          </div>
+          <div className="space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest">Connect Instagram</p>
+            <p className="text-[8px] uppercase tracking-widest text-white/25 leading-relaxed">
+              Link Instagram to surface mutual connections and shared taste as crew suggestions.
+              Your graph is never shared publicly.
+            </p>
+          </div>
+          <button
+            onClick={onConnectInstagram}
+            className="px-6 py-3 bg-white text-[#000504] font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all !text-black"
+          >
+            Connect Instagram
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">
+          Vibe Matches
+        </h3>
+        {instagramUsername && (
+          <p className="text-[7px] uppercase tracking-widest text-white/20">@{instagramUsername}</p>
+        )}
+      </div>
+
+      <p className="text-[8px] uppercase tracking-widest text-white/25 leading-relaxed">
+        People from your Instagram network with overlapping venue history. Suggested as potential crew members — not shared without your invite.
+      </p>
+
+      <div className="space-y-3">
+        {vibeMatches.map((match, i) => (
+          <motion.div
+            key={match.id}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05 }}
+            className="border border-white/10 bg-zinc-950/40 p-4"
+          >
+            <div className="flex items-start gap-4">
+              {/* Avatar */}
+              <div className="w-10 h-10 border border-white/10 bg-white/5 flex items-center justify-center flex-shrink-0">
+                <span className="text-[9px] font-bold text-white/50">{match.avatar}</span>
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-widest truncate">{match.name}</p>
+                    <span className="text-[6px] font-bold uppercase tracking-widest px-1.5 py-0.5 border border-[#E5E4E2]/20 text-[#E5E4E2]/50 flex-shrink-0">
+                      {match.status === 'mutual' ? 'Mutual' : 'Following'}
+                    </span>
+                  </div>
+                  {/* Vibe score */}
+                  <div className="flex-shrink-0 text-right">
+                    <p className="text-[9px] font-bold text-[#E5E4E2]">{match.vibeScore}%</p>
+                    <p className="text-[6px] uppercase tracking-widest text-white/25">Vibe Match</p>
+                  </div>
+                </div>
+
+                <p className="text-[8px] uppercase tracking-widest text-white/30 mb-2">{match.handle}</p>
+
+                {/* Shared venues */}
+                <div className="flex items-center gap-2 mb-3 flex-wrap">
+                  <span className="text-[7px] uppercase tracking-widest text-white/20">Both been to:</span>
+                  {match.mutualVenues.map(v => (
+                    <span key={v} className="text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 border border-white/10 text-white/40">
+                      {v}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Tags */}
+                <div className="flex items-center gap-1.5 mb-3">
+                  {match.tags.map(tag => (
+                    <span key={tag} className="text-[6px] font-bold uppercase tracking-widest px-1.5 py-0.5 bg-[#E5E4E2]/5 border border-[#E5E4E2]/10 text-[#E5E4E2]/40">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Invite CTA */}
+                {inviteSent[match.id] ? (
+                  <div className="flex items-center gap-2 text-[8px] uppercase tracking-widest text-green-500">
+                    <Check size={11} />
+                    In-app invite sent
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setInviteSent(prev => ({ ...prev, [match.id]: true }))}
+                    className="text-[8px] font-bold uppercase tracking-widest text-[#E5E4E2] border-b border-[#E5E4E2]/40 pb-0.5 hover:border-[#E5E4E2] transition-all"
+                  >
+                    Invite to Crew →
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      <p className="text-[7px] uppercase tracking-widest text-white/15 text-center leading-relaxed">
+        Matches are derived from shared venues &amp; music taste. Turn off in Identity → Discoverability.
+      </p>
     </div>
   );
 }
