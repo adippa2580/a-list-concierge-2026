@@ -37,14 +37,6 @@ const DATE_FILTERS = [
 
 type DateFilterKey = typeof DATE_FILTERS[number]['key'];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function resolveEventDate(raw: any): Date | null {
-  if (!raw) return null;
-  if (raw instanceof Date) return raw;
-  const d = new Date(raw);
-  return isNaN(d.getTime()) ? null : d;
-}
-
 function fakeAttendance(eventId: string): string {
   // Deterministic pseudo-random from id so it doesn't flicker
   const n = eventId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
@@ -468,7 +460,7 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
 
       {/* ── FULL-BLEED CARD GRID ─────────────────────────────────────────────── */}
       {gridEvents.length > 0 && (
-        <div className="px-4 grid grid-cols-2 gap-2 pb-32">
+        <div className="px-4 grid grid-cols-2 gap-2 pb-32" style={{ gridAutoRows: '160px' }}>
           {gridEvents.map((event, idx) => {
             const venueObj = {
               id: event.id,
@@ -531,8 +523,8 @@ function FullBleedCard({ event, onBook, onVenueClick, isTall }: {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
       onClick={handleTap}
-      className={`relative rounded-xl overflow-hidden cursor-pointer group ${isTall ? 'row-span-2' : ''}`}
-      style={{ aspectRatio: isTall ? '3/4' : '1/1' }}
+      className={`relative rounded-xl overflow-hidden cursor-pointer group ${isTall ? 'row-span-2' : 'row-span-1'}`}
+      style={{ minHeight: 0 }}
     >
       {/* Full-bleed image */}
       {event.image ? (
