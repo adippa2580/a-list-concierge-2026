@@ -25,6 +25,7 @@ import { AIConcierge } from "./components/AIConcierge";
 import { AdminPortal } from "./components/AdminPortal";
 import { HomeV2 } from "./components/HomeV2";
 import { PasswordResetScreen } from "./components/PasswordResetScreen";
+import { AdminGateScreen } from "./components/AdminGateScreen";
 import { AListLogo } from "./components/AListLogo";
 import { projectId, publicAnonKey } from './utils/supabase/info';
 import { supabase } from './utils/supabase/client';
@@ -63,7 +64,7 @@ type ViewType =
   | "bookings"
   | "admin";
 
-type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify-callback" | "soundcloud-callback" | "instagram-callback" | "join-crew" | "password-reset";
+type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify-callback" | "soundcloud-callback" | "instagram-callback" | "join-crew" | "password-reset" | "admin-gate";
 
 export default function App() {
   const { userId } = useAuth();
@@ -146,6 +147,13 @@ export default function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
     const pathname = window.location.pathname;
+
+    // ── Direct admin route: /admin ───────────────────────────────────────────
+    if (pathname === '/admin' || pathname === '/admin/') {
+      window.history.replaceState({}, document.title, '/');
+      setAppState('admin-gate');
+      return;
+    }
 
     // ── Email confirmation / magic link ─────────────────────────────────────
     // Supabase sends ?token_hash=xxx&type=email or #access_token=xxx&type=recovery
@@ -359,6 +367,10 @@ export default function App() {
     return <PasswordResetScreen onComplete={() => setAppState('app')} />;
   }
 
+  if (appState === "admin-gate") {
+    return <AdminGateScreen onUnlock={() => { setAppState('app'); setCurrentView('admin'); }} />;
+  }
+
   // Main app
   return (
     <div className="dark">
@@ -443,7 +455,8 @@ export default function App() {
                         <MenuButton icon={Shield} label="VIP Status" onClick={() => navigateTo("vip")} />
                         <MenuButton icon={Trophy} label="2025 Year in Review" onClick={() => navigateTo("year-review")} />
                         <MenuButton icon={Sparkles} label="AI Concierge" onClick={() => navigateTo("ai-concierge")} highlight />
-                        <MenuButton icon={Shield} label="Admin Portal" onClick={() => navigateTo("admin")} />
+                        <div className="my-3 border-t border-white/8" />
+                        <MenuButton icon={Shield} label="Admin Portal" onClick={() => navigateTo("admin")} danger />
                         <MenuButton
                           icon={Sparkles}
                           label={useHomeV2 ? "Switch to Classic Feed" : "Try New Feed (V2)"}
