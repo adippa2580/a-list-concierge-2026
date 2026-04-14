@@ -390,7 +390,7 @@ async function searchResidentAdvisor(
 /**
  * Search Ticketmaster's Discovery API for events matching a query + city.
  */
-async function searchTicketmaster(query: string, city: string): Promise<WebSearchResult[]> {
+async function searchTicketmaster(query: string, city: string, browseMode = false): Promise<WebSearchResult[]> {
   if (!TICKETMASTER_API_KEY) {
     return [];
   }
@@ -398,7 +398,14 @@ async function searchTicketmaster(query: string, city: string): Promise<WebSearc
   const results: WebSearchResult[] = [];
 
   try {
-    const url = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${TICKETMASTER_API_KEY}&keyword=${encodeURIComponent(query)}&city=${encodeURIComponent(city)}&size=10&sort=date,asc`;
+    // For city browse (no search query), omit keyword and use classificationName
+    // to get all music/arts events in the city — much more reliable than keyword matching
+    let url = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${TICKETMASTER_API_KEY}&city=${encodeURIComponent(city)}&size=10&sort=date,asc`;
+    if (browseMode) {
+      url += `&classificationName=music,arts,family`;
+    } else {
+      url += `&keyword=${encodeURIComponent(query)}`;
+    }
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
@@ -832,17 +839,15 @@ app.get("/eventbrite/events", async (c) => {
   // ── Launch all searches in parallel ──────────────────────────────────────
 
   const hasSearchQuery = query && query.length >= 2;
-  // Use "nightlife" as default browse keyword for Ticketmaster when no query
-  const tmKeyword = hasSearchQuery ? query : "nightlife music";
 
   // 1. Web search (Google/DuckDuckGo) — only when searching
   const webSearchPromise: Promise<WebSearchResult[]> = hasSearchQuery
     ? searchWebForEvents(query, locationName).catch(() => [] as WebSearchResult[])
     : Promise.resolve([]);
 
-  // 2. Ticketmaster Discovery API — runs always (city browse uses nightlife/music)
+  // 2. Ticketmaster Discovery API — runs always; browse mode omits keyword for better city results
   const ticketmasterPromise: Promise<WebSearchResult[]> =
-    searchTicketmaster(tmKeyword, locationName).catch(() => [] as WebSearchResult[]);
+    searchTicketmaster(hasSearchQuery ? query! : "", locationName, !hasSearchQuery).catch(() => [] as WebSearchResult[]);
 
   // 3. Ticket Tailor search — only when searching
   const ticketTailorPromise: Promise<WebSearchResult[]> = hasSearchQuery
