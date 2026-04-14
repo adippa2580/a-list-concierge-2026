@@ -1,6 +1,6 @@
 'use client';
 
-import { MapPin, Star, ChevronRight, Search, Music, Wine, Mic2, Navigation, Play, X, ExternalLink, Globe, Ticket, Users, LayoutGrid, List, Heart, Building2, ShieldCheck } from 'lucide-react';
+import { MapPin, Star, ChevronRight, Search, Music, Wine, Mic2, Navigation, Play, X, Check, ExternalLink, Globe, Ticket, Users, LayoutGrid, List, Heart, Building2, ShieldCheck } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -91,7 +91,9 @@ const isGenericTitle = (t: string) =>
   t.length > 60;
 
 export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtists, onViewMemberClubs }: any) {
-  const [currentLocation, setCurrentLocation] = useState('Miami, FL');
+  const [currentLocation, setCurrentLocation] = useState(() => {
+    try { return localStorage.getItem('alist_location') || 'Miami, FL'; } catch { return 'Miami, FL'; }
+  });
   const [loadingLocation, setLoadingLocation] = useState(false);
   const [events, setEvents] = useState<any[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
@@ -265,6 +267,11 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
   const [editingLocation, setEditingLocation] = useState(false);
   const [locationInput, setLocationInput] = useState('');
 
+  const saveLocation = (loc: string) => {
+    setCurrentLocation(loc);
+    try { localStorage.setItem('alist_location', loc); } catch {}
+  };
+
   const detectDeviceLocation = () => {
     if (!navigator.geolocation) {
       toast.error("Geolocation is not supported by your browser");
@@ -277,20 +284,15 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
       try {
         const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
         const data = await res.json();
-        if (data.city) {
-          const stateCode = data.principalSubdivisionCode ? `, ${data.principalSubdivisionCode}` : '';
-          const newLocation = `${data.city}${stateCode}`;
-          setCurrentLocation(newLocation);
-          setEditingLocation(false);
-          toast.success(`Location updated to ${data.city}`);
-        } else {
-          setCurrentLocation("Current Location");
-          setEditingLocation(false);
-          toast.success("Location updated");
-        }
+        const newLocation = data.city
+          ? `${data.city}${data.principalSubdivisionCode ? `, ${data.principalSubdivisionCode}` : ''}`
+          : 'Current Location';
+        saveLocation(newLocation);
+        setEditingLocation(false);
+        toast.success(`Location set to ${newLocation.split(',')[0]}`);
       } catch (e) {
         console.error(e);
-        setCurrentLocation("Current Location");
+        saveLocation('Current Location');
         setEditingLocation(false);
         toast.success("Location updated");
       } finally {
@@ -310,8 +312,8 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
 
   const handleLocationSubmit = (val: string) => {
     const trimmed = val.trim();
-    if (trimmed) {
-      setCurrentLocation(trimmed);
+    if (trimmed && trimmed !== currentLocation) {
+      saveLocation(trimmed);
       setCoords(null);
       toast.success(`Location set to ${trimmed.split(',')[0]}`);
     }
@@ -747,7 +749,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
 
             {editingLocation ? (
               <div className="flex items-center gap-2">
-                {/* Text input */}
+                {/* Text input — submit on Enter or blur */}
                 <input
                   autoFocus
                   value={locationInput}
@@ -756,11 +758,18 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
                     if (e.key === 'Enter') handleLocationSubmit(locationInput);
                     if (e.key === 'Escape') setEditingLocation(false);
                   }}
-                  placeholder="City, State..."
-                  className="flex-1 min-w-0 bg-transparent border-b border-[#E5E4E2]/40 focus:border-[#E5E4E2] outline-none text-xl font-serif italic tracking-widest uppercase platinum-gradient pb-0.5 placeholder:text-white/20 transition-colors"
+                  onBlur={e => {
+                    // Don't submit if focus moved to GPS or confirm button
+                    if (!e.relatedTarget || !(e.relatedTarget as HTMLElement).dataset.locationBtn) {
+                      handleLocationSubmit(locationInput);
+                    }
+                  }}
+                  placeholder="Enter city..."
+                  className="flex-1 min-w-0 bg-transparent border-b border-[#E5E4E2]/40 focus:border-[#E5E4E2] outline-none text-xl font-serif italic tracking-widest uppercase text-white pb-0.5 placeholder:text-white/20 transition-colors"
                 />
-                {/* Use device GPS */}
+                {/* GPS button */}
                 <button
+                  data-location-btn="true"
                   onClick={detectDeviceLocation}
                   disabled={loadingLocation}
                   className="flex-shrink-0 w-8 h-8 border border-white/20 flex items-center justify-center hover:border-[#E5E4E2]/40 hover:bg-white/5 transition-all disabled:opacity-40"
@@ -768,12 +777,14 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
                 >
                   <Navigation size={13} className={`text-[#E5E4E2] ${loadingLocation ? 'animate-spin' : ''}`} />
                 </button>
-                {/* Confirm */}
+                {/* Confirm button */}
                 <button
+                  data-location-btn="true"
                   onClick={() => handleLocationSubmit(locationInput)}
                   className="flex-shrink-0 w-8 h-8 border border-white/20 flex items-center justify-center hover:border-[#E5E4E2]/40 hover:bg-white/5 transition-all"
+                  title="Set location"
                 >
-                  <X size={13} className="text-white/40 hover:text-white transition-colors" />
+                  <Check size={13} className="text-[#E5E4E2]" />
                 </button>
               </div>
             ) : (
