@@ -108,7 +108,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedQuery(searchQuery);
-      if (searchQuery) setDateFilter(null); // clear date filter on search
+      if (searchQuery) { setDateFilter(null); setMonthFilter(null); } // clear filters on search
     }, 500);
     return () => clearTimeout(handler);
   }, [searchQuery]);
@@ -404,6 +404,22 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
   }, [nonWebEvents]);
 
   const [dateFilter, setDateFilter] = useState<string | null>(null);
+  const [monthFilter, setMonthFilter] = useState<string | null>(null); // 'YYYY-MM'
+  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+
+  // Generate next 6 months as options
+  const monthOptions = useMemo(() => {
+    const opts = [];
+    const now = new Date();
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const short = d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      opts.push({ key, label, short });
+    }
+    return opts;
+  }, []);
 
   const DATE_FILTERS = [
     { key: 'today',       label: 'Today' },
@@ -413,8 +429,24 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
     { key: 'comingUp',    label: 'Coming Up' },
   ] as const;
 
-  // Filtered grouped events based on active date filter
+  // Filtered grouped events based on active date filter or month filter
   const visibleGroups = useMemo(() => {
+    if (monthFilter) {
+      // Filter ALL buckets to only show events in the selected month
+      const filterToMonth = (arr: any[]) => arr.filter(e => {
+        const d = e.rawDate instanceof Date ? e.rawDate : new Date(e.rawDate);
+        if (isNaN(d.getTime())) return false;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return key === monthFilter;
+      });
+      return {
+        today:       filterToMonth(groupedEvents.today),
+        thisWeek:    filterToMonth(groupedEvents.thisWeek),
+        weekend:     filterToMonth(groupedEvents.weekend),
+        restOfMonth: filterToMonth(groupedEvents.restOfMonth),
+        comingUp:    filterToMonth(groupedEvents.comingUp),
+      };
+    }
     if (!dateFilter) return groupedEvents;
     return {
       today:       dateFilter === 'today'       ? groupedEvents.today       : [],
@@ -423,7 +455,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
       restOfMonth: dateFilter === 'restOfMonth' ? groupedEvents.restOfMonth : [],
       comingUp:    dateFilter === 'comingUp'    ? groupedEvents.comingUp    : [],
     };
-  }, [dateFilter, groupedEvents]);
+  }, [dateFilter, monthFilter, groupedEvents]);
 
   const renderEventCard = (event: any) => {
     // When this venue/EB result is enriched with TM data, show TM's richer content
@@ -851,11 +883,11 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           {DATE_FILTERS.map(({ key, label }) => {
             const count = groupedEvents[key].length;
             if (count === 0) return null;
-            const isActive = dateFilter === key;
+            const isActive = dateFilter === key && !monthFilter;
             return (
               <button
                 key={key}
-                onClick={() => setDateFilter(isActive ? null : key)}
+                onClick={() => { setDateFilter(isActive ? null : key); setMonthFilter(null); setShowMonthDropdown(false); }}
                 className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 border text-[8px] font-bold uppercase tracking-widest transition-all active:scale-95 ${
                   isActive
                     ? 'bg-white text-[#000504] border-white !text-black'
@@ -867,9 +899,56 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
               </button>
             );
           })}
-          {dateFilter && (
+
+          {/* Month picker pill */}
+          <div className="relative flex-shrink-0">
             <button
-              onClick={() => setDateFilter(null)}
+              onClick={() => { setShowMonthDropdown(!showMonthDropdown); setDateFilter(null); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 border text-[8px] font-bold uppercase tracking-widest transition-all active:scale-95 ${
+                monthFilter
+                  ? 'bg-white text-black border-white'
+                  : 'border-white/15 text-white/40 hover:border-white/30 hover:text-white/70'
+              }`}
+            >
+              {monthFilter
+                ? monthOptions.find(m => m.key === monthFilter)?.short ?? 'Month'
+                : 'Month ▾'}
+            </button>
+
+            {/* Dropdown */}
+            {showMonthDropdown && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowMonthDropdown(false)} />
+                <div className="absolute top-full left-0 mt-1 z-50 bg-[#0a0a10] border border-white/10 rounded-xl overflow-hidden shadow-2xl min-w-[160px]">
+                {monthFilter && (
+                  <button
+                    onClick={() => { setMonthFilter(null); setShowMonthDropdown(false); }}
+                    className="w-full text-left px-4 py-2.5 text-[9px] uppercase tracking-widest text-white/30 hover:text-white/60 hover:bg-white/5 border-b border-white/5 transition-all"
+                  >
+                    All months
+                  </button>
+                )}
+                {monthOptions.map(opt => (
+                  <button
+                    key={opt.key}
+                    onClick={() => { setMonthFilter(opt.key); setShowMonthDropdown(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-[9px] uppercase tracking-widest transition-all ${
+                      monthFilter === opt.key
+                        ? 'text-white bg-white/10 font-bold'
+                        : 'text-white/50 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              </>
+            )}
+          </div>
+
+          {(dateFilter || monthFilter) && (
+            <button
+              onClick={() => { setDateFilter(null); setMonthFilter(null); setShowMonthDropdown(false); }}
               className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 border border-white/10 text-[8px] uppercase tracking-widest text-white/30 hover:text-white/60 transition-all"
             >
               <X size={9} />
