@@ -106,6 +106,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedQuery(searchQuery);
+      if (searchQuery) setDateFilter(null); // clear date filter on search
     }, 500);
     return () => clearTimeout(handler);
   }, [searchQuery]);
@@ -394,7 +395,27 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
     return groups;
   }, [nonWebEvents]);
 
-  const renderEventCard = (event: any) => {
+  const [dateFilter, setDateFilter] = useState<string | null>(null);
+
+  const DATE_FILTERS = [
+    { key: 'today',       label: 'Today' },
+    { key: 'thisWeek',    label: 'This Week' },
+    { key: 'weekend',     label: 'Weekend' },
+    { key: 'restOfMonth', label: 'This Month' },
+    { key: 'comingUp',    label: 'Coming Up' },
+  ] as const;
+
+  // Filtered grouped events based on active date filter
+  const visibleGroups = useMemo(() => {
+    if (!dateFilter) return groupedEvents;
+    return {
+      today:       dateFilter === 'today'       ? groupedEvents.today       : [],
+      thisWeek:    dateFilter === 'thisWeek'    ? groupedEvents.thisWeek    : [],
+      weekend:     dateFilter === 'weekend'     ? groupedEvents.weekend     : [],
+      restOfMonth: dateFilter === 'restOfMonth' ? groupedEvents.restOfMonth : [],
+      comingUp:    dateFilter === 'comingUp'    ? groupedEvents.comingUp    : [],
+    };
+  }, [dateFilter, groupedEvents]);
     // When this venue/EB result is enriched with TM data, show TM's richer content
     const isTmEnriched = event.tmVenueMatch && event.tmName;
     // Always prefer the TM artist/event name when we have an enrichment match
@@ -804,6 +825,40 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
         </div>
       </div>
 
+      {/* Date Filter Pills */}
+      <div className="px-6 pb-4">
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+          {DATE_FILTERS.map(({ key, label }) => {
+            const count = groupedEvents[key].length;
+            if (count === 0) return null;
+            const isActive = dateFilter === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setDateFilter(isActive ? null : key)}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 border text-[8px] font-bold uppercase tracking-widest transition-all active:scale-95 ${
+                  isActive
+                    ? 'bg-white text-[#000504] border-white !text-black'
+                    : 'border-white/15 text-white/40 hover:border-white/30 hover:text-white/70'
+                }`}
+              >
+                {label}
+                <span className={`text-[7px] ${isActive ? 'text-black/40' : 'text-white/20'}`}>{count}</span>
+              </button>
+            );
+          })}
+          {dateFilter && (
+            <button
+              onClick={() => setDateFilter(null)}
+              className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 border border-white/10 text-[8px] uppercase tracking-widest text-white/30 hover:text-white/60 transition-all"
+            >
+              <X size={9} />
+              All
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Events Content */}
       <div className="px-6 space-y-8">
         <div className="flex items-center justify-between">
@@ -824,8 +879,8 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           </div>
         )}
 
-        {/* Venue Results WITH photo — shown FIRST */}
-        {venueWithPhoto.length > 0 && (
+        {/* Venue Results WITH photo — hidden when date filter active */}
+        {!dateFilter && venueWithPhoto.length > 0 && (
           <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
             {viewMode === 'list' && (
               <h3 className="text-[8px] font-bold text-[#E5E4E2]/70 uppercase tracking-widest border-b border-[#E5E4E2]/10 pb-2 flex items-center gap-2 col-span-2">
@@ -843,8 +898,8 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           </div>
         )}
 
-        {/* Ticketmaster Results — shown AFTER venue photo results */}
-        {tmOnlyEvents.length > 0 && (
+        {/* Ticketmaster Results — hidden when date filter active */}
+        {!dateFilter && tmOnlyEvents.length > 0 && (
           <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
             {viewMode === 'list' && (
               <h3 className="text-[8px] font-bold text-[#E5E4E2]/50 uppercase tracking-widest border-b border-[#E5E4E2]/10 pb-2 flex items-center gap-2 col-span-2">
@@ -859,8 +914,8 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           </div>
         )}
 
-        {/* Venue Results WITHOUT photo — demoted after Ticketmaster */}
-        {venueNoPhoto.length > 0 && (
+        {/* Venue Results WITHOUT photo — hidden when date filter active */}
+        {!dateFilter && venueNoPhoto.length > 0 && (
           <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
             {viewMode === 'list' && (
               <h3 className={`text-[8px] font-bold uppercase tracking-widest pb-2 flex items-center gap-2 border-b col-span-2 ${
@@ -879,11 +934,11 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           </div>
         )}
 
-        {renderEventSection('Today', groupedEvents.today)}
-        {renderEventSection('This Week', groupedEvents.thisWeek)}
-        {renderEventSection('This Weekend', groupedEvents.weekend)}
-        {renderEventSection('This Month', groupedEvents.restOfMonth)}
-        {renderEventSection('Coming Up', groupedEvents.comingUp)}
+        {renderEventSection('Today', visibleGroups.today)}
+        {renderEventSection('This Week', visibleGroups.thisWeek)}
+        {renderEventSection('This Weekend', visibleGroups.weekend)}
+        {renderEventSection('This Month', visibleGroups.restOfMonth)}
+        {renderEventSection('Coming Up', visibleGroups.comingUp)}
       </div>
     </div>
   );
