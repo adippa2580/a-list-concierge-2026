@@ -68,16 +68,30 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
             return;
           }
         }
-        // Try matching by city + name via venues list
+
+        // Collect all possible venue name candidates from the venue object
+        // Events pass venue name variously as: name, location, venue, tmVenueName
+        const nameCandidates = [
+          venue?.name,
+          venue?.location,
+          venue?.venue,
+          venue?.tmVenueName,
+        ].filter(Boolean).map((s: string) => s.toLowerCase().trim());
+
+        // Fetch all venues (no city filter — more reliable)
         const listRes = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/server/venues?city=${encodeURIComponent(venue?.location?.split(',')[0] || '')}`,
+          `https://${projectId}.supabase.co/functions/v1/server/venues`,
           { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
         );
         if (listRes.ok) {
           const venues = await listRes.json();
-          const match = venues.find((v: any) =>
-            v.name.toLowerCase() === (venue?.name || '').toLowerCase()
-          );
+          // Match: DB venue name contained in any candidate, or any candidate contained in DB venue name
+          const match = venues.find((v: any) => {
+            const dbName = v.name.toLowerCase();
+            return nameCandidates.some((c: string) =>
+              c.includes(dbName) || dbName.includes(c) || v.slug.includes(c.replace(/\s+/g, '-'))
+            );
+          });
           if (match) {
             const detailRes = await fetch(
               `https://${projectId}.supabase.co/functions/v1/server/venues/${match.id}?date=${selectedDate}`,
@@ -372,7 +386,9 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                 tables={tables}
                 selectedTableId={selectedTable?.id}
                 onSelectTable={t => setSelectedTable(prev => prev?.id === t.id ? null : t)}
+                onBook={t => onBookTable({ ...venue, selectedTable: t, selectedDate })}
                 date={selectedDate}
+                venueName={liveVenueData?.venue?.name ?? venue?.name}
               />
 
               {/* Selected table action */}
