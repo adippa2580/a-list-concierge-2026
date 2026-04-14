@@ -828,38 +828,30 @@ app.get("/eventbrite/events", async (c) => {
   const sortBy = c.req.query("sort_by");
 
   const locationName = city || "Miami";
-  const hasSearchQuery = query && query.length >= 2;
 
   // ── Launch all searches in parallel ──────────────────────────────────────
 
-  // 1. Web search (Google/DuckDuckGo)
+  const hasSearchQuery = query && query.length >= 2;
+  // Use "nightlife" as default browse keyword for Ticketmaster when no query
+  const tmKeyword = hasSearchQuery ? query : "nightlife music";
+
+  // 1. Web search (Google/DuckDuckGo) — only when searching
   const webSearchPromise: Promise<WebSearchResult[]> = hasSearchQuery
-    ? searchWebForEvents(query, locationName).catch(err => {
-        return [] as WebSearchResult[];
-      })
+    ? searchWebForEvents(query, locationName).catch(() => [] as WebSearchResult[])
     : Promise.resolve([]);
 
-  // 2. Ticketmaster Discovery API
-  const ticketmasterPromise: Promise<WebSearchResult[]> = hasSearchQuery
-    ? searchTicketmaster(query, locationName).catch(err => {
-        return [] as WebSearchResult[];
-      })
-    : Promise.resolve([]);
+  // 2. Ticketmaster Discovery API — runs always (city browse uses nightlife/music)
+  const ticketmasterPromise: Promise<WebSearchResult[]> =
+    searchTicketmaster(tmKeyword, locationName).catch(() => [] as WebSearchResult[]);
 
-  // 3. Ticket Tailor search
+  // 3. Ticket Tailor search — only when searching
   const ticketTailorPromise: Promise<WebSearchResult[]> = hasSearchQuery
-    ? searchTicketTailor(query, locationName).catch(err => {
-        return [] as WebSearchResult[];
-      })
+    ? searchTicketTailor(query, locationName).catch(() => [] as WebSearchResult[])
     : Promise.resolve([]);
 
-  // 4. Resident Advisor (RA Guide) via Apify RA Events Scraper
-  // RA is the leading platform for underground/electronic event listings.
-  // Results include full lineup, flyer art, and direct ticket links.
+  // 4. Resident Advisor (RA Guide) — runs always for city browse
   const raPromise: Promise<WebSearchResult[]> = APIFY_TOKEN
-    ? searchResidentAdvisor(query ?? "", locationName).catch(err => {
-        return [] as WebSearchResult[];
-      })
+    ? searchResidentAdvisor(query ?? "", locationName).catch(() => [] as WebSearchResult[])
     : Promise.resolve([]);
 
   // 5. Eventbrite API

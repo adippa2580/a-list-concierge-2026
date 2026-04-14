@@ -112,7 +112,41 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
             isTicketmaster: e.source === 'ticketmaster',
             isVenueSource: ['ra', 'web_search', 'website', 'tickettailor'].includes(e.source),
             tmVenueMatch: false,
+            tmName: null as string | null,
+            tmVenueName: null as string | null,
+            tmTicketUrl: null as string | null,
           }));
+
+          // TM enrichment — match TM events to non-TM results by name/venue
+          const tmEvents = formatted.filter((e: any) => e.isTicketmaster);
+          const usedIds = new Set<string>();
+          const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+          const findTmMatch = (name: string, venue: string, date: Date) =>
+            tmEvents.find((tm: any) => {
+              if (usedIds.has(tm.id)) return false;
+              const nameSim = norm(name).split(' ').filter(w => w.length > 3).some(w => norm(tm.name?.text || tm.name || '').includes(w));
+              const dateSim = Math.abs(tm.rawDate.getTime() - date.getTime()) < 86400000 * 3;
+              return nameSim && dateSim;
+            });
+
+          formatted.filter((e: any) => !e.isTicketmaster).forEach((ev: any) => {
+            const match = findTmMatch(ev.name, ev.venue, ev.rawDate);
+            if (match) {
+              usedIds.add(match.id);
+              ev.tmName = match.name?.text || match.name;
+              ev.tmVenueName = match.venue?.name || match.venue;
+              ev.tmTicketUrl = match.ticketUrl;
+              ev.tmVenueMatch = true;
+              if (match.image) ev.image = match.image;
+            }
+          });
+
+          // Sort: RA → venue+photo → TM → venue-no-photo → rest
+          formatted.sort((a: any, b: any) => {
+            const rank = (e: any) => e.source === 'ra' ? 0 : (e.isVenueSource && e.image) ? 1 : e.isTicketmaster ? 2 : (e.isVenueSource) ? 3 : 4;
+            return rank(a) - rank(b) || a.rawDate.getTime() - b.rawDate.getTime();
+          });
+
           setEvents(formatted);
           setHeroIndex(0);
         }
@@ -356,7 +390,17 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
                     )}
                     {onBookTable && (
                       <button
-                        onClick={() => onBookTable(heroEvent)}
+                        onClick={() => onBookTable({
+                          id: heroEvent.id,
+                          name: heroEvent.tmVenueName || heroEvent.venue,
+                          image: heroEvent.image,
+                          date: heroEvent.date,
+                          ticketUrl: heroEvent.tmTicketUrl || heroEvent.ticketUrl,
+                          source: heroEvent.source,
+                          tables: [],
+                          minSpend: 500,
+                          location: heroEvent.venue,
+                        })}
                         className="flex items-center gap-1.5 bg-white/10 border border-white/20 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full hover:bg-white/20 transition-colors active:scale-95"
                       >
                         Book Table
@@ -418,14 +462,28 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
       {/* ── FULL-BLEED CARD GRID ─────────────────────────────────────────────── */}
       {gridEvents.length > 0 && (
         <div className="px-4 grid grid-cols-2 gap-2 pb-32">
-          {gridEvents.map((event, idx) => (
-            <FullBleedCard
-              key={event.id}
-              event={event}
-              onBook={() => onBookTable?.(event)}
-              isTall={idx % 5 === 0} // Every 5th card is tall (like Posh editorial grid)
-            />
-          ))}
+          {gridEvents.map((event, idx) => {
+            const venueObj = {
+              id: event.id,
+              name: event.tmVenueName || event.venue,
+              image: event.image,
+              date: event.date,
+              ticketUrl: event.tmTicketUrl || event.ticketUrl,
+              source: event.source,
+              tables: [],
+              minSpend: 500,
+              location: event.venue,
+            };
+            return (
+              <FullBleedCard
+                key={event.id}
+                event={event}
+                onBook={() => onBookTable?.(venueObj)}
+                onVenueClick={() => onVenueClick?.(venueObj)}
+                isTall={idx % 5 === 0}
+              />
+            );
+          })}
         </div>
       )}
 
@@ -441,15 +499,23 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
 }
 
 // ── Full-Bleed Event Card ─────────────────────────────────────────────────────
-function FullBleedCard({ event, onBook, isTall }: { event: any; onBook: () => void; isTall: boolean }) {
+function FullBleedCard({ event, onBook, onVenueClick, isTall }: {
+  event: any;
+  onBook: () => void;
+  onVenueClick: () => void;
+  isTall: boolean;
+}) {
   const displayName = event.tmName || event.name;
   const displayVenue = event.tmVenueName || event.venue;
   const ticketUrl = event.tmTicketUrl || event.ticketUrl;
   const attendance = fakeAttendance(event.id);
 
   const handleTap = () => {
-    if (ticketUrl) window.open(ticketUrl, '_blank', 'noopener,noreferrer');
-    else onBook();
+    if (ticketUrl) {
+      window.open(ticketUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      onBook();
+    }
   };
 
   return (
@@ -492,16 +558,31 @@ function FullBleedCard({ event, onBook, isTall }: { event: any; onBook: () => vo
 
       {/* Bottom info */}
       <div className="absolute bottom-0 left-0 right-0 p-3">
-        <p className="text-[8px] text-white/50 uppercase tracking-widest mb-0.5 truncate">{displayVenue}</p>
+        <button
+          onClick={e => { e.stopPropagation(); onVenueClick(); }}
+          className="text-[8px] text-white/50 uppercase tracking-widest mb-0.5 truncate block hover:text-white/80 transition-colors text-left w-full"
+        >
+          {displayVenue}
+        </button>
         <h3 className="text-xs font-bold text-white leading-tight line-clamp-2 mb-1.5">{displayName}</h3>
         <div className="flex items-center justify-between">
           <p className="text-[8px] text-white/40 uppercase tracking-wider">{event.date}</p>
-          {ticketUrl && (
-            <div className="flex items-center gap-1 bg-white/15 backdrop-blur-sm rounded-full px-2 py-0.5">
-              <Ticket size={7} className="text-white/70" />
-              <span className="text-[7px] text-white/70 font-bold uppercase">Tickets</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1.5">
+            {ticketUrl && (
+              <div className="flex items-center gap-1 bg-white/15 backdrop-blur-sm rounded-full px-2 py-0.5">
+                <Ticket size={7} className="text-white/70" />
+                <span className="text-[7px] text-white/70 font-bold uppercase">Tickets</span>
+              </div>
+            )}
+            {!ticketUrl && (
+              <div
+                onClick={e => { e.stopPropagation(); onBook(); }}
+                className="flex items-center gap-1 bg-white/15 backdrop-blur-sm rounded-full px-2 py-0.5 cursor-pointer hover:bg-white/25 transition-colors"
+              >
+                <span className="text-[7px] text-white/70 font-bold uppercase">Book</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </motion.div>
