@@ -425,6 +425,8 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
         ) : (
           <>
             {/* Create Crew Button — Always First */}
+            <div className="space-y-1">
+              <p className="text-[7px] uppercase tracking-[0.3em] text-white/20 font-bold pl-1">New</p>
             <motion.button
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -445,9 +447,12 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                 <ChevronRight size={16} className="text-[#E5E4E2]" />
               </div>
             </motion.button>
+            </div>
 
-            {/* Existing Crews — Sorted by spend (top spend first) */}
+            {/* Existing Crews — clearly distinct from "create new" */}
             {crews.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[7px] uppercase tracking-[0.3em] text-white/20 font-bold pl-1">Your Crews</p>
               <AnimatePresence initial={false}>
                 {crews
                   .sort((a, b) => ((b as any).totalSpend || 0) - ((a as any).totalSpend || 0))
@@ -458,14 +463,17 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: (i + 1) * 0.04 }}
                       onClick={() => { setSelectedCrew(crew); setScreen('split'); }}
-                      className="w-full border border-white/10 hover:border-white/40 p-5 text-left transition-all group"
+                      className="w-full border border-[#E5E4E2]/15 hover:border-[#E5E4E2]/40 bg-[#E5E4E2]/3 hover:bg-[#E5E4E2]/8 p-5 text-left transition-all group"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <span className="text-2xl">{crew.emoji}</span>
                           <div>
-                            <p className="text-xs font-bold uppercase tracking-widest">{crew.name}</p>
-                            <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <p className="text-xs font-bold uppercase tracking-widest">{crew.name}</p>
+                              <span className="text-[6px] font-bold uppercase tracking-widest px-1.5 py-0.5 bg-[#E5E4E2]/10 text-[#E5E4E2]/60 border border-[#E5E4E2]/15">Saved</span>
+                            </div>
+                            <p className="text-[8px] uppercase tracking-widest text-white/30">
                               {crew.level} · {crew.members?.length ?? 0} members
                             </p>
                           </div>
@@ -487,6 +495,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                     </motion.button>
                   ))}
               </AnimatePresence>
+              </div>
             )}
 
             {crews.length === 0 && (

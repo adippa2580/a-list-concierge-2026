@@ -12,7 +12,7 @@ interface LoginScreenProps {
 }
 
 export function LoginScreen({ onSuccess }: LoginScreenProps) {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -21,6 +21,24 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [displayNameError, setDisplayNameError] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+
+  const handlePasswordReset = async () => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError('Enter a valid email address to reset your password');
+      return;
+    }
+    setLoading(true);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (resetError) {
+      setError(resetError.message);
+    } else {
+      setResetSent(true);
+    }
+  };
 
   const validateForm = () => {
     let isValid = true;
@@ -143,7 +161,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         <div className="flex border border-white/10">
           <button
             type="button"
-            onClick={() => { setMode('signin'); setError(''); }}
+            onClick={() => { setMode('signin'); setError(''); setResetSent(false); }}
             className={`flex-1 py-3 text-[9px] font-bold uppercase tracking-[0.25em] transition-all ${
               mode === 'signin' ? 'bg-white text-[#000504]' : 'text-white/40 hover:text-white/60'
             }`}
@@ -152,7 +170,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
           </button>
           <button
             type="button"
-            onClick={() => { setMode('signup'); setError(''); }}
+            onClick={() => { setMode('signup'); setError(''); setResetSent(false); }}
             className={`flex-1 py-3 text-[9px] font-bold uppercase tracking-[0.25em] transition-all ${
               mode === 'signup' ? 'bg-white text-[#000504]' : 'text-white/40 hover:text-white/60'
             }`}
@@ -161,8 +179,59 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Password Reset Mode */}
+        {mode === 'reset' && (
+          <div className="space-y-6">
+            {resetSent ? (
+              <div className="p-6 border border-[#E5E4E2]/20 bg-[#E5E4E2]/5 text-center space-y-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#E5E4E2]">Check Your Inbox</p>
+                <p className="text-[9px] text-white/40 uppercase tracking-wider leading-relaxed">
+                  A reset link has been sent to {email}. Follow the link to set a new password.
+                </p>
+                <button
+                  onClick={() => { setMode('signin'); setResetSent(false); setEmail(''); }}
+                  className="text-[8px] uppercase tracking-widest text-white/30 hover:text-white transition-colors mt-2"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <label className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">Email Address</label>
+                  <Input
+                    type="email"
+                    placeholder="YOUR EMAIL"
+                    value={email}
+                    onChange={e => { setEmail(e.target.value); setEmailError(''); setError(''); }}
+                    className={`bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${emailError ? 'border-red-500/50' : ''}`}
+                  />
+                  {emailError && <p className="text-red-300 text-[9px] uppercase tracking-widest">{emailError}</p>}
+                  {error && <p className="text-red-300 text-[9px] uppercase tracking-widest">{error}</p>}
+                </div>
+                <Button
+                  type="button"
+                  onClick={handlePasswordReset}
+                  disabled={loading}
+                  className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black transition-all disabled:opacity-50"
+                >
+                  {loading ? 'Sending...' : 'Send Reset Link'}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => { setMode('signin'); setError(''); setEmailError(''); }}
+                  className="w-full text-[8px] uppercase tracking-widest text-white/30 hover:text-white transition-colors py-2"
+                >
+                  Back to Sign In
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Sign In / Sign Up Form */}
+        {mode !== 'reset' && (
+          <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
             <div className="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-300 text-[11px] uppercase tracking-widest">
               {error}
@@ -222,6 +291,15 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
               {passwordError && (
                 <p className="text-red-300 text-[9px] uppercase tracking-widest mt-1">{passwordError}</p>
               )}
+              {mode === 'signin' && (
+                <button
+                  type="button"
+                  onClick={() => { setMode('reset'); setError(''); setEmailError(''); setPasswordError(''); }}
+                  className="text-[8px] uppercase tracking-widest text-white/25 hover:text-white/60 transition-colors pt-1 block"
+                >
+                  Forgot password?
+                </button>
+              )}
             </div>
           </div>
 
@@ -233,6 +311,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
             {loading ? 'Verifying...' : mode === 'signin' ? 'Verify & Enter' : 'Create Account'}
           </Button>
         </form>
+        )}
 
         {/* Divider */}
         <div className="flex items-center gap-4">
