@@ -416,6 +416,8 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
       comingUp:    dateFilter === 'comingUp'    ? groupedEvents.comingUp    : [],
     };
   }, [dateFilter, groupedEvents]);
+
+  const renderEventCard = (event: any) => {
     // When this venue/EB result is enriched with TM data, show TM's richer content
     const isTmEnriched = event.tmVenueMatch && event.tmName;
     // Always prefer the TM artist/event name when we have an enrichment match
