@@ -233,7 +233,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
         {mode !== 'reset' && (
           <form onSubmit={handleSubmit} className="space-y-6">
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded text-red-300 text-[11px] uppercase tracking-widest">
+            <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-300 text-[11px] uppercase tracking-widest">
               {error}
             </div>
           )}

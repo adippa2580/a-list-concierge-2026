@@ -214,7 +214,7 @@ export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
                 <motion.div 
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="w-8 h-8 bg-white rounded-full"
+                  className="w-8 h-8 bg-white"
                 />
               </div>
               <div>

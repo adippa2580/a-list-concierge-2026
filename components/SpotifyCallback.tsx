@@ -92,9 +92,9 @@ export function SpotifyCallback({ onSuccess, onError }: SpotifyCallbackProps) {
           <div className="flex flex-col items-center gap-4">
             {status === 'loading' && (
               <>
-                <Loader2 className="w-16 h-16 text-purple-500 animate-spin" />
+                <Loader2 className="w-16 h-16 text-[#E5E4E2]/40 animate-spin" />
                 <h2 className="text-xl text-center">{message}</h2>
-                <p className="text-sm text-gray-400 text-center">
+                <p className="text-[9px] uppercase tracking-widest text-white/30 text-center">
                   This will only take a moment...
                 </p>
               </>
@@ -104,7 +104,7 @@ export function SpotifyCallback({ onSuccess, onError }: SpotifyCallbackProps) {
               <>
                 <CheckCircle className="w-16 h-16 text-green-500" />
                 <h2 className="text-xl text-center">{message}</h2>
-                <p className="text-sm text-gray-400 text-center">
+                <p className="text-[9px] uppercase tracking-widest text-white/30 text-center">
                   Redirecting to your account...
                 </p>
               </>
@@ -114,7 +114,7 @@ export function SpotifyCallback({ onSuccess, onError }: SpotifyCallbackProps) {
               <>
                 <XCircle className="w-16 h-16 text-red-500" />
                 <h2 className="text-xl text-center">Connection Failed</h2>
-                <p className="text-sm text-gray-400 text-center">{message}</p>
+                <p className="text-[9px] uppercase tracking-widest text-white/30 text-center">{message}</p>
               </>
             )}
           </div>

@@ -519,7 +519,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
         )}
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-white group-hover:platinum-gradient pr-2 transition-colors line-clamp-2">
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-white group-hover:platinum-gradient pr-2 transition-colors line-clamp-2">
               {displayName}
             </h3>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -766,13 +766,13 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
         {venueWithPhoto.length > 0 && (
           <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
             {viewMode === 'list' && (
-              <h3 className="text-xs font-bold text-amber-400/90 uppercase tracking-widest border-b border-amber-500/20 pb-2 flex items-center gap-2 col-span-2">
+              <h3 className="text-[8px] font-bold text-[#E5E4E2]/70 uppercase tracking-widest border-b border-[#E5E4E2]/10 pb-2 flex items-center gap-2 col-span-2">
                 <Building2 size={12} />
                 Venue Results
-                <span className="text-[8px] text-white/30 font-normal ml-auto tracking-wider">
+                <span className="text-[8px] text-white/25 font-normal ml-auto tracking-wider">
                   {webSourcedEvents.length} {webSourcedEvents.length === 1 ? 'result' : 'results'}
                   {webSourcedEvents.filter(e => e.tmVenueMatch).length > 0 &&
-                    <span className="ml-1 text-blue-400">· {webSourcedEvents.filter(e => e.tmVenueMatch).length} enriched with TM</span>
+                    <span className="ml-1 text-white/30">· {webSourcedEvents.filter(e => e.tmVenueMatch).length} enriched</span>
                   }
                 </span>
               </h3>
@@ -785,10 +785,10 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
         {tmOnlyEvents.length > 0 && (
           <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
             {viewMode === 'list' && (
-              <h3 className="text-xs font-bold text-blue-400/90 uppercase tracking-widest border-b border-blue-500/20 pb-2 flex items-center gap-2 col-span-2">
+              <h3 className="text-[8px] font-bold text-[#E5E4E2]/50 uppercase tracking-widest border-b border-[#E5E4E2]/10 pb-2 flex items-center gap-2 col-span-2">
                 <Ticket size={12} />
                 Ticketmaster
-                <span className="text-[8px] text-white/30 font-normal ml-auto tracking-wider">
+                <span className="text-[8px] text-white/25 font-normal ml-auto tracking-wider">
                   {tmOnlyEvents.length} {tmOnlyEvents.length === 1 ? 'result' : 'results'}
                 </span>
               </h3>
@@ -801,14 +801,14 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
         {venueNoPhoto.length > 0 && (
           <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
             {viewMode === 'list' && (
-              <h3 className={`text-xs font-bold uppercase tracking-widest pb-2 flex items-center gap-2 border-b col-span-2 ${
+              <h3 className={`text-[8px] font-bold uppercase tracking-widest pb-2 flex items-center gap-2 border-b col-span-2 ${
                 venueWithPhoto.length > 0
-                  ? 'text-amber-400/50 border-amber-500/10'   // dimmed — photo results already shown above
-                  : 'text-amber-400/90 border-amber-500/20'   // full — only venue section
+                  ? 'text-[#E5E4E2]/30 border-[#E5E4E2]/5'
+                  : 'text-[#E5E4E2]/70 border-[#E5E4E2]/10'
               }`}>
-                <Building2 size={12} className={venueWithPhoto.length > 0 ? 'opacity-50' : ''} />
+                <Building2 size={12} className={venueWithPhoto.length > 0 ? 'opacity-40' : ''} />
                 {venueWithPhoto.length > 0 ? 'More from Venue' : 'Venue Results'}
-                <span className={`text-[8px] font-normal ml-auto tracking-wider ${venueWithPhoto.length > 0 ? 'text-white/20' : 'text-white/30'}`}>
+                <span className={`text-[8px] font-normal ml-auto tracking-wider ${venueWithPhoto.length > 0 ? 'text-white/15' : 'text-white/25'}`}>
                   {venueNoPhoto.length} {venueNoPhoto.length === 1 ? 'result' : 'results'}
                 </span>
               </h3>

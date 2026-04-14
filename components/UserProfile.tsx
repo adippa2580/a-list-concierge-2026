@@ -409,7 +409,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
                       value={editUsername}
                       onChange={e => setEditUsername(e.target.value.replace(/^@+/, '').replace(/\s+/g, ''))}
                       placeholder="yourhandle"
-                      className="flex-1 bg-transparent focus:outline-none placeholder:text-white/15 text-sm text-white uppercase tracking-widest"
+                      className="flex-1 bg-transparent focus:outline-none placeholder:text-white/15 text-[11px] text-white uppercase tracking-widest"
                     />
                   </div>
                 </div>
