@@ -156,7 +156,7 @@ async function duckDuckGoSearch(searchQuery: string, venueName: string): Promise
     // Skip results that are clearly not events
     const skipDomains = ["wikipedia.org", "yelp.com/biz", "tripadvisor.com", "facebook.com/pages"];
     
-    for (let i = 0; i < Math.min(links.length, 10); i++) {
+    for (let i = 0; i < Math.min(links.length, 50); i++) {
       const link = links[i];
       if (skipDomains.some(d => link.url.includes(d))) continue;
       
@@ -333,7 +333,7 @@ async function searchResidentAdvisor(
     // (waitsForFinish=60 means we block up to 60 seconds for results)
     const actorUrl =
       `https://api.apify.com/v2/acts/${RA_ACTOR_ID}/run-sync-get-dataset-items` +
-      `?token=${APIFY_TOKEN}&timeout=45&memory=256&maxItems=10`;
+      `?token=${APIFY_TOKEN}&timeout=45&memory=256&maxItems=50`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 50_000);
@@ -343,7 +343,7 @@ async function searchResidentAdvisor(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         startUrls: [{ url: raUrl }],
-        maxEvents: 10,
+        maxEvents: 50,
       }),
       signal: controller.signal,
     });
@@ -400,7 +400,7 @@ async function searchTicketmaster(query: string, city: string, browseMode = fals
   try {
     // For city browse (no search query), omit keyword and use classificationName
     // to get all music/arts events in the city — much more reliable than keyword matching
-    let url = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${TICKETMASTER_API_KEY}&city=${encodeURIComponent(city)}&size=10&sort=date,asc`;
+    let url = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${TICKETMASTER_API_KEY}&city=${encodeURIComponent(city)}&size=50&sort=date,asc`;
     if (browseMode) {
       url += `&classificationName=music,arts,family`;
     } else {
@@ -507,7 +507,7 @@ async function searchTicketTailor(query: string, city: string): Promise<WebSearc
       snippets.push(match[1].replace(/<[^>]+>/g, "").trim());
     }
 
-    for (let i = 0; i < Math.min(links.length, 5); i++) {
+    for (let i = 0; i < Math.min(links.length, 25); i++) {
       const link = links[i];
       const snippet = snippets[i] || null;
 
