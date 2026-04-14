@@ -2424,6 +2424,270 @@ app.get("/admin/users", async (c) => {
   }
 });
 
+// ── Admin: Run DB migration (one-time, protected by admin secret) ──────────────
+app.post("/admin/migrate", async (c) => {
+  const adminKey = c.req.header("x-admin-key") ?? c.req.query("key");
+  const ADMIN_SECRET = Deno.env.get("ADMIN_SECRET") ?? "alist-admin-2026";
+  if (adminKey !== ADMIN_SECRET) return c.json({ error: "Unauthorized" }, 401 as ContentfulStatusCode);
+  if (!SUPABASE_SERVICE_KEY) return c.json({ error: "No service key" }, 500 as ContentfulStatusCode);
+
+  const sql = `
+    CREATE TABLE IF NOT EXISTS public.venues (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), slug text UNIQUE NOT NULL, name text NOT NULL,
+      city text NOT NULL, address text, capacity int DEFAULT 200, cover_image text, logo_image text,
+      phone text, email text, website text, instagram text, description text, floorplan_svg text,
+      vms_type text DEFAULT 'internal', vms_venue_id text, vms_api_key text,
+      is_active boolean DEFAULT true, created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS public.venue_tables (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), venue_id uuid REFERENCES public.venues(id) ON DELETE CASCADE,
+      name text NOT NULL, category text NOT NULL, section text, capacity_min int DEFAULT 2, capacity_max int DEFAULT 8,
+      min_spend int DEFAULT 1000, pos_x float DEFAULT 50, pos_y float DEFAULT 50, shape text DEFAULT 'rect',
+      width float DEFAULT 8, height float DEFAULT 6, rotation float DEFAULT 0, perks text[], notes text,
+      is_active boolean DEFAULT true, sort_order int DEFAULT 0,
+      created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS public.table_bookings (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), table_id uuid REFERENCES public.venue_tables(id) ON DELETE CASCADE,
+      venue_id uuid REFERENCES public.venues(id) ON DELETE CASCADE, user_id text NOT NULL,
+      booking_ref text UNIQUE NOT NULL, event_date date NOT NULL, event_name text, party_size int NOT NULL,
+      status text DEFAULT 'pending', guest_name text, guest_email text, guest_phone text,
+      total_min_spend int, deposit_amount int, deposit_paid boolean DEFAULT false, notes text,
+      vms_booking_id text, vms_synced_at timestamptz,
+      created_at timestamptz DEFAULT now(), updated_at timestamptz DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS public.table_availability (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(), table_id uuid REFERENCES public.venue_tables(id) ON DELETE CASCADE,
+      date date NOT NULL, status text DEFAULT 'available', reason text,
+      created_at timestamptz DEFAULT now(), UNIQUE(table_id, date)
+    );
+    CREATE INDEX IF NOT EXISTS idx_venue_tables_venue_id ON public.venue_tables(venue_id);
+    CREATE INDEX IF NOT EXISTS idx_table_bookings_table_id ON public.table_bookings(table_id);
+    CREATE INDEX IF NOT EXISTS idx_table_bookings_date ON public.table_bookings(event_date);
+    CREATE INDEX IF NOT EXISTS idx_table_bookings_user ON public.table_bookings(user_id);
+    ALTER TABLE public.venues ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE public.venue_tables ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE public.table_bookings ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE public.table_availability ENABLE ROW LEVEL SECURITY;
+    DROP POLICY IF EXISTS "venues_public_read" ON public.venues;
+    CREATE POLICY "venues_public_read" ON public.venues FOR SELECT USING (true);
+    DROP POLICY IF EXISTS "venue_tables_public_read" ON public.venue_tables;
+    CREATE POLICY "venue_tables_public_read" ON public.venue_tables FOR SELECT USING (true);
+    DROP POLICY IF EXISTS "bookings_own" ON public.table_bookings;
+    CREATE POLICY "bookings_own" ON public.table_bookings FOR ALL USING (user_id = auth.uid()::text);
+    DROP POLICY IF EXISTS "availability_public_read" ON public.table_availability;
+    CREATE POLICY "availability_public_read" ON public.table_availability FOR SELECT USING (true);
+  `;
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec_sql`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ sql })
+    });
+    // exec_sql may not exist — use pg directly via postgres extension
+    if (!res.ok) {
+      // Fallback: run each statement via Supabase SQL endpoint
+      const stmts = sql.split(';').map(s => s.trim()).filter(s => s.length > 10);
+      const results = [];
+      for (const stmt of stmts) {
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/exec`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY, "Content-Type": "application/json" },
+          body: JSON.stringify({ query: stmt })
+        });
+        results.push({ stmt: stmt.slice(0, 50), status: r.status });
+      }
+      return c.json({ results });
+    }
+    return c.json({ ok: true });
+  } catch (e: unknown) {
+    return c.json({ error: String(e) }, 500 as ContentfulStatusCode);
+  }
+});
+
+// ── Venue Table Management Endpoints ──────────────────────────────────────────
+
+/** GET /venues — list all active venues */
+app.get("/venues", async (c) => {
+  if (!SUPABASE_SERVICE_KEY) return c.json({ error: "No service key" }, 500 as ContentfulStatusCode);
+  const city = c.req.query("city");
+  let url = `${SUPABASE_URL}/rest/v1/venues?is_active=eq.true&order=city,name`;
+  if (city) url += `&city=ilike.*${encodeURIComponent(city)}*`;
+  const res = await fetch(url, { headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY } });
+  if (!res.ok) return c.json({ error: "Failed to fetch venues" }, 500 as ContentfulStatusCode);
+  return c.json(await res.json());
+});
+
+/** GET /venues/:id — venue detail with tables and availability for a date */
+app.get("/venues/:id", async (c) => {
+  if (!SUPABASE_SERVICE_KEY) return c.json({ error: "No service key" }, 500 as ContentfulStatusCode);
+  const id = c.req.param("id");
+  const date = c.req.query("date") || new Date().toISOString().split("T")[0];
+
+  // Fetch venue
+  const venueRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/venues?id=eq.${id}&is_active=eq.true`,
+    { headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY } }
+  );
+  const venues = await venueRes.json();
+  if (!venues.length) return c.json({ error: "Venue not found" }, 404 as ContentfulStatusCode);
+  const venue = venues[0];
+
+  // Fetch tables
+  const tablesRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/venue_tables?venue_id=eq.${id}&is_active=eq.true&order=sort_order`,
+    { headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY } }
+  );
+  const tables = await tablesRes.json();
+
+  // Fetch bookings for the date
+  const bookingsRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/table_bookings?venue_id=eq.${id}&event_date=eq.${date}&status=neq.cancelled`,
+    { headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY } }
+  );
+  const bookings = await bookingsRes.json();
+  const bookedTableIds = new Set(bookings.map((b: any) => b.table_id));
+
+  // Fetch availability overrides
+  const availRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/table_availability?date=eq.${date}`,
+    { headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY } }
+  );
+  const overrides = await availRes.json();
+  const overrideMap: Record<string, string> = {};
+  for (const o of overrides) overrideMap[o.table_id] = o.status;
+
+  // Merge availability
+  const tablesWithAvailability = tables.map((t: any) => ({
+    ...t,
+    availability: overrideMap[t.id] ?? (bookedTableIds.has(t.id) ? "booked" : "available"),
+    booking: bookings.find((b: any) => b.table_id === t.id) ?? null,
+  }));
+
+  // Group by category
+  const categories: Record<string, any[]> = {};
+  for (const t of tablesWithAvailability) {
+    if (!categories[t.category]) categories[t.category] = [];
+    categories[t.category].push(t);
+  }
+  const summary = Object.entries(categories).map(([cat, tbls]) => ({
+    category: cat,
+    total: tbls.length,
+    available: tbls.filter((t: any) => t.availability === "available").length,
+    booked: tbls.filter((t: any) => t.availability === "booked").length,
+    blocked: tbls.filter((t: any) => t.availability === "blocked").length,
+  }));
+
+  return c.json({ venue, tables: tablesWithAvailability, summary, date });
+});
+
+/** POST /venues/:id/tables/:tableId/book — create table booking */
+app.post("/venues/:id/tables/:tableId/book", async (c) => {
+  if (!SUPABASE_SERVICE_KEY) return c.json({ error: "No service key" }, 500 as ContentfulStatusCode);
+  const venueId = c.req.param("id");
+  const tableId = c.req.param("tableId");
+  const body = await c.req.json();
+  const { userId, eventDate, partySize, guestName, guestEmail, guestPhone, eventName, notes } = body;
+  if (!userId || !eventDate || !partySize) return c.json({ error: "Missing required fields" }, 400 as ContentfulStatusCode);
+
+  // Check table is available
+  const existingRes = await fetch(
+    `${SUPABASE_URL}/rest/v1/table_bookings?table_id=eq.${tableId}&event_date=eq.${eventDate}&status=neq.cancelled`,
+    { headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY } }
+  );
+  const existing = await existingRes.json();
+  if (existing.length > 0) return c.json({ error: "Table already booked for this date" }, 409 as ContentfulStatusCode);
+
+  // Generate booking ref
+  const ref = `AL-${new Date().getFullYear()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+
+  const booking = { table_id: tableId, venue_id: venueId, user_id: userId, booking_ref: ref,
+    event_date: eventDate, party_size: partySize, guest_name: guestName, guest_email: guestEmail,
+    guest_phone: guestPhone, event_name: eventName, notes, status: "confirmed" };
+
+  const createRes = await fetch(`${SUPABASE_URL}/rest/v1/table_bookings`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY,
+      "Content-Type": "application/json", "Prefer": "return=representation" },
+    body: JSON.stringify(booking)
+  });
+  if (!createRes.ok) return c.json({ error: "Failed to create booking" }, 500 as ContentfulStatusCode);
+  return c.json({ booking: (await createRes.json())[0], ref });
+});
+
+/** PUT /admin/venues/:id/tables/:tableId/availability — block or release a table */
+app.put("/admin/venues/:id/tables/:tableId/availability", async (c) => {
+  const adminKey = c.req.header("x-admin-key") ?? c.req.query("key");
+  const ADMIN_SECRET = Deno.env.get("ADMIN_SECRET") ?? "alist-admin-2026";
+  if (adminKey !== ADMIN_SECRET) return c.json({ error: "Unauthorized" }, 401 as ContentfulStatusCode);
+  if (!SUPABASE_SERVICE_KEY) return c.json({ error: "No service key" }, 500 as ContentfulStatusCode);
+
+  const tableId = c.req.param("tableId");
+  const { date, status, reason } = await c.req.json();
+
+  const upsertRes = await fetch(`${SUPABASE_URL}/rest/v1/table_availability`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY,
+      "Content-Type": "application/json", "Prefer": "resolution=merge-duplicates,return=representation" },
+    body: JSON.stringify({ table_id: tableId, date, status, reason })
+  });
+  if (!upsertRes.ok) return c.json({ error: "Failed to update availability" }, 500 as ContentfulStatusCode);
+  return c.json({ ok: true, data: await upsertRes.json() });
+});
+
+/** POST /admin/venues — create venue */
+app.post("/admin/venues", async (c) => {
+  const adminKey = c.req.header("x-admin-key") ?? c.req.query("key");
+  const ADMIN_SECRET = Deno.env.get("ADMIN_SECRET") ?? "alist-admin-2026";
+  if (adminKey !== ADMIN_SECRET) return c.json({ error: "Unauthorized" }, 401 as ContentfulStatusCode);
+  if (!SUPABASE_SERVICE_KEY) return c.json({ error: "No service key" }, 500 as ContentfulStatusCode);
+
+  const body = await c.req.json();
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/venues`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY,
+      "Content-Type": "application/json", "Prefer": "return=representation" },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) return c.json({ error: "Failed to create venue" }, 500 as ContentfulStatusCode);
+  return c.json((await res.json())[0]);
+});
+
+/** POST /admin/venues/:id/tables — add table to venue */
+app.post("/admin/venues/:id/tables", async (c) => {
+  const adminKey = c.req.header("x-admin-key") ?? c.req.query("key");
+  const ADMIN_SECRET = Deno.env.get("ADMIN_SECRET") ?? "alist-admin-2026";
+  if (adminKey !== ADMIN_SECRET) return c.json({ error: "Unauthorized" }, 401 as ContentfulStatusCode);
+  if (!SUPABASE_SERVICE_KEY) return c.json({ error: "No service key" }, 500 as ContentfulStatusCode);
+
+  const venueId = c.req.param("id");
+  const body = await c.req.json();
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/venue_tables`, {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY,
+      "Content-Type": "application/json", "Prefer": "return=representation" },
+    body: JSON.stringify({ ...body, venue_id: venueId })
+  });
+  if (!res.ok) return c.json({ error: "Failed to create table" }, 500 as ContentfulStatusCode);
+  return c.json((await res.json())[0]);
+});
+
+/** GET /admin/venues/:id/bookings — all bookings for a venue */
+app.get("/admin/venues/:id/bookings", async (c) => {
+  const adminKey = c.req.header("x-admin-key") ?? c.req.query("key");
+  const ADMIN_SECRET = Deno.env.get("ADMIN_SECRET") ?? "alist-admin-2026";
+  if (adminKey !== ADMIN_SECRET) return c.json({ error: "Unauthorized" }, 401 as ContentfulStatusCode);
+  if (!SUPABASE_SERVICE_KEY) return c.json({ error: "No service key" }, 500 as ContentfulStatusCode);
+
+  const venueId = c.req.param("id");
+  const date = c.req.query("date");
+  let url = `${SUPABASE_URL}/rest/v1/table_bookings?venue_id=eq.${venueId}&order=event_date.desc,created_at.desc`;
+  if (date) url += `&event_date=eq.${date}`;
+  const res = await fetch(url, { headers: { "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`, "apikey": SUPABASE_SERVICE_KEY } });
+  return c.json(await res.json());
+});
+
 Deno.serve(app.fetch);
 
 

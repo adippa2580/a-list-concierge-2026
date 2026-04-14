@@ -1,32 +1,34 @@
 'use client';
 
-import { ArrowLeft, Star, MapPin, Users, Clock, Shield, ChevronRight, Share2, Heart, Camera, Map, Navigation } from 'lucide-react';
+import { ArrowLeft, Star, MapPin, Users, Clock, Shield, ChevronRight, Share2, Heart, Camera, Map, Navigation, Loader2, RefreshCw } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useState, useEffect } from 'react';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { VenueTableMap } from './VenueTableMap';
 
 const FAV_KEY = 'alist_favourite_venues';
 
 function getFavourites(): any[] {
-  try {
-    return JSON.parse(localStorage.getItem(FAV_KEY) || '[]');
-  } catch {
-    return [];
-  }
+  try { return JSON.parse(localStorage.getItem(FAV_KEY) || '[]'); } catch { return []; }
 }
-
 function saveFavourites(favs: any[]) {
   localStorage.setItem(FAV_KEY, JSON.stringify(favs));
   window.dispatchEvent(new Event('alist-favourites-updated'));
 }
 
-const tables = [
-  { name: 'VIP Main Floor', min: 2500, capacity: '6-8', available: true },
-  { name: 'Skybox Premium', min: 5000, capacity: '8-12', available: true },
-  { name: 'DJ Booth Adjacent', min: 8000, capacity: '10-15', available: false },
-  { name: 'Rooftop Terrace', min: 3500, capacity: '6-10', available: true }
+// Fallback tables if venue not in DB yet
+const FALLBACK_TABLES = [
+  { id: 'f1', name: 'VIP 1', category: 'vip', section: 'Main Floor', capacity_min: 4, capacity_max: 8, min_spend: 5000, pos_x: 20, pos_y: 30, width: 10, height: 7, shape: 'rect', availability: 'available', perks: ['Dedicated server', 'Priority entry'] },
+  { id: 'f2', name: 'VIP 2', category: 'vip', section: 'Main Floor', capacity_min: 4, capacity_max: 8, min_spend: 5000, pos_x: 35, pos_y: 30, width: 10, height: 7, shape: 'rect', availability: 'available', perks: ['Dedicated server'] },
+  { id: 'f3', name: 'VIP 3', category: 'vip', section: 'Main Floor', capacity_min: 4, capacity_max: 8, min_spend: 7500, pos_x: 50, pos_y: 30, width: 10, height: 7, shape: 'rect', availability: 'booked', perks: ['Stage front'] },
+  { id: 'f4', name: 'Skybox 1', category: 'skybox', section: 'Mezzanine', capacity_min: 8, capacity_max: 16, min_spend: 15000, pos_x: 25, pos_y: 15, width: 14, height: 9, shape: 'rect', availability: 'available', perks: ['Private entrance', '360 view'] },
+  { id: 'f5', name: 'Booth A', category: 'booth', section: 'Bar Area', capacity_min: 2, capacity_max: 4, min_spend: 1500, pos_x: 15, pos_y: 65, width: 8, height: 6, shape: 'rect', availability: 'available', perks: [] },
+  { id: 'f6', name: 'Booth B', category: 'booth', section: 'Bar Area', capacity_min: 2, capacity_max: 4, min_spend: 1500, pos_x: 28, pos_y: 65, width: 8, height: 6, shape: 'rect', availability: 'available', perks: [] },
+  { id: 'f7', name: 'Stage Front 1', category: 'stage_front', section: 'Stage', capacity_min: 6, capacity_max: 12, min_spend: 10000, pos_x: 35, pos_y: 50, width: 12, height: 8, shape: 'rect', availability: 'available', perks: ['Closest to stage'] },
+  { id: 'f8', name: 'Patio 1', category: 'patio', section: 'Outdoor', capacity_min: 4, capacity_max: 10, min_spend: 3000, pos_x: 20, pos_y: 82, width: 12, height: 8, shape: 'rect', availability: 'available', perks: ['Outdoor terrace'] },
 ];
 
 interface VenueDetailProps {
@@ -37,14 +39,67 @@ interface VenueDetailProps {
 }
 
 export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
-  const [mediaView, setMediaView] = useState<'gallery' | 'map'>('gallery');
   const [isSaved, setIsSaved] = useState(() =>
     getFavourites().some((f: any) => f.id === venue?.id || f.name === venue?.name)
   );
+  const [liveVenueData, setLiveVenueData] = useState<any>(null);
+  const [loadingTables, setLoadingTables] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedTable, setSelectedTable] = useState<any>(null);
 
   useEffect(() => {
     setIsSaved(getFavourites().some((f: any) => f.id === venue?.id || f.name === venue?.name));
   }, [venue]);
+
+  // Try to load live venue data by matching name to DB slug
+  useEffect(() => {
+    const loadVenueData = async () => {
+      setLoadingTables(true);
+      try {
+        // First try by ID if it looks like a UUID
+        const isUuid = /^[0-9a-f-]{36}$/i.test(venue?.id);
+        if (isUuid) {
+          const res = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/server/venues/${venue.id}?date=${selectedDate}`,
+            { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+          );
+          if (res.ok) {
+            setLiveVenueData(await res.json());
+            return;
+          }
+        }
+        // Try matching by city + name via venues list
+        const listRes = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/server/venues?city=${encodeURIComponent(venue?.location?.split(',')[0] || '')}`,
+          { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+        );
+        if (listRes.ok) {
+          const venues = await listRes.json();
+          const match = venues.find((v: any) =>
+            v.name.toLowerCase() === (venue?.name || '').toLowerCase()
+          );
+          if (match) {
+            const detailRes = await fetch(
+              `https://${projectId}.supabase.co/functions/v1/server/venues/${match.id}?date=${selectedDate}`,
+              { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+            );
+            if (detailRes.ok) {
+              setLiveVenueData(await detailRes.json());
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.log('No live venue data, using fallback');
+      } finally {
+        setLoadingTables(false);
+      }
+    };
+    if (venue) loadVenueData();
+  }, [venue, selectedDate]);
+
+  const tables = liveVenueData?.tables ?? FALLBACK_TABLES;
+  const summary = liveVenueData?.summary ?? [];
 
   if (!venue) return null;
 
@@ -163,10 +218,10 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
       <div className="px-6 py-8">
         <Tabs defaultValue="tables" className="w-full">
           <TabsList className="w-full bg-transparent border-b border-white/10 rounded-none h-auto p-0 justify-start gap-6 mb-8 overflow-x-auto scrollbar-hide">
-            {['Tables', 'Live View', 'Inventory', 'Rules', 'Media'].map(tab => (
-              <TabsTrigger 
+            {['Tables', 'Floor Map', 'Live View', 'Rules'].map(tab => (
+              <TabsTrigger
                 key={tab}
-                value={tab.toLowerCase().replace(' ', '-')} 
+                value={tab.toLowerCase().replace(' ', '-')}
                 className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 data-[state=active]:text-white transition-all whitespace-nowrap flex-shrink-0"
               >
                 {tab}
@@ -174,51 +229,185 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
             ))}
           </TabsList>
 
-          <TabsContent value="tables" className="space-y-4 mt-0">
-            {tables.map((table, index) => (
-              <div
-                key={index}
-                className={`p-6 border transition-all ${
-                  table.available
-                    ? 'border-white/10 hover:border-[#E5E4E2]/30 bg-zinc-950/40 cursor-pointer'
-                    : 'border-white/5 opacity-30'
-                }`}
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h4 className="text-[11px] font-bold uppercase tracking-widest">{table.name}</h4>
-                    <div className="flex items-center gap-3 mt-1 text-[9px] uppercase tracking-widest text-white/40">
-                      <span>{table.capacity} guests</span>
+          {/* ── TABLES TAB ─────────────────────────────────────────────────── */}
+          <TabsContent value="tables" className="space-y-6 mt-0">
+
+            {/* Date selector */}
+            <div className="flex items-center gap-3">
+              <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-bold flex-shrink-0">Date</p>
+              <input
+                type="date"
+                value={selectedDate}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={e => { setSelectedDate(e.target.value); setSelectedTable(null); }}
+                className="bg-transparent border-b border-white/10 focus:border-white/30 text-[10px] uppercase tracking-widest text-white/70 outline-none pb-1 flex-1 transition-colors"
+              />
+              {loadingTables && <Loader2 size={12} className="text-white/30 animate-spin flex-shrink-0" />}
+            </div>
+
+            {/* Category summary */}
+            {summary.length > 0 && (
+              <div className="grid grid-cols-2 gap-2">
+                {summary.map((s: any) => (
+                  <div key={s.category} className="bg-zinc-950/60 border border-white/5 p-3 rounded-lg">
+                    <p className="text-[8px] uppercase tracking-widest text-white/30 font-bold mb-1 capitalize">{s.category.replace('_', ' ')}</p>
+                    <div className="flex items-end justify-between">
+                      <p className="text-xl font-light text-white">{s.available}</p>
+                      <p className="text-[8px] text-white/30">/ {s.total} avail</p>
                     </div>
+                    {s.booked > 0 && <p className="text-[7px] text-red-400/60 uppercase tracking-wider mt-1">{s.booked} booked</p>}
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-light">${table.min.toLocaleString()}</p>
-                    <p className="text-[8px] uppercase tracking-widest text-white/30">min spend</p>
-                  </div>
-                </div>
-                
-                {table.available ? (
-                  <div className="flex justify-between items-center pt-3 border-t border-white/5">
-                    <div className="flex items-center gap-1.5 text-green-500">
-                      <Shield size={10} />
-                      <span className="text-[8px] font-bold uppercase tracking-widest">Available Tonight</span>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onBookTable({ ...venue, selectedTable: table });
-                      }}
-                      className="min-w-[44px] min-h-[44px] -mr-2 flex items-center justify-center text-[#E5E4E2] hover:text-white active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"
-                    >
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
-                ) : (
-                  <p className="text-[8px] font-bold uppercase tracking-widest text-white/20 pt-3 border-t border-white/5">Sold Out</p>
-                )}
+                ))}
               </div>
-            ))}
+            )}
+
+            {/* Table list */}
+            <div className="space-y-3">
+              {tables.filter((t: any) => t.availability !== 'blocked').map((table: any) => {
+                const isAvailable = table.availability === 'available';
+                const isSelected = selectedTable?.id === table.id;
+                return (
+                  <div
+                    key={table.id}
+                    onClick={() => isAvailable && setSelectedTable(isSelected ? null : table)}
+                    className={`p-5 border transition-all rounded-lg ${
+                      isSelected ? 'border-[#E5E4E2]/60 bg-white/5' :
+                      isAvailable ? 'border-white/10 hover:border-[#E5E4E2]/30 bg-zinc-950/40 cursor-pointer' :
+                      'border-white/5 opacity-40'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <h4 className="text-[11px] font-bold uppercase tracking-widest">{table.name}</h4>
+                          <span className="text-[7px] uppercase tracking-widest text-white/30 border border-white/10 px-1.5 py-0.5 rounded">
+                            {(table.category || '').replace('_', ' ')}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-[9px] uppercase tracking-widest text-white/40">
+                          <span>{table.section}</span>
+                          <span>{table.capacity_min}–{table.capacity_max} guests</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-light">${(table.min_spend || 0).toLocaleString()}</p>
+                        <p className="text-[8px] uppercase tracking-widest text-white/30">min spend</p>
+                      </div>
+                    </div>
+
+                    {/* Perks */}
+                    {table.perks?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {table.perks.slice(0, 3).map((perk: string) => (
+                          <span key={perk} className="text-[7px] uppercase tracking-wider text-white/40 border border-white/10 px-1.5 py-0.5 rounded-full">
+                            {perk}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Status + action */}
+                    <div className="flex justify-between items-center pt-3 mt-3 border-t border-white/5">
+                      {isAvailable ? (
+                        <div className="flex items-center gap-1.5 text-green-400">
+                          <Shield size={10} />
+                          <span className="text-[8px] font-bold uppercase tracking-widest">Available</span>
+                        </div>
+                      ) : (
+                        <span className="text-[8px] font-bold uppercase tracking-widest text-red-400/60">Booked</span>
+                      )}
+                      {isAvailable && (
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            onBookTable({ ...venue, selectedTable: table, selectedDate });
+                          }}
+                          className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-[#E5E4E2] hover:text-white active:scale-95 transition-all focus:outline-none"
+                        >
+                          Book <ChevronRight size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* CTA */}
+            {selectedTable && (
+              <div className="sticky bottom-4 left-0 right-0">
+                <button
+                  onClick={() => onBookTable({ ...venue, selectedTable, selectedDate })}
+                  className="w-full h-14 bg-[#E5E4E2] text-black text-[10px] font-bold uppercase tracking-[0.3em] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
+                  Book {selectedTable.name} · ${(selectedTable.min_spend || 0).toLocaleString()} min
+                </button>
+              </div>
+            )}
+
+            {tables.filter((t: any) => t.availability === 'booked').length > 0 && (
+              <p className="text-[8px] text-white/20 uppercase tracking-widest text-center">
+                {tables.filter((t: any) => t.availability === 'booked').length} table{tables.filter((t: any) => t.availability === 'booked').length > 1 ? 's' : ''} booked for this date
+              </p>
+            )}
           </TabsContent>
+
+          {/* ── FLOOR MAP TAB ──────────────────────────────────────────────── */}
+          <TabsContent value="floor-map" className="mt-0">
+            <div className="space-y-4">
+              {/* Date selector */}
+              <div className="flex items-center gap-3">
+                <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-bold flex-shrink-0">Date</p>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={e => { setSelectedDate(e.target.value); setSelectedTable(null); }}
+                  className="bg-transparent border-b border-white/10 focus:border-white/30 text-[10px] uppercase tracking-widest text-white/70 outline-none pb-1 flex-1 transition-colors"
+                />
+                {loadingTables && <Loader2 size={12} className="text-white/30 animate-spin flex-shrink-0" />}
+              </div>
+
+              <VenueTableMap
+                tables={tables}
+                selectedTableId={selectedTable?.id}
+                onSelectTable={t => setSelectedTable(prev => prev?.id === t.id ? null : t)}
+                date={selectedDate}
+              />
+
+              {/* Selected table action */}
+              {selectedTable && (
+                <div className="border border-[#E5E4E2]/20 p-4 space-y-3 rounded-lg bg-white/5">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest">{selectedTable.name}</p>
+                      <p className="text-[9px] text-white/40 uppercase tracking-wider mt-0.5">
+                        {selectedTable.section} · {selectedTable.capacity_min}–{selectedTable.capacity_max} guests
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-light">${(selectedTable.min_spend || 0).toLocaleString()}</p>
+                      <p className="text-[8px] text-white/30 uppercase tracking-wider">min spend</p>
+                    </div>
+                  </div>
+                  {selectedTable.perks?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedTable.perks.map((p: string) => (
+                        <span key={p} className="text-[7px] border border-white/10 px-1.5 py-0.5 rounded-full text-white/40 uppercase tracking-wider">{p}</span>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => onBookTable({ ...venue, selectedTable, selectedDate })}
+                    className="w-full h-12 bg-[#E5E4E2] text-black text-[10px] font-bold uppercase tracking-[0.3em] active:scale-[0.98] transition-all rounded-sm"
+                  >
+                    Book This Table
+                  </button>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
 
           {/* LIVE VIEW TAB — first-person immersive table perspective */}
           <TabsContent value="live-view" className="mt-0 space-y-6">
@@ -226,9 +415,8 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
               What you'll actually see from each table
             </p>
 
-            {tables.filter(t => t.available).map((table, i) => (
-              <div key={i} className="border border-white/10 overflow-hidden group">
-                {/* Simulated POV image */}
+            {tables.filter((t: any) => t.availability === 'available').slice(0, 3).map((table: any, i: number) => (
+              <div key={table.id} className="border border-white/10 overflow-hidden group">
                 <div className="relative h-52 bg-zinc-950 overflow-hidden">
                   <img
                     src={[
@@ -240,41 +428,25 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                     className="w-full h-full object-cover grayscale-[40%] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-                  {/* POV label */}
                   <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm border border-white/10 px-2.5 py-1.5">
                     <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
                     <span className="text-[7px] font-bold uppercase tracking-widest text-white">Live Angle</span>
                   </div>
-
-                  {/* Table name overlay */}
                   <div className="absolute bottom-3 left-3 right-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white">{table.name}</p>
-                    <p className="text-[8px] uppercase tracking-widest text-white/50 mt-0.5">{table.capacity} guests · ${table.min.toLocaleString()} min</p>
+                    <p className="text-[8px] uppercase tracking-widest text-white/50 mt-0.5">
+                      {table.capacity_min}–{table.capacity_max} guests · ${(table.min_spend || 0).toLocaleString()} min
+                    </p>
                   </div>
                 </div>
-
-                {/* What you'll see breakdown */}
                 <div className="p-4 space-y-3 bg-zinc-950/60">
                   <p className="text-[8px] uppercase tracking-[0.2em] text-white/30 font-bold">From this table you'll see</p>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      ...(i === 0 ? [
-                        { label: 'DJ Booth', value: 'Direct sightline' },
-                        { label: 'Dance Floor', value: 'Full panoramic' },
-                        { label: 'Stage', value: 'Centre view' },
-                        { label: 'Bar', value: '15m · easy access' },
-                      ] : i === 1 ? [
-                        { label: 'DJ Booth', value: 'Elevated angle' },
-                        { label: 'Dance Floor', value: 'Bird\'s eye' },
-                        { label: 'Entrance', value: 'Full visibility' },
-                        { label: 'Bar', value: '8m · closest' },
-                      ] : [
-                        { label: 'DJ Booth', value: 'Side stage' },
-                        { label: 'Dance Floor', value: 'Left panoramic' },
-                        { label: 'Outdoor', value: 'Terrace access' },
-                        { label: 'Bar', value: '20m · far end' },
-                      ])
+                      { label: 'DJ Booth', value: i === 0 ? 'Direct sightline' : i === 1 ? 'Elevated angle' : 'Side stage' },
+                      { label: 'Dance Floor', value: i === 0 ? 'Full panoramic' : i === 1 ? "Bird's eye" : 'Left panoramic' },
+                      { label: 'Stage', value: i === 0 ? 'Centre view' : i === 1 ? 'Full visibility' : 'Terrace access' },
+                      { label: 'Bar', value: i === 0 ? '15m · easy access' : i === 1 ? '8m · closest' : '20m · far end' },
                     ].map(({ label, value }) => (
                       <div key={label} className="border border-white/5 px-3 py-2">
                         <p className="text-[7px] uppercase tracking-widest text-white/25">{label}</p>
@@ -282,32 +454,15 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                       </div>
                     ))}
                   </div>
-
                   <button
-                    onClick={() => onBookTable({ ...venue, selectedTable: table })}
-                    className="w-full py-3 bg-white text-[#000504] font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all !text-black mt-2"
+                    onClick={() => onBookTable({ ...venue, selectedTable: table, selectedDate })}
+                    className="w-full py-3 bg-white text-[#000504] font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all mt-2"
                   >
                     Book This Table
                   </button>
                 </div>
               </div>
             ))}
-
-            {tables.filter(t => !t.available).length > 0 && (
-              <div className="border border-white/5 p-4 text-center">
-                <p className="text-[8px] uppercase tracking-widest text-white/20">
-                  {tables.filter(t => !t.available).length} table{tables.filter(t => !t.available).length > 1 ? 's' : ''} sold out tonight
-                </p>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="inventory" className="mt-0">
-            <div className="p-12 border border-dashed border-white/10 text-center">
-              <p className="text-[10px] uppercase tracking-[0.3em] text-white/20 leading-loose italic">
-                "Live inventory data will be available once connected to the venue's management system."
-              </p>
-            </div>
           </TabsContent>
 
           <TabsContent value="rules" className="mt-0 space-y-4">
@@ -325,20 +480,6 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
             ))}
           </TabsContent>
 
-          <TabsContent value="media" className="mt-0">
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                'https://images.unsplash.com/photo-1604161926875-bb58f9a0d81b?w=400',
-                'https://images.unsplash.com/photo-1545128485-c400e7702796?w=400',
-                'https://images.unsplash.com/photo-1566737236500-c8ac43014a67?w=400',
-                'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400'
-              ].map((src, i) => (
-                <div key={i} className="aspect-square border border-white/5 overflow-hidden group">
-                  <ImageWithFallback src={src} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
-                </div>
-              ))}
-            </div>
-          </TabsContent>
         </Tabs>
       </div>
     </div>
