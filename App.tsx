@@ -23,6 +23,7 @@ import { OnboardingScreen, ONBOARDING_DONE_KEY } from "./components/OnboardingSc
 import { MemberClubsFeed } from "./components/MemberClubsFeed";
 import { AIConcierge } from "./components/AIConcierge";
 import { AdminPortal } from "./components/AdminPortal";
+import { HomeV2 } from "./components/HomeV2";
 import { AListLogo } from "./components/AListLogo";
 import { projectId, publicAnonKey } from './utils/supabase/info';
 import { supabase } from './utils/supabase/client';
@@ -66,8 +67,10 @@ type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify
 export default function App() {
   const { userId } = useAuth();
   const [appState, setAppState] = useState<AppState>("splash");
-  const [currentView, setCurrentView] =
-    useState<ViewType>("home");
+  const [currentView, setCurrentView] = useState<ViewType>("home");
+  const [useHomeV2, setUseHomeV2] = useState(() => {
+    try { return localStorage.getItem('alist_use_v2') === 'true'; } catch { return false; }
+  });
   const [selectedVenue, setSelectedVenue] = useState<any>(null);
   const [selectedTable, setSelectedTable] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -422,6 +425,18 @@ export default function App() {
                         <MenuButton icon={Trophy} label="2025 Year in Review" onClick={() => navigateTo("year-review")} />
                         <MenuButton icon={Sparkles} label="AI Concierge" onClick={() => navigateTo("ai-concierge")} highlight />
                         <MenuButton icon={Shield} label="Admin Portal" onClick={() => navigateTo("admin")} />
+                        <MenuButton
+                          icon={Sparkles}
+                          label={useHomeV2 ? "Switch to Classic Feed" : "Try New Feed (V2)"}
+                          onClick={() => {
+                            const next = !useHomeV2;
+                            setUseHomeV2(next);
+                            try { localStorage.setItem('alist_use_v2', String(next)); } catch {}
+                            setMenuOpen(false);
+                            navigateTo("home");
+                          }}
+                          highlight
+                        />
                       </div>
                     </div>
 
@@ -461,13 +476,23 @@ export default function App() {
                 className="w-full"
               >
                 {currentView === "home" && (
-                  <Home
-                    onVenueClick={handleVenueClick}
-                    onBookTable={(venue: any) => handleBookTable(venue, null)}
-                    onOpenCalendar={() => navigateTo("calendar")}
-                    onViewAllArtists={() => navigateTo("artists")}
-                    onViewMemberClubs={() => navigateTo("member-clubs")}
-                  />
+                  useHomeV2 ? (
+                    <HomeV2
+                      onVenueClick={handleVenueClick}
+                      onBookTable={(venue: any) => handleBookTable(venue, null)}
+                      onOpenCalendar={() => navigateTo("calendar")}
+                      onViewAllArtists={() => navigateTo("artists")}
+                      onViewMemberClubs={() => navigateTo("member-clubs")}
+                    />
+                  ) : (
+                    <Home
+                      onVenueClick={handleVenueClick}
+                      onBookTable={(venue: any) => handleBookTable(venue, null)}
+                      onOpenCalendar={() => navigateTo("calendar")}
+                      onViewAllArtists={() => navigateTo("artists")}
+                      onViewMemberClubs={() => navigateTo("member-clubs")}
+                    />
+                  )
                 )}
                 {currentView === "vip" && <VIPStatus />}
                 {currentView === "social" && (
