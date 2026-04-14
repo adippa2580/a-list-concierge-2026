@@ -730,7 +730,8 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                 <div key={index} className={`border transition-all ${isSelected ? 'border-[#E5E4E2]/30 bg-white/5' : 'border-white/5 hover:border-white/20'}`}>
                   <button onClick={() => {
                     setSelectedLiquor(index);
-                    setSelectedBottles(new Set(tierBottles.slice(0, pkg.bottles).map(b => b.name)));
+                    // Reset to empty set when switching packages — user picks fresh
+                    setSelectedBottles(new Set());
                   }} className="w-full p-5 text-left">
                     <div className="flex justify-between items-start">
                       <div>
@@ -756,22 +757,35 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                       <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                         className="border-t border-white/5 p-5 bg-zinc-950/40"
                       >
-                        <p className="text-[7px] uppercase tracking-widest text-white/40 mb-3 font-bold">
-                          Select {pkg.bottles} bottle{pkg.bottles > 1 ? 's' : ''} ({selectedBottles.size}/{pkg.bottles})
-                        </p>
+                        {/* Count only bottles valid for this tier */}
+                        {(() => {
+                          const tierSelected = tierBottles.filter(b => selectedBottles.has(b.name));
+                          const remaining = pkg.bottles - tierSelected.length;
+                          return (
+                            <p className="text-[7px] uppercase tracking-widest text-white/40 mb-3 font-bold">
+                              {tierSelected.length === pkg.bottles
+                                ? `${pkg.bottles} bottle${pkg.bottles > 1 ? 's' : ''} selected ✓`
+                                : `Select ${remaining} more bottle${remaining !== 1 ? 's' : ''} (${tierSelected.length}/${pkg.bottles})`}
+                            </p>
+                          );
+                        })()}
                         <div className="grid grid-cols-1 gap-2">
                           {tierBottles.map(bottle => {
                             const isChecked = selectedBottles.has(bottle.name);
-                            // FIX: allow deselect always; only block selecting when at limit
-                            const isDisabled = !isChecked && selectedBottles.size >= pkg.bottles;
+                            // Count only bottles in this tier for the limit check
+                            const tierSelectedCount = tierBottles.filter(b => selectedBottles.has(b.name)).length;
+                            const isDisabled = !isChecked && tierSelectedCount >= pkg.bottles;
                             return (
                               <button key={bottle.name}
                                 onClick={() => {
                                   const newSet = new Set(selectedBottles);
                                   if (isChecked) {
                                     newSet.delete(bottle.name); // always allow deselect
-                                  } else if (newSet.size < pkg.bottles) {
-                                    newSet.add(bottle.name);
+                                  } else {
+                                    const currentTierCount = tierBottles.filter(b => newSet.has(b.name)).length;
+                                    if (currentTierCount < pkg.bottles) {
+                                      newSet.add(bottle.name);
+                                    }
                                   }
                                   setSelectedBottles(newSet);
                                 }}
