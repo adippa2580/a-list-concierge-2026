@@ -212,6 +212,8 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
     return groups;
   }, [events]);
 
+  const [searchFocused, setSearchFocused] = useState(false);
+
   const filteredEvents = useMemo(() => {
     if (dateFilter === 'all') return events;
     return groupedEvents[dateFilter] || [];
@@ -221,11 +223,10 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
   const heroEvents = useMemo(() => events.filter(e => e.image).slice(0, 5), [events]);
   const heroEvent = heroEvents[heroIndex] || null;
 
-  // Card grid events — skip hero ones, show rest
+  // Grid: all events (hero events also appear in grid — hero is just a spotlight)
   const gridEvents = useMemo(() => {
-    const heroIds = new Set(heroEvents.map(e => e.id));
-    return (dateFilter === 'all' ? events : filteredEvents).filter(e => !heroIds.has(e.id));
-  }, [events, filteredEvents, heroEvents, dateFilter]);
+    return dateFilter === 'all' ? events : filteredEvents;
+  }, [events, filteredEvents, dateFilter]);
 
   // Auto-advance hero
   useEffect(() => {
@@ -240,8 +241,11 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
     <div className="min-h-screen bg-[#060606] text-white relative">
 
       {/* ── FLOATING FILTER BAR ─────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-40 px-4 pt-3 pb-2">
-        <div className="flex items-center gap-2 bg-white/8 backdrop-blur-xl rounded-full px-4 py-2.5 border border-white/10 shadow-2xl">
+      <div
+        className="sticky top-0 z-40 px-4 pb-2"
+        style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top, 0px))' }}
+      >
+        <div className="flex items-center gap-2 bg-zinc-950/80 backdrop-blur-xl rounded-full px-4 py-2.5 border border-white/10 shadow-2xl">
           {/* Location */}
           {editingLocation ? (
             <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -305,7 +309,7 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
 
           {/* Search toggle */}
           <button
-            onClick={() => { searchRef.current?.focus(); }}
+            onClick={() => { setSearchFocused(true); setTimeout(() => searchRef.current?.focus(), 50); }}
             className="flex-shrink-0 p-1 text-white/40 hover:text-white transition-colors"
           >
             <Search size={13} />
@@ -313,7 +317,7 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
         </div>
 
         {/* Search bar — expands below filter bar */}
-        {(searchQuery || document.activeElement === searchRef.current) && (
+        {(searchQuery || searchFocused) && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -323,8 +327,11 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
               ref={searchRef}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => { if (!searchQuery) setSearchFocused(false); }}
               placeholder="Search events, venues, artists..."
               className="w-full bg-white/5 border border-white/10 rounded-full px-4 py-2 text-[11px] uppercase tracking-widest text-white placeholder:text-white/25 outline-none focus:border-white/25 transition-colors"
+              autoFocus
             />
           </motion.div>
         )}

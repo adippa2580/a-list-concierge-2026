@@ -462,7 +462,8 @@ export default function App() {
             ref={scrollContainerRef}
             className="app-scroll-container overflow-y-auto no-scrollbar scroll-smooth"
             style={{
-              paddingTop: 'calc(5rem + env(safe-area-inset-top, 0px))',
+              height: '100dvh',
+              paddingTop: currentView === 'home' && useHomeV2 ? '0' : 'calc(5rem + env(safe-area-inset-top, 0px))',
               paddingBottom: 'calc(7rem + env(safe-area-inset-bottom, 0px))',
             }}
           >
