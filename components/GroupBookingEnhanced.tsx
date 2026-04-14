@@ -20,7 +20,7 @@ const HEADERS = { Authorization: `Bearer ${publicAnonKey}`, 'Content-Type': 'app
 // ── Types ─────────────────────────────────────────────────────────────────────
 type SplitMethod = 'even' | 'host' | 'custom';
 type PaymentRail = 'venmo' | 'cashapp' | 'applepay' | 'zelle' | 'cash';
-type Screen = 'crew-select' | 'builder' | 'confirm' | 'sent';
+type Screen = 'table' | 'crew-select' | 'split' | 'addons' | 'review' | 'sent';
 
 interface CrewMember { name: string; avatar: string; role: string; spend: number; }
 interface Crew { id: number; name: string; emoji: string; level: string; members: CrewMember[]; }
@@ -151,10 +151,18 @@ const getMixersInTier = (tier: string) => {
 // ── Main Component ─────────────────────────────────────────────────────────────
 export function GroupBooking({ venue, onBack }: GroupBookingProps) {
   const { userId: USER_ID } = useAuth();
-  const [screen, setScreen] = useState<Screen>('crew-select');
+  const [screen, setScreen] = useState<Screen>('table');
   const [crews, setCrews] = useState<Crew[]>([]);
   const [loadingCrews, setLoadingCrews] = useState(true);
   const [selectedCrew, setSelectedCrew] = useState<Crew | null>(null);
+
+  // Table options (pulled from venue or defaults)
+  const TABLE_OPTIONS = [
+    { name: 'Standard VIP', capacity: '2–4 guests', min: venue?.selectedTable?.min ?? 1500 },
+    { name: 'Premium Booth', capacity: '4–8 guests', min: (venue?.selectedTable?.min ?? 1500) + 1000 },
+    { name: 'Main Stage Table', capacity: '8–12 guests', min: (venue?.selectedTable?.min ?? 1500) + 2500 },
+  ];
+  const [selectedTableIdx, setSelectedTableIdx] = useState(0);
 
   const [splitMethod, setSplitMethod] = useState<SplitMethod>('even');
   const [selectedLiquor, setSelectedLiquor] = useState(1);
@@ -187,7 +195,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     finally { setLoadingCrews(false); }
   };
 
-  const tableMin = venue?.selectedTable?.min ?? 2500;
+  const tableMin = TABLE_OPTIONS[selectedTableIdx].min;
   const liquorCost = LIQUOR_PACKAGES[selectedLiquor].price;
   const mixerCost = MIXER_PACKAGES[selectedMixer].price;
   const totalCost = tableMin + liquorCost + mixerCost;
@@ -240,7 +248,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
       toast.error(`Split is $${Math.abs(customDiff)} ${customDiff > 0 ? 'over' : 'short'}`);
       return;
     }
-    setScreen('confirm');
+    setScreen('review');
   };
 
   const handleSendRequests = async () => {
@@ -305,32 +313,108 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     }
   };
 
+  // ── Step indicator ────────────────────────────────────────────────────────
+  const STEPS: Screen[] = ['table', 'crew-select', 'split', 'addons', 'review'];
+  const stepIdx = STEPS.indexOf(screen);
+  const stepLabels = ['Table', 'Crew', 'Split', 'Add-ons', 'Review'];
+
   // ── Screens ──────────────────────────────────────────────────────────────
   if (screen === 'sent') return <SentScreen splitData={splitData} inviteCode={inviteCode} bookingId={savedBookingId} venue={venue} onBack={onBack} />;
 
-  if (screen === 'confirm') return (
+  if (screen === 'review') return (
     <ConfirmScreen
       splitData={splitData} totalCost={totalCost} splitMethod={splitMethod}
       memberRails={memberRails} setMemberRails={setMemberRails}
       memberHandles={memberHandles} setMemberHandles={setMemberHandles}
       venue={venue} liquorPkg={LIQUOR_PACKAGES[selectedLiquor]} mixerPkg={MIXER_PACKAGES[selectedMixer]}
       selectedBottles={Array.from(selectedBottles)} selectedMixers={Array.from(selectedMixerItems)}
-      confirming={confirming} onBack={() => setScreen('builder')} onSend={handleSendRequests}
+      confirming={confirming} onBack={() => setScreen('addons')} onSend={handleSendRequests}
+      tableMin={tableMin} tableName={TABLE_OPTIONS[selectedTableIdx].name}
     />
   );
 
-  // ── Crew Select Screen ───────────────────────────────────────────────────
+  // ── Shared step header ───────────────────────────────────────────────────
+  const StepHeader = ({ title, onBack: goBack }: { title: string; onBack: () => void }) => (
+    <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-5 sticky top-0 z-20">
+      <div className="flex items-center gap-4 mb-4">
+        <button onClick={goBack} className="min-w-[44px] min-h-[44px] -ml-2 flex items-center justify-center text-white/40 hover:text-white active:scale-95 transition-all">
+          <X size={18} />
+        </button>
+        <div className="flex-1">
+          <p className="text-[8px] uppercase tracking-[0.4em] text-white/30 font-bold">Group Booking</p>
+          <h2 className="text-2xl font-serif italic platinum-gradient leading-none tracking-tight">{title}</h2>
+        </div>
+        {venue && <p className="text-[8px] uppercase tracking-[0.2em] text-white/30 font-bold text-right">{venue.name}</p>}
+      </div>
+      <div className="flex gap-1">
+        {STEPS.map((s, i) => (
+          <div key={s} className="flex-1 flex flex-col items-center gap-1">
+            <div className={`h-0.5 w-full transition-all duration-300 ${i <= stepIdx ? 'bg-white' : 'bg-white/10'}`} />
+            <span className={`text-[6px] uppercase tracking-widest ${i === stepIdx ? 'text-white/60' : 'text-white/20'}`}>{stepLabels[i]}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ── Inline price bar — shows min spend + per-person only (hides full total) ──
+  const PriceBar = () => {
+    const pp = members.length ? Math.ceil(totalCost / members.length) : null;
+    return (
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-30 bg-[#000504]/95 backdrop-blur-xl border-t border-[#E5E4E2]/10 px-6 py-4 flex items-center justify-between">
+        <div>
+          <p className="text-[7px] uppercase tracking-[0.3em] text-white/30 font-bold">Min. Spend</p>
+          <p className="text-lg font-serif italic">${tableMin.toLocaleString()}</p>
+        </div>
+        {pp ? (
+          <div className="text-center">
+            <p className="text-[7px] uppercase tracking-[0.3em] text-white/30 font-bold">Your Share</p>
+            <motion.p key={pp} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-xl font-serif italic text-[#E5E4E2]">${pp.toLocaleString()}</motion.p>
+          </div>
+        ) : <div />}
+        <div />
+      </div>
+    );
+  };
+
+  // ── TABLE SELECTION SCREEN ───────────────────────────────────────────────
+  if (screen === 'table') return (
+    <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
+      <StepHeader title="Select Table" onBack={onBack ?? (() => {})} />
+      <div className="px-6 py-8 space-y-4">
+        <p className="text-[9px] uppercase tracking-[0.3em] text-white/30 font-bold mb-2">Choose your table for the night</p>
+        {TABLE_OPTIONS.map((table, i) => (
+          <button key={i} onClick={() => setSelectedTableIdx(i)}
+            className={`w-full p-6 border text-left transition-all ${selectedTableIdx === i ? 'border-[#E5E4E2]/40 bg-white/5' : 'border-white/10 hover:border-white/20'}`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-bold uppercase tracking-widest">{table.name}</h3>
+              <span className="text-xl font-serif italic">${table.min.toLocaleString()}<span className="text-[9px] text-white/30 font-sans font-normal ml-1">min</span></span>
+            </div>
+            <p className="text-[9px] uppercase tracking-widest text-white/40">{table.capacity}</p>
+          </button>
+        ))}
+        <Button onClick={() => setScreen('crew-select')}
+          className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black flex items-center justify-between px-8 mt-4"
+        >
+          <span>Select Crew</span><ChevronRight size={16} />
+        </Button>
+      </div>
+    </div>
+  );
+
+  // ── CREW SELECT SCREEN ───────────────────────────────────────────────────
   if (screen === 'crew-select') return (
     <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
       <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-6 sticky top-0 z-20">
         <div className="flex items-center gap-4 mb-1">
-          {onBack && <button onClick={onBack} className="min-w-[44px] min-h-[44px] -ml-2 flex items-center justify-center text-white/40 hover:text-white active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"><X size={18} /></button>}
+          <button onClick={() => setScreen('table')} className="min-w-[44px] min-h-[44px] -ml-2 flex items-center justify-center text-white/40 hover:text-white active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"><X size={18} /></button>
           <div>
             <p className="text-[8px] uppercase tracking-[0.4em] text-white/30 font-bold">Group Booking</p>
             <h2 className="text-2xl font-serif italic platinum-gradient">Select Your Crew</h2>
           </div>
         </div>
-        {venue && <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold mt-3">{venue.name} • {venue.selectedTable?.name || 'VIP Table'} • Min ${(venue?.selectedTable?.min ?? 2500).toLocaleString()}</p>}
+        {venue && <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold mt-3">{venue.name} • {TABLE_OPTIONS[selectedTableIdx].name} • Min ${tableMin.toLocaleString()}</p>}
       </div>
 
       <div className="px-6 py-10 space-y-4">
@@ -345,7 +429,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0 }}
-              onClick={() => { setSelectedCrew(null); setScreen('builder'); }}
+              onClick={() => { setSelectedCrew(null); setScreen('split'); }}
               className="w-full border border-dashed border-[#E5E4E2]/30 hover:border-[#E5E4E2] p-5 text-left transition-all group bg-[#E5E4E2]/5 hover:bg-[#E5E4E2]/10"
             >
               <div className="flex items-center justify-between">
@@ -373,7 +457,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: (i + 1) * 0.04 }}
-                      onClick={() => { setSelectedCrew(crew); setScreen('builder'); }}
+                      onClick={() => { setSelectedCrew(crew); setScreen('split'); }}
                       className="w-full border border-white/10 hover:border-white/40 p-5 text-left transition-all group"
                     >
                       <div className="flex items-center justify-between">
@@ -417,7 +501,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: Math.max(1, crews.length + 1) * 0.04 }}
-              onClick={() => { setSelectedCrew(null); setScreen('builder'); }}
+              onClick={() => { setSelectedCrew(null); setScreen('split'); }}
               className="w-full text-[9px] font-bold uppercase tracking-[0.3em] text-white/20 hover:text-white/50 transition-colors py-4 border border-white/5 hover:border-white/20"
             >
               Continue Without a Crew
@@ -428,62 +512,18 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     </div>
   );
 
-  // ── Builder Screen ───────────────────────────────────────────────────────
-  const members = selectedCrew ? splitData : [];
+  // ── Shared members list (crew or manual) ─────────────────────────────────
+  const members = selectedCrew ? splitData : manualMembers.length ? splitData : [];
 
-  return (
-    <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
-      {/* Header */}
-      <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-8 sticky top-0 z-20">
-        <div className="flex items-center gap-4 mb-1">
-          <button onClick={() => setScreen('crew-select')} className="min-w-[44px] min-h-[44px] -ml-2 flex items-center justify-center text-white/40 hover:text-white active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50">
-            <X size={18} />
-          </button>
-          <div>
-            <p className="text-[8px] uppercase tracking-[0.4em] text-white/30 font-bold">Group Booking</p>
-            <h2 className="text-3xl font-serif italic platinum-gradient leading-none tracking-tight">Payment Split</h2>
-          </div>
-        </div>
-        {venue && <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold mt-2">{venue.name} • {venue.selectedTable?.name || 'VIP Table'}</p>}
-        {selectedCrew && (
-          <button onClick={() => setScreen('crew-select')} className="mt-2 flex items-center gap-2 text-[8px] uppercase tracking-widest text-white/40 hover:text-white transition-colors">
-            <span className="text-base">{selectedCrew.emoji}</span>
-            <span>{selectedCrew.name}</span>
-            <ChevronDown size={11} />
-          </button>
-        )}
-      </div>
+  // ── SPLIT SCREEN ─────────────────────────────────────────────────────────
+  if (screen === 'split') return (
+    <div className="min-h-screen bg-[#000504] text-white pb-36 marble-bg">
+      <StepHeader title="Payment Split" onBack={() => setScreen('crew-select')} />
+      <PriceBar />
 
-      <div className="px-6 py-10 space-y-10">
+      <div className="px-6 py-8 space-y-8">
 
-        {/* Cost Summary */}
-        <div className="bg-zinc-950 border border-white/10 p-8 relative overflow-hidden">
-          <div className="absolute inset-0 marble-bg opacity-20 pointer-events-none" />
-          <div className="relative z-10 space-y-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-bold mb-1">Total Cost</p>
-                <p className="text-4xl font-light font-serif italic">${totalCost.toLocaleString()}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-bold mb-1">Per Person</p>
-                <p className="text-2xl font-light font-serif italic text-[#E5E4E2]">
-                  ${members.length ? Math.ceil(totalCost / members.length).toLocaleString() : '—'}
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/5">
-              {[{ label: 'Table Min', val: tableMin }, { label: 'Bottles', val: liquorCost }, { label: 'Mixers', val: mixerCost }].map(({ label, val }) => (
-                <div key={label} className="text-center">
-                  <p className="text-sm font-light">${val.toLocaleString()}</p>
-                  <p className="text-[7px] uppercase tracking-widest text-white/30 mt-1">{label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Manual Member Entry — shown only when continuing without a crew */}
+        {/* Manual Member Entry — when no crew selected */}
         {!selectedCrew && (
           <div className="space-y-4">
             <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Add Members</h3>
@@ -495,8 +535,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                   if (e.key === 'Enter' && newMemberName.trim()) {
                     const name = newMemberName.trim();
                     const initials = name.split(/\s+/).map(w => w[0]?.toUpperCase() ?? '').join('').slice(0, 2) || '??';
-                    const role = manualMembers.length === 0 ? 'Captain' : 'Member';
-                    setManualMembers(prev => [...prev, { name, avatar: initials, role, spend: 0 }]);
+                    setManualMembers(prev => [...prev, { name, avatar: initials, role: prev.length === 0 ? 'Captain' : 'Member', spend: 0 }]);
                     setNewMemberName('');
                   }
                 }}
@@ -508,8 +547,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                   const name = newMemberName.trim();
                   if (!name) return;
                   const initials = name.split(/\s+/).map(w => w[0]?.toUpperCase() ?? '').join('').slice(0, 2) || '??';
-                  const role = manualMembers.length === 0 ? 'Captain' : 'Member';
-                  setManualMembers(prev => [...prev, { name, avatar: initials, role, spend: 0 }]);
+                  setManualMembers(prev => [...prev, { name, avatar: initials, role: prev.length === 0 ? 'Captain' : 'Member', spend: 0 }]);
                   setNewMemberName('');
                 }}
                 disabled={!newMemberName.trim()}
@@ -519,15 +557,11 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
               </button>
             </div>
             {manualMembers.length === 0 && (
-              <p className="text-[8px] uppercase tracking-widest text-white/20 text-center py-2">
-                Add at least yourself to configure split
-              </p>
+              <p className="text-[8px] uppercase tracking-widest text-white/20 text-center py-2">Add members to configure split</p>
             )}
             <AnimatePresence initial={false}>
               {manualMembers.map((m, i) => (
-                <motion.div
-                  key={`${m.name}-${i}`}
-                  initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
+                <motion.div key={`${m.name}-${i}`} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
                   className="flex items-center justify-between p-4 border border-white/10 bg-zinc-950/40"
                 >
                   <div className="flex items-center gap-3">
@@ -540,10 +574,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                     </div>
                   </div>
                   {i !== 0 && (
-                    <button
-                      onClick={() => setManualMembers(prev => prev.filter((_, idx) => idx !== i))}
-                      className="text-red-400/40 hover:text-red-400 transition-colors"
-                    >
+                    <button onClick={() => setManualMembers(prev => prev.filter((_, idx) => idx !== i))} className="text-red-400/40 hover:text-red-400 transition-colors">
                       <X size={14} />
                     </button>
                   )}
@@ -554,7 +585,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
         )}
 
         {/* Split Method */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Split Method</h3>
           <div className="grid grid-cols-3 gap-2">
             {([
@@ -562,12 +593,8 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
               { id: 'host',   label: 'Host Led',     desc: 'Host covers table' },
               { id: 'custom', label: 'Custom',        desc: 'Set per person' },
             ] as const).map(({ id, label, desc }) => (
-              <button
-                key={id}
-                onClick={() => { setSplitMethod(id); setLockedCustom(false); }}
-                className={`p-4 border text-center transition-all ${
-                  splitMethod === id ? 'bg-white text-black border-white' : 'border-white/10 text-white/40 hover:border-white/30 hover:text-white/70'
-                }`}
+              <button key={id} onClick={() => { setSplitMethod(id); setLockedCustom(false); }}
+                className={`p-4 border text-center transition-all ${splitMethod === id ? 'bg-white text-black border-white' : 'border-white/10 text-white/40 hover:border-white/30 hover:text-white/70'}`}
               >
                 <p className="text-[9px] font-bold uppercase tracking-widest">{label}</p>
                 <p className={`text-[7px] uppercase tracking-widest mt-1 ${splitMethod === id ? 'text-black/50' : 'text-white/20'}`}>{desc}</p>
@@ -579,8 +606,8 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
               className="bg-zinc-950/60 border border-white/5 px-5 py-4 text-[9px] text-white/40 uppercase tracking-wider leading-relaxed"
             >
               {splitMethod === 'even' && `Each of the ${members.length || '—'} members pays $${members.length ? Math.ceil(totalCost / members.length).toLocaleString() : '—'}.`}
-              {splitMethod === 'host' && `You cover $${tableMin.toLocaleString()} table min. Members split $${(liquorCost + mixerCost).toLocaleString()} for bottles & mixers.`}
-              {splitMethod === 'custom' && 'Set each person\'s amount with + / −. Must total exactly before you can proceed.'}
+              {splitMethod === 'host' && `You cover $${tableMin.toLocaleString()} table min. Members split the bottles & mixers.`}
+              {splitMethod === 'custom' && 'Set each person\'s amount. Must total exactly before proceeding.'}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -591,19 +618,14 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
             <div className="flex items-center justify-between">
               <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Member Breakdown</h3>
               {splitMethod === 'custom' && (
-                <button
-                  onClick={() => setLockedCustom(l => !l)}
-                  disabled={!customBalanced && !lockedCustom}
-                  className={`flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-widest transition-colors ${
-                    lockedCustom ? 'text-emerald-400' : customBalanced ? 'text-white hover:text-white/70' : 'text-white/20 cursor-not-allowed'
-                  }`}
+                <button onClick={() => setLockedCustom(l => !l)} disabled={!customBalanced && !lockedCustom}
+                  className={`flex items-center gap-1.5 text-[8px] font-bold uppercase tracking-widest transition-colors ${lockedCustom ? 'text-emerald-400' : customBalanced ? 'text-white hover:text-white/70' : 'text-white/20 cursor-not-allowed'}`}
                 >
                   {lockedCustom ? <Lock size={11} /> : <Unlock size={11} />}
                   {lockedCustom ? 'Locked' : 'Lock Split'}
                 </button>
               )}
             </div>
-
             {splitMethod === 'custom' && (
               <div className="space-y-2">
                 <div className="flex justify-between text-[8px] uppercase tracking-widest">
@@ -613,54 +635,38 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                   </span>
                 </div>
                 <div className="h-0.5 bg-white/5">
-                  <motion.div animate={{ width: `${Math.min((customTotal / totalCost) * 100, 100)}%` }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  <motion.div animate={{ width: `${Math.min((customTotal / totalCost) * 100, 100)}%` }} transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                     className={`h-full ${customBalanced ? 'bg-emerald-400' : customDiff > 0 ? 'bg-red-400' : 'bg-amber-400'}`}
                   />
                 </div>
               </div>
             )}
-
             <div className="space-y-2">
               {members.map((member, i) => (
-                <motion.div key={member.name} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.04 }} className="border border-white/10 bg-zinc-950/40"
+                <motion.div key={member.name} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+                  className="border border-white/10 bg-zinc-950/40"
                 >
                   <div className="flex items-center justify-between p-4">
                     <div className="flex items-center gap-4">
-                      <div className="relative">
-                        <div className="w-10 h-10 border border-white/10 bg-zinc-900 flex items-center justify-center">
-                          <span className="text-[10px] font-bold tracking-widest text-white/60">{member.avatar}</span>
-                        </div>
-                        <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border border-[#000504] rounded-full flex items-center justify-center">
-                          <Check size={7} strokeWidth={3} />
-                        </div>
+                      <div className="w-10 h-10 border border-white/10 bg-zinc-900 flex items-center justify-center">
+                        <span className="text-[10px] font-bold tracking-widest text-white/60">{member.avatar}</span>
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs font-bold uppercase tracking-widest">{member.name}</span>
                           {member.role === 'Captain' && <Crown size={11} className="text-[#E5E4E2]" />}
                         </div>
-                        <p className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">
-                          {member.role}
-                          {splitMethod === 'host' && member.role === 'Captain' && ' · Table Minimum'}
-                          {splitMethod === 'host' && member.role !== 'Captain' && ' · Bottles & Mixers'}
-                        </p>
+                        <p className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">{member.role}</p>
                       </div>
                     </div>
                     {splitMethod === 'custom' && !lockedCustom ? (
                       <div className="flex items-center gap-3">
                         <button onClick={() => adjustCustom(member.name, -50)} className="w-7 h-7 border border-white/10 flex items-center justify-center hover:bg-white/10 active:scale-90 transition-all"><Minus size={11} /></button>
-                        <span className="text-sm font-light tabular-nums min-w-[60px] text-center">${member.amount.toLocaleString()}</span>
+                        <motion.span key={member.amount} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-sm font-light tabular-nums min-w-[60px] text-center">${member.amount.toLocaleString()}</motion.span>
                         <button onClick={() => adjustCustom(member.name, 50)} className="w-7 h-7 border border-white/10 flex items-center justify-center hover:bg-white/10 active:scale-90 transition-all"><Plus size={11} /></button>
                       </div>
                     ) : (
-                      <div className="text-right">
-                        <span className="text-sm font-light font-serif italic">${member.amount.toLocaleString()}</span>
-                        {splitMethod === 'even' && members.length > 0 && (
-                          <p className="text-[7px] uppercase tracking-widest text-white/20 mt-0.5">{Math.round((member.amount / totalCost) * 100)}%</p>
-                        )}
-                      </div>
+                      <motion.span key={member.amount} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-sm font-light font-serif italic">${member.amount.toLocaleString()}</motion.span>
                     )}
                   </div>
                   {splitMethod === 'custom' && !lockedCustom && (
@@ -680,85 +686,97 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
           </div>
         )}
 
-        {/* Liquor Selection */}
-        <div className="space-y-6">
-          <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Liquor Package</h3>
+        <Button onClick={() => setScreen('addons')}
+          disabled={splitMethod === 'custom' && !customBalanced && !lockedCustom}
+          className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black flex items-center justify-between px-8 disabled:opacity-30"
+        >
+          <span>Choose Add-ons</span><ChevronRight size={16} />
+        </Button>
+        {splitMethod === 'custom' && !customBalanced && (
+          <p className="text-[8px] uppercase tracking-widest text-amber-400 text-center flex items-center justify-center gap-2">
+            <AlertCircle size={11} />
+            {customDiff > 0 ? `$${customDiff} over` : `$${Math.abs(customDiff)} short`} — balance before proceeding
+          </p>
+        )}
+      </div>
+    </div>
+  );
 
-          {/* Package Tier Selection */}
+  // ── ADD-ONS SCREEN ────────────────────────────────────────────────────────
+  return (
+    <div className="min-h-screen bg-[#000504] text-white pb-36 marble-bg">
+      <StepHeader title="Add-ons" onBack={() => setScreen('split')} />
+      <PriceBar />
+
+      <div className="px-6 py-8 space-y-8">
+
+        {/* Liquor Package */}
+        <div className="space-y-4">
+          <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Liquor Package</h3>
           <div className="space-y-2">
             {LIQUOR_PACKAGES.map((pkg, index) => {
               const isSelected = selectedLiquor === index;
               const tierBottles = getBottlesInTier(pkg.tier);
               return (
-                <div
-                  key={index}
-                  className={`border transition-all ${isSelected ? 'border-[#E5E4E2]/30 bg-white/5' : 'border-white/5 hover:border-white/20'}`}
-                >
-                  {/* Package Header - Always Clickable */}
-                  <button
-                    onClick={() => {
-                      setSelectedLiquor(index);
-                      setSelectedBottles(new Set(tierBottles.slice(0, pkg.bottles).map(b => b.name)));
-                    }}
-                    className="w-full p-5 text-left"
-                  >
-                    <div className="flex justify-between items-start mb-2">
+                <div key={index} className={`border transition-all ${isSelected ? 'border-[#E5E4E2]/30 bg-white/5' : 'border-white/5 hover:border-white/20'}`}>
+                  <button onClick={() => {
+                    setSelectedLiquor(index);
+                    setSelectedBottles(new Set(tierBottles.slice(0, pkg.bottles).map(b => b.name)));
+                  }} className="w-full p-5 text-left">
+                    <div className="flex justify-between items-start">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="text-xs font-bold uppercase tracking-widest">{pkg.name}</h4>
-                          <span className="text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 border border-[#E5E4E2]/30 bg-[#E5E4E2]/5 text-[#E5E4E2]">
-                            {pkg.tier}
-                          </span>
+                          <span className="text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 border border-[#E5E4E2]/30 bg-[#E5E4E2]/5 text-[#E5E4E2]">{pkg.tier}</span>
                         </div>
-                        <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{pkg.description} • {pkg.bottles} bottles included</p>
+                        <p className="text-[8px] uppercase tracking-widest text-white/30">{pkg.description} · {pkg.bottles} bottles</p>
                       </div>
                       <div className="text-right">
                         <span className="text-lg font-light">${pkg.price.toLocaleString()}</span>
-                        {members.length > 0 && <p className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">+${Math.ceil(pkg.price / members.length).toLocaleString()}/person</p>}
+                        {members.length > 0 && (
+                          <motion.p key={`${pkg.price}-${members.length}`} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                            className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">
+                            +${Math.ceil(pkg.price / members.length).toLocaleString()}/person
+                          </motion.p>
+                        )}
                       </div>
                     </div>
                   </button>
-
-                  {/* Expandable Bottle Selection */}
                   <AnimatePresence>
                     {isSelected && tierBottles.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                         className="border-t border-white/5 p-5 bg-zinc-950/40"
                       >
-                        <p className="text-[7px] uppercase tracking-widest text-white/40 mb-3 font-bold">Select {pkg.bottles} bottle(s)</p>
+                        <p className="text-[7px] uppercase tracking-widest text-white/40 mb-3 font-bold">
+                          Select {pkg.bottles} bottle{pkg.bottles > 1 ? 's' : ''} ({selectedBottles.size}/{pkg.bottles})
+                        </p>
                         <div className="grid grid-cols-1 gap-2">
                           {tierBottles.map(bottle => {
                             const isChecked = selectedBottles.has(bottle.name);
-                            const canDeselect = selectedBottles.size > pkg.bottles || isChecked;
+                            // FIX: allow deselect always; only block selecting when at limit
+                            const isDisabled = !isChecked && selectedBottles.size >= pkg.bottles;
                             return (
-                              <button
-                                key={bottle.name}
+                              <button key={bottle.name}
                                 onClick={() => {
+                                  const newSet = new Set(selectedBottles);
                                   if (isChecked) {
-                                    if (selectedBottles.size > pkg.bottles) {
-                                      const newSet = new Set(selectedBottles);
-                                      newSet.delete(bottle.name);
-                                      setSelectedBottles(newSet);
-                                    }
-                                  } else {
-                                    if (selectedBottles.size < pkg.bottles) {
-                                      setSelectedBottles(new Set([...selectedBottles, bottle.name]));
-                                    }
+                                    newSet.delete(bottle.name); // always allow deselect
+                                  } else if (newSet.size < pkg.bottles) {
+                                    newSet.add(bottle.name);
                                   }
+                                  setSelectedBottles(newSet);
                                 }}
-                                disabled={!isChecked && selectedBottles.size >= pkg.bottles}
+                                disabled={isDisabled}
                                 className={`p-3 border text-left text-[8px] font-bold uppercase tracking-widest transition-all ${
-                                  isChecked
-                                    ? 'border-[#E5E4E2]/40 bg-[#E5E4E2]/10 text-white'
-                                    : 'border-white/10 text-white/40 hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed'
+                                  isChecked ? 'border-[#E5E4E2]/40 bg-[#E5E4E2]/10 text-white' : 'border-white/10 text-white/40 hover:border-white/20 disabled:opacity-30 disabled:cursor-not-allowed'
                                 }`}
                               >
                                 <div className="flex items-center justify-between">
                                   <span>{bottle.name}</span>
-                                  <span className="text-[7px] text-white/30">${bottle.price}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[7px] text-white/30">${bottle.price}</span>
+                                    {isChecked && <Check size={10} className="text-[#E5E4E2]" />}
+                                  </div>
                                 </div>
                               </button>
                             );
@@ -773,53 +791,41 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
           </div>
         </div>
 
-        {/* Mixer Selection */}
-        <div className="space-y-6">
+        {/* Mixer Package */}
+        <div className="space-y-4">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Mixer Package</h3>
-
-          {/* Package Tier Selection */}
           <div className="space-y-2">
             {MIXER_PACKAGES.map((pkg, index) => {
               const isSelected = selectedMixer === index;
               const tierMixers = getMixersInTier(pkg.tier);
-              const mixerCount = Math.ceil(tierMixers.length / 2); // Suggest ~half available
+              const mixerCount = Math.ceil(tierMixers.length / 2);
               return (
-                <div
-                  key={index}
-                  className={`border transition-all ${isSelected ? 'border-[#E5E4E2]/30 bg-white/5' : 'border-white/5 hover:border-white/20'}`}
-                >
-                  {/* Package Header - Always Clickable */}
-                  <button
-                    onClick={() => {
-                      setSelectedMixer(index);
-                      setSelectedMixerItems(new Set(tierMixers.slice(0, mixerCount).map(m => m.name)));
-                    }}
+                <div key={index} className={`border transition-all ${isSelected ? 'border-[#E5E4E2]/30 bg-white/5' : 'border-white/5 hover:border-white/20'}`}>
+                  <button onClick={() => { setSelectedMixer(index); setSelectedMixerItems(new Set(tierMixers.slice(0, mixerCount).map(m => m.name))); }}
                     className="w-full p-5 text-left"
                   >
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="text-xs font-bold uppercase tracking-widest">{pkg.name}</h4>
-                          <span className="text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 border border-[#E5E4E2]/30 bg-[#E5E4E2]/5 text-[#E5E4E2]">
-                            {pkg.tier}
-                          </span>
+                          <span className="text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 border border-[#E5E4E2]/30 bg-[#E5E4E2]/5 text-[#E5E4E2]">{pkg.tier}</span>
                         </div>
-                        <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{pkg.description}</p>
+                        <p className="text-[8px] uppercase tracking-widest text-white/30">{pkg.description}</p>
                       </div>
                       <div className="text-right">
                         <span className="text-lg font-light">${pkg.price.toLocaleString()}</span>
-                        {members.length > 0 && <p className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">+${Math.ceil(pkg.price / members.length).toLocaleString()}/person</p>}
+                        {members.length > 0 && (
+                          <motion.p key={`${pkg.price}-${members.length}`} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                            className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">
+                            +${Math.ceil(pkg.price / members.length).toLocaleString()}/person
+                          </motion.p>
+                        )}
                       </div>
                     </div>
                   </button>
-
-                  {/* Expandable Mixer Selection */}
                   <AnimatePresence>
                     {isSelected && tierMixers.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
+                      <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                         className="border-t border-white/5 p-5 bg-zinc-950/40"
                       >
                         <p className="text-[7px] uppercase tracking-widest text-white/40 mb-3 font-bold">Select mixers</p>
@@ -827,26 +833,20 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                           {tierMixers.map(mixer => {
                             const isChecked = selectedMixerItems.has(mixer.name);
                             return (
-                              <button
-                                key={mixer.name}
+                              <button key={mixer.name}
                                 onClick={() => {
-                                  if (isChecked) {
-                                    const newSet = new Set(selectedMixerItems);
-                                    newSet.delete(mixer.name);
-                                    setSelectedMixerItems(newSet);
-                                  } else {
-                                    setSelectedMixerItems(new Set([...selectedMixerItems, mixer.name]));
-                                  }
+                                  const newSet = new Set(selectedMixerItems);
+                                  isChecked ? newSet.delete(mixer.name) : newSet.add(mixer.name);
+                                  setSelectedMixerItems(newSet);
                                 }}
-                                className={`w-full p-3 border text-left text-[8px] font-bold uppercase tracking-widest transition-all ${
-                                  isChecked
-                                    ? 'border-[#E5E4E2]/40 bg-[#E5E4E2]/10 text-white'
-                                    : 'border-white/10 text-white/40 hover:border-white/20'
-                                }`}
+                                className={`w-full p-3 border text-left text-[8px] font-bold uppercase tracking-widest transition-all ${isChecked ? 'border-[#E5E4E2]/40 bg-[#E5E4E2]/10 text-white' : 'border-white/10 text-white/40 hover:border-white/20'}`}
                               >
                                 <div className="flex items-center justify-between">
                                   <span>{mixer.name}</span>
-                                  <span className="text-[7px] text-white/30">${mixer.price}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[7px] text-white/30">${mixer.price}</span>
+                                    {isChecked && <Check size={10} className="text-[#E5E4E2]" />}
+                                  </div>
                                 </div>
                               </button>
                             );
@@ -872,34 +872,28 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
           ><Copy size={14} /></button>
         </div>
 
-        {/* CTA */}
         <Button onClick={handleConfirm}
-          disabled={confirming || (splitMethod === 'custom' && !customBalanced && !lockedCustom)}
-          className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black flex items-center justify-between px-8 disabled:opacity-30"
+          className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black flex items-center justify-between px-8"
         >
-          {confirming ? <><Loader2 size={16} className="animate-spin mr-3 !text-black" />Saving...</> : <><span>Review &amp; Send Requests</span><ChevronRight size={16} /></>}
+          <span>Review &amp; Confirm</span><ChevronRight size={16} />
         </Button>
-
-        {splitMethod === 'custom' && !customBalanced && (
-          <p className="text-[8px] uppercase tracking-widest text-amber-400 text-center flex items-center justify-center gap-2">
-            <AlertCircle size={11} />
-            {customDiff > 0 ? `$${customDiff} over — reduce someone's amount` : `$${Math.abs(customDiff)} short — increase amounts to balance`}
-          </p>
-        )}
       </div>
     </div>
   );
 }
 
 // ── Confirm Screen ─────────────────────────────────────────────────────────────
-function ConfirmScreen({ splitData, totalCost, splitMethod, memberRails, setMemberRails, memberHandles, setMemberHandles, venue, liquorPkg, mixerPkg, selectedBottles, selectedMixers, confirming, onBack, onSend }: {
+function ConfirmScreen({ splitData, totalCost, splitMethod, memberRails, setMemberRails, memberHandles, setMemberHandles, venue, liquorPkg, mixerPkg, selectedBottles, selectedMixers, confirming, onBack, onSend, tableMin, tableName }: {
   splitData: SplitMember[]; totalCost: number; splitMethod: SplitMethod;
   memberRails: Record<string, PaymentRail>; setMemberRails: (r: any) => void;
   memberHandles: Record<string, string>; setMemberHandles: (h: any) => void;
   venue: any; liquorPkg: any; mixerPkg: any; selectedBottles: string[]; selectedMixers: string[];
   confirming: boolean; onBack: () => void; onSend: () => void;
+  tableMin: number; tableName: string;
 }) {
   const others = splitData.filter(m => m.role !== 'Captain');
+  const captain = splitData.find(m => m.role === 'Captain');
+  const yourShare = captain?.amount ?? (splitData.length ? Math.ceil(totalCost / splitData.length) : 0);
 
   const previewLink = (member: SplitMember) => {
     const rail = PAYMENT_RAILS.find(r => r.id === memberRails[member.name]);
@@ -914,27 +908,37 @@ function ConfirmScreen({ splitData, totalCost, splitMethod, memberRails, setMemb
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="text-white/40 hover:text-white transition-colors"><X size={20} /></button>
           <div>
-            <p className="text-[8px] uppercase tracking-[0.4em] text-white/30 font-bold">Step 2 of 2</p>
-            <h2 className="text-2xl font-serif italic platinum-gradient">Confirm &amp; Pay</h2>
+            <p className="text-[8px] uppercase tracking-[0.4em] text-white/30 font-bold">Step 5 of 5</p>
+            <h2 className="text-2xl font-serif italic platinum-gradient">Review &amp; Pay</h2>
           </div>
         </div>
       </div>
 
       <div className="px-6 py-10 space-y-10">
+        {/* Your share — prominent, not full total */}
+        <div className="bg-zinc-950 border border-white/10 p-8 text-center relative overflow-hidden">
+          <div className="absolute inset-0 marble-bg opacity-20 pointer-events-none" />
+          <div className="relative z-10">
+            <p className="text-[8px] uppercase tracking-[0.4em] text-white/30 font-bold mb-2">Your Share</p>
+            <p className="text-5xl font-serif italic platinum-gradient">${yourShare.toLocaleString()}</p>
+            <p className="text-[8px] uppercase tracking-widest text-white/20 mt-3">{tableName} · {splitMethod === 'even' ? 'Even Split' : splitMethod === 'host' ? 'Host Led' : 'Custom'}</p>
+          </div>
+        </div>
+
         {/* Summary */}
         <div className="space-y-3">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Booking Summary</h3>
           <div className="bg-zinc-950 border border-white/10 divide-y divide-white/5">
             {[
-              { label: venue?.name ?? 'Venue', value: venue?.selectedTable?.name ?? 'VIP Table' },
+              { label: venue?.name ?? 'Venue', value: tableName },
+              { label: 'Table Minimum', value: '$' + tableMin.toLocaleString() },
               { label: 'Bottles', value: liquorPkg.name },
               { label: 'Mixers', value: mixerPkg.name },
-              { label: 'Split', value: splitMethod === 'even' ? 'Even Split' : splitMethod === 'host' ? 'Host Led' : 'Custom' },
-              { label: 'Total', value: '$' + totalCost.toLocaleString(), accent: true },
+              { label: 'Guests', value: splitData.length + ' people' },
             ].map(row => (
               <div key={row.label} className="flex justify-between items-center px-5 py-3">
                 <span className="text-[8px] uppercase tracking-widest text-white/30">{row.label}</span>
-                <span className={`text-[10px] font-bold uppercase tracking-wider ${(row as any).accent ? 'text-[#E5E4E2]' : 'text-white/70'}`}>{row.value}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-white/70">{row.value}</span>
               </div>
             ))}
           </div>
