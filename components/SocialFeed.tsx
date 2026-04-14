@@ -287,10 +287,10 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6 }}
-                  className="px-6 py-8 platinum-border rounded-sm bg-gradient-to-br from-[#0a0a0a] to-[#000504] my-6 group"
+                  className="px-4 py-4 platinum-border rounded-sm bg-gradient-to-br from-[#0a0a0a] to-[#000504] my-4 group"
                 >
                   {/* User Header with Tier Badge */}
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-4">
                       <Avatar className="w-12 h-12 rounded-none platinum-border overflow-hidden bg-zinc-800">
                         <AvatarFallback className="bg-[#0a0a0a] text-[11px] font-bold text-[#E5E4E2] rounded-none">
@@ -313,10 +313,10 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                   </div>
 
                   {/* Divider */}
-                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent mb-6" />
+                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent mb-3" />
 
                   {/* Message */}
-                  <p className="text-base font-serif font-light leading-relaxed text-white italic mb-6 text-[#E5E4E2]/95">
+                  <p className="text-base font-serif font-light leading-relaxed text-white italic mb-3 text-[#E5E4E2]/95">
                     "{post.message}"
                   </p>
 
@@ -324,15 +324,15 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                   <motion.div
                     whileHover={{ scale: 1.02 }}
                     transition={{ duration: 0.3 }}
-                    className="mb-6 group/venue cursor-pointer platinum-border rounded-sm overflow-hidden bg-[#000504]"
+                    className="mb-3 group/venue cursor-pointer platinum-border rounded-sm overflow-hidden bg-[#000504]"
                     onClick={() => onVenueClick(post.venue)}
                   >
-                    <div className="flex h-28 overflow-hidden">
+                    <div className="flex h-20 overflow-hidden">
                       <div
-                        className="w-32 h-full bg-cover bg-center flex-shrink-0 grayscale group-hover/venue:grayscale-0 transition-all duration-700 group-hover/venue:scale-110"
+                        className="w-24 h-full bg-cover bg-center flex-shrink-0 grayscale group-hover/venue:grayscale-0 transition-all duration-700 group-hover/venue:scale-110"
                         style={{ backgroundImage: `url(${post.venue.image})` }}
                       />
-                      <div className="flex-1 p-5 flex flex-col justify-between">
+                      <div className="flex-1 p-3 flex flex-col justify-between">
                         <div>
                           <h3 className="text-sm font-bold uppercase tracking-wider text-white group-hover/venue:platinum-gradient transition-all">{post.venue.name}</h3>
                           <p className="text-[10px] text-white/50 uppercase tracking-widest mt-1">{post.venue.time}</p>
@@ -346,7 +346,7 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                   </motion.div>
 
                   {/* Divider */}
-                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent mb-6" />
+                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent mb-3" />
 
                   {/* Stats & CTA */}
                   <div className="flex items-center justify-between">
