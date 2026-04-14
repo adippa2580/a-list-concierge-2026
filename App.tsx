@@ -173,13 +173,21 @@ export default function App() {
     }
 
     if (accessToken) {
-      // Fragment-based session (older Supabase flows)
+      // Fragment-based session — Supabase default for password recovery emails
+      // MUST check type=recovery BEFORE routing, otherwise lands in app instead of reset screen
+      const fragmentType = hashParams.get('type');
       supabase.auth.setSession({
         access_token: accessToken,
         refresh_token: hashParams.get('refresh_token') ?? '',
       }).then(({ error }) => {
         window.history.replaceState({}, document.title, '/');
-        setAppState(error ? 'login' : 'app');
+        if (error) {
+          setAppState('login');
+        } else if (fragmentType === 'recovery') {
+          setAppState('password-reset');
+        } else {
+          setAppState('app');
+        }
       });
       return;
     }

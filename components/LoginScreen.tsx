@@ -30,7 +30,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
     }
     setLoading(true);
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: window.location.origin,
     });
     setLoading(false);
     if (resetError) {
