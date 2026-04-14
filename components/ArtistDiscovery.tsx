@@ -325,6 +325,76 @@ export function ArtistDiscovery() {
 
       <div className="px-6 py-8 space-y-10">
 
+        {/* SONOVOS HQ FEED */}
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Sonovos HQ</h2>
+              <p className="text-[8px] uppercase tracking-widest text-white/25 mt-0.5">Weekly drops · Event recaps · Artist revenue</p>
+            </div>
+            <span className="text-[7px] font-bold uppercase tracking-widest px-2 py-1 border border-[#E5E4E2]/20 text-[#E5E4E2]/40">Live</span>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              {
+                type: 'WEEKLY DROP',
+                title: 'This Week in Miami',
+                body: 'Calvin Harris closes out WMC. LIV tables at 3× baseline. Four artists hitting personal revenue highs on Sonovos.',
+                date: 'Apr 14',
+                accent: true,
+              },
+              {
+                type: 'ARTIST REVENUE',
+                title: 'John Summit — $48K weekend',
+                body: 'Highest single-weekend revenue on the platform. Factory Town + Treehouse back-to-back drove 2.3K group bookings.',
+                date: 'Apr 13',
+                accent: false,
+              },
+              {
+                type: 'EVENT RECAP',
+                title: 'Peggy Gou @ LIV — Sold Out',
+                body: '680+ attended. 94% of VIP tables pre-booked via A-List. Average group size: 5.2. Repeat booking rate: 61%.',
+                date: 'Apr 10',
+                accent: false,
+              },
+              {
+                type: 'TRENDING',
+                title: 'Afro House surging in MIA',
+                body: 'Black Coffee, Themba, and Enoo Napa showing 3× streaming velocity this week. Venue demand up 40% YoY.',
+                date: 'Apr 9',
+                accent: false,
+              },
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.06 }}
+                className={`p-4 border transition-all cursor-pointer group ${
+                  item.accent
+                    ? 'border-[#E5E4E2]/25 bg-[#E5E4E2]/5 hover:bg-[#E5E4E2]/8'
+                    : 'border-white/8 bg-zinc-950/40 hover:border-[#E5E4E2]/20'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <span className={`text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 border ${
+                    item.accent
+                      ? 'border-[#E5E4E2]/30 text-[#E5E4E2] bg-[#E5E4E2]/10'
+                      : 'border-white/15 text-white/40'
+                  }`}>{item.type}</span>
+                  <span className="text-[7px] uppercase tracking-widest text-white/25 flex-shrink-0">{item.date}</span>
+                </div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-white group-hover:platinum-gradient transition-all mb-1">
+                  {item.title}
+                </h4>
+                <p className="text-[9px] text-white/45 leading-relaxed">{item.body}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
         {/* EVENT RECAPS Section */}
         <div className="space-y-6">
           <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Event Recaps</h2>

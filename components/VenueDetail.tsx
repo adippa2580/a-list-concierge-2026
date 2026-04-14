@@ -162,12 +162,12 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
       {/* Content */}
       <div className="px-6 py-8">
         <Tabs defaultValue="tables" className="w-full">
-          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-none h-auto p-0 justify-start gap-8 mb-8">
-            {['Tables', 'Inventory', 'Rules', 'Media'].map(tab => (
+          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-none h-auto p-0 justify-start gap-6 mb-8 overflow-x-auto scrollbar-hide">
+            {['Tables', 'Live View', 'Inventory', 'Rules', 'Media'].map(tab => (
               <TabsTrigger 
                 key={tab}
-                value={tab.toLowerCase()} 
-                className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 data-[state=active]:text-white transition-all"
+                value={tab.toLowerCase().replace(' ', '-')} 
+                className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 data-[state=active]:text-white transition-all whitespace-nowrap flex-shrink-0"
               >
                 {tab}
               </TabsTrigger>
@@ -186,7 +186,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
               >
                 <div className="flex justify-between items-start mb-4">
                   <div>
-                    <h4 className="text-sm font-bold uppercase tracking-widest">{table.name}</h4>
+                    <h4 className="text-[11px] font-bold uppercase tracking-widest">{table.name}</h4>
                     <div className="flex items-center gap-3 mt-1 text-[9px] uppercase tracking-widest text-white/40">
                       <span>{table.capacity} guests</span>
                     </div>
@@ -218,6 +218,88 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                 )}
               </div>
             ))}
+          </TabsContent>
+
+          {/* LIVE VIEW TAB — first-person immersive table perspective */}
+          <TabsContent value="live-view" className="mt-0 space-y-6">
+            <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-bold">
+              What you'll actually see from each table
+            </p>
+
+            {tables.filter(t => t.available).map((table, i) => (
+              <div key={i} className="border border-white/10 overflow-hidden group">
+                {/* Simulated POV image */}
+                <div className="relative h-52 bg-zinc-950 overflow-hidden">
+                  <img
+                    src={[
+                      'https://images.unsplash.com/photo-1566737236500-c8ac43014a67?w=800&q=80',
+                      'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=800&q=80',
+                      'https://images.unsplash.com/photo-1545128485-c400e7702796?w=800&q=80',
+                    ][i % 3]}
+                    alt={`View from ${table.name}`}
+                    className="w-full h-full object-cover grayscale-[40%] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+
+                  {/* POV label */}
+                  <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm border border-white/10 px-2.5 py-1.5">
+                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" />
+                    <span className="text-[7px] font-bold uppercase tracking-widest text-white">Live Angle</span>
+                  </div>
+
+                  {/* Table name overlay */}
+                  <div className="absolute bottom-3 left-3 right-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white">{table.name}</p>
+                    <p className="text-[8px] uppercase tracking-widest text-white/50 mt-0.5">{table.capacity} guests · ${table.min.toLocaleString()} min</p>
+                  </div>
+                </div>
+
+                {/* What you'll see breakdown */}
+                <div className="p-4 space-y-3 bg-zinc-950/60">
+                  <p className="text-[8px] uppercase tracking-[0.2em] text-white/30 font-bold">From this table you'll see</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      ...(i === 0 ? [
+                        { label: 'DJ Booth', value: 'Direct sightline' },
+                        { label: 'Dance Floor', value: 'Full panoramic' },
+                        { label: 'Stage', value: 'Centre view' },
+                        { label: 'Bar', value: '15m · easy access' },
+                      ] : i === 1 ? [
+                        { label: 'DJ Booth', value: 'Elevated angle' },
+                        { label: 'Dance Floor', value: 'Bird\'s eye' },
+                        { label: 'Entrance', value: 'Full visibility' },
+                        { label: 'Bar', value: '8m · closest' },
+                      ] : [
+                        { label: 'DJ Booth', value: 'Side stage' },
+                        { label: 'Dance Floor', value: 'Left panoramic' },
+                        { label: 'Outdoor', value: 'Terrace access' },
+                        { label: 'Bar', value: '20m · far end' },
+                      ])
+                    ].map(({ label, value }) => (
+                      <div key={label} className="border border-white/5 px-3 py-2">
+                        <p className="text-[7px] uppercase tracking-widest text-white/25">{label}</p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide text-white/70 mt-0.5">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => onBookTable({ ...venue, selectedTable: table })}
+                    className="w-full py-3 bg-white text-[#000504] font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all !text-black mt-2"
+                  >
+                    Book This Table
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {tables.filter(t => !t.available).length > 0 && (
+              <div className="border border-white/5 p-4 text-center">
+                <p className="text-[8px] uppercase tracking-widest text-white/20">
+                  {tables.filter(t => !t.available).length} table{tables.filter(t => !t.available).length > 1 ? 's' : ''} sold out tonight
+                </p>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="inventory" className="mt-0">
