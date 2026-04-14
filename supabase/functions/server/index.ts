@@ -2361,6 +2361,72 @@ app.get("/member-club/events", async (c) => {
   }
 });
 
+// ── ADMIN: List all registered users ─────────────────────────────────────────
+// GET /admin/users?adminKey=SECRET
+// Returns auth.users joined with their KV profile data.
+// Protected by a simple shared secret (ADMIN_SECRET env var).
+app.get("/admin/users", async (c) => {
+  const adminKey = c.req.query("adminKey");
+  const ADMIN_SECRET = Deno.env.get("ADMIN_SECRET") ?? "alist-admin-2026";
+  if (adminKey !== ADMIN_SECRET) {
+    return c.json({ error: "Unauthorized" }, 401 as ContentfulStatusCode);
+  }
+
+  if (!SUPABASE_SERVICE_KEY) {
+    return c.json({ error: "Service key not configured" }, 500 as ContentfulStatusCode);
+  }
+
+  try {
+    // Fetch all auth users via Supabase Admin API
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users?per_page=1000`, {
+      headers: {
+        "Authorization": `Bearer ${SUPABASE_SERVICE_KEY}`,
+        "apikey": SUPABASE_SERVICE_KEY,
+      }
+    });
+    const data = await res.json();
+    const authUsers = (data.users ?? []) as Array<{
+      id: string;
+      email: string;
+      created_at: string;
+      last_sign_in_at: string | null;
+      email_confirmed_at: string | null;
+      user_metadata?: Record<string, unknown>;
+    }>;
+
+    // Enrich each user with their KV profile data
+    const enriched = await Promise.all(authUsers.map(async (u) => {
+      const profile = await kv.get(`profile:${u.id}`) as Record<string, unknown> | null;
+      const spotify = await kv.get(`spotify_token_${u.id}`) as { display_name?: string } | null;
+      const soundcloud = await kv.get(`soundcloud_token_${u.id}`) as { username?: string } | null;
+      const instagram = await kv.get(`instagram_token_${u.id}`) as { username?: string } | null;
+      return {
+        id: u.id,
+        email: u.email,
+        created_at: u.created_at,
+        last_sign_in_at: u.last_sign_in_at,
+        email_confirmed: !!u.email_confirmed_at,
+        name: (profile as any)?.name ?? (u.user_metadata?.full_name as string) ?? null,
+        location: (profile as any)?.personalDetails?.location ?? null,
+        member_since: (profile as any)?.memberSince ?? null,
+        vibe_tags: (profile as any)?.vibeTags ?? [],
+        spotify: spotify ? (spotify.display_name ?? 'Connected') : null,
+        soundcloud: soundcloud ? (soundcloud.username ?? 'Connected') : null,
+        instagram: instagram ? (instagram.username ?? 'Connected') : null,
+        has_profile: !!profile,
+      };
+    }));
+
+    // Sort newest first
+    enriched.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return c.json({ users: enriched, total: enriched.length });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return c.json({ error: msg }, 500 as ContentfulStatusCode);
+  }
+});
+
 Deno.serve(app.fetch);
 
 

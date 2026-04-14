@@ -22,6 +22,7 @@ import { JoinCrewScreen } from "./components/JoinCrewScreen";
 import { OnboardingScreen, ONBOARDING_DONE_KEY } from "./components/OnboardingScreen";
 import { MemberClubsFeed } from "./components/MemberClubsFeed";
 import { AIConcierge } from "./components/AIConcierge";
+import { AdminPortal } from "./components/AdminPortal";
 import { AListLogo } from "./components/AListLogo";
 import { projectId, publicAnonKey } from './utils/supabase/info';
 import { supabase } from './utils/supabase/client';
@@ -57,7 +58,8 @@ type ViewType =
   | "ai-concierge"
   | "calendar"
   | "member-clubs"
-  | "bookings";
+  | "bookings"
+  | "admin";
 
 type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify-callback" | "soundcloud-callback" | "instagram-callback" | "join-crew";
 
@@ -419,6 +421,7 @@ export default function App() {
                         <MenuButton icon={Shield} label="VIP Status" onClick={() => navigateTo("vip")} />
                         <MenuButton icon={Trophy} label="2025 Year in Review" onClick={() => navigateTo("year-review")} />
                         <MenuButton icon={Sparkles} label="AI Concierge" onClick={() => navigateTo("ai-concierge")} highlight />
+                        <MenuButton icon={Shield} label="Admin Portal" onClick={() => navigateTo("admin")} />
                       </div>
                     </div>
 
@@ -491,6 +494,7 @@ export default function App() {
                 {currentView === "ai-concierge" && <AIConcierge />}
                 {currentView === "calendar" && <EventCalendar />}
                 {currentView === "bookings" && <BookingsSchedule />}
+                {currentView === "admin" && <AdminPortal />}
                 {currentView === "member-clubs" && (
                   <MemberClubsFeed onManageClubs={() => navigateTo("profile")} />
                 )}
