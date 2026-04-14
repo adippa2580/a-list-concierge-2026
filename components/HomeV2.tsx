@@ -338,8 +338,19 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.6 }}
-            className="relative mx-4 mt-3 rounded-2xl overflow-hidden"
+            className="relative mx-4 mt-3 rounded-2xl overflow-hidden cursor-pointer"
             style={{ minHeight: 280 }}
+            onClick={() => onVenueClick?.({
+              id: heroEvent.id,
+              name: heroEvent.tmVenueName || heroEvent.venue,
+              image: heroEvent.image,
+              date: heroEvent.date,
+              ticketUrl: heroEvent.tmTicketUrl || heroEvent.ticketUrl,
+              source: heroEvent.source,
+              tables: [],
+              minSpend: 500,
+              location: heroEvent.venue,
+            })}
           >
             {/* Background image with colour bleed */}
             <div className="absolute inset-0">
@@ -382,6 +393,7 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
                         href={heroEvent.ticketUrl}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={e => e.stopPropagation()}
                         className="flex items-center gap-1.5 bg-white text-black text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full hover:bg-white/90 transition-colors active:scale-95"
                       >
                         Get Tickets
@@ -389,17 +401,20 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
                     )}
                     {onBookTable && (
                       <button
-                        onClick={() => onBookTable({
-                          id: heroEvent.id,
-                          name: heroEvent.tmVenueName || heroEvent.venue,
-                          image: heroEvent.image,
-                          date: heroEvent.date,
-                          ticketUrl: heroEvent.tmTicketUrl || heroEvent.ticketUrl,
-                          source: heroEvent.source,
-                          tables: [],
-                          minSpend: 500,
-                          location: heroEvent.venue,
-                        })}
+                        onClick={e => {
+                          e.stopPropagation();
+                          onBookTable({
+                            id: heroEvent.id,
+                            name: heroEvent.tmVenueName || heroEvent.venue,
+                            image: heroEvent.image,
+                            date: heroEvent.date,
+                            ticketUrl: heroEvent.tmTicketUrl || heroEvent.ticketUrl,
+                            source: heroEvent.source,
+                            tables: [],
+                            minSpend: 500,
+                            location: heroEvent.venue,
+                          });
+                        }}
                         className="flex items-center gap-1.5 bg-white/10 border border-white/20 text-white text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-full hover:bg-white/20 transition-colors active:scale-95"
                       >
                         Book Table
@@ -509,20 +524,12 @@ function FullBleedCard({ event, onBook, onVenueClick, isTall }: {
   const ticketUrl = event.tmTicketUrl || event.ticketUrl;
   const attendance = fakeAttendance(event.id);
 
-  const handleTap = () => {
-    if (ticketUrl) {
-      window.open(ticketUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      onBook();
-    }
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      onClick={handleTap}
+      onClick={onVenueClick}
       className={`relative rounded-xl overflow-hidden cursor-pointer group ${isTall ? 'row-span-2' : 'row-span-1'}`}
       style={{ minHeight: 0 }}
     >
@@ -557,29 +564,29 @@ function FullBleedCard({ event, onBook, onVenueClick, isTall }: {
 
       {/* Bottom info */}
       <div className="absolute bottom-0 left-0 right-0 p-3">
-        <button
-          onClick={e => { e.stopPropagation(); onVenueClick(); }}
-          className="text-[8px] text-white/50 uppercase tracking-widest mb-0.5 truncate block hover:text-white/80 transition-colors text-left w-full"
-        >
-          {displayVenue}
-        </button>
+        <p className="text-[8px] text-white/50 uppercase tracking-widest mb-0.5 truncate">{displayVenue}</p>
         <h3 className="text-xs font-bold text-white leading-tight line-clamp-2 mb-1.5">{displayName}</h3>
         <div className="flex items-center justify-between">
           <p className="text-[8px] text-white/40 uppercase tracking-wider">{event.date}</p>
           <div className="flex items-center gap-1.5">
-            {ticketUrl && (
-              <div className="flex items-center gap-1 bg-white/15 backdrop-blur-sm rounded-full px-2 py-0.5">
-                <Ticket size={7} className="text-white/70" />
-                <span className="text-[7px] text-white/70 font-bold uppercase">Tickets</span>
-              </div>
-            )}
-            {!ticketUrl && (
-              <div
-                onClick={e => { e.stopPropagation(); onBook(); }}
-                className="flex items-center gap-1 bg-white/15 backdrop-blur-sm rounded-full px-2 py-0.5 cursor-pointer hover:bg-white/25 transition-colors"
+            {ticketUrl ? (
+              <a
+                href={ticketUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="flex items-center gap-1 bg-white text-black rounded-full px-2 py-0.5 active:scale-95 transition-transform"
               >
-                <span className="text-[7px] text-white/70 font-bold uppercase">Book</span>
-              </div>
+                <Ticket size={7} className="text-black" />
+                <span className="text-[7px] text-black font-bold uppercase">Tickets</span>
+              </a>
+            ) : (
+              <button
+                onClick={e => { e.stopPropagation(); onBook(); }}
+                className="flex items-center gap-1 bg-white/15 backdrop-blur-sm rounded-full px-2 py-0.5 hover:bg-white/25 transition-colors active:scale-95"
+              >
+                <span className="text-[7px] text-white/70 font-bold uppercase">Book Table</span>
+              </button>
             )}
           </div>
         </div>

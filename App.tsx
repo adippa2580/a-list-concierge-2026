@@ -24,6 +24,7 @@ import { MemberClubsFeed } from "./components/MemberClubsFeed";
 import { AIConcierge } from "./components/AIConcierge";
 import { AdminPortal } from "./components/AdminPortal";
 import { HomeV2 } from "./components/HomeV2";
+import { PasswordResetScreen } from "./components/PasswordResetScreen";
 import { AListLogo } from "./components/AListLogo";
 import { projectId, publicAnonKey } from './utils/supabase/info';
 import { supabase } from './utils/supabase/client';
@@ -62,7 +63,7 @@ type ViewType =
   | "bookings"
   | "admin";
 
-type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify-callback" | "soundcloud-callback" | "instagram-callback" | "join-crew";
+type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify-callback" | "soundcloud-callback" | "instagram-callback" | "join-crew" | "password-reset";
 
 export default function App() {
   const { userId } = useAuth();
@@ -158,7 +159,12 @@ export default function App() {
         .then(({ data, error }) => {
           window.history.replaceState({}, document.title, '/');
           if (!error && data.session) {
-            setAppState('app');
+            // Recovery type = password reset — show the update password screen
+            if (type === 'recovery') {
+              setAppState('password-reset');
+            } else {
+              setAppState('app');
+            }
           } else {
             setAppState('login');
           }
@@ -338,6 +344,11 @@ export default function App() {
         }}
       />
     );
+  }
+
+  // Handle password reset — user arrived via email link, session is active, collect new password
+  if (appState === "password-reset") {
+    return <PasswordResetScreen onComplete={() => setAppState('app')} />;
   }
 
   // Main app
