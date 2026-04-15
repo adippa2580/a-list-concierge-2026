@@ -46,6 +46,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
   const [loadingTables, setLoadingTables] = useState(false);
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [selectedTable, setSelectedTable] = useState<any>(null);
+  const [mediaView, setMediaView] = useState<'gallery' | 'map'>('gallery');
 
   useEffect(() => {
     setIsSaved(getFavourites().some((f: any) => f.id === venue?.id || f.name === venue?.name));
@@ -78,7 +79,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
           venue?.tmVenueName,
         ].filter(Boolean).map((s: string) => s.toLowerCase().trim());
 
-        // Fetch all venues (no city filter — more reliable)
+        // Fetch all venues (no city filter â more reliable)
         const listRes = await fetch(
           `https://${projectId}.supabase.co/functions/v1/server/venues`,
           { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
@@ -184,11 +185,11 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
             </button>
             <button
               onClick={async () => {
-                const shareData = { title: venue.name, text: `${venue.name} — ${venue.location}`, url: window.location.href };
+                const shareData = { title: venue.name, text: `${venue.name} â ${venue.location}`, url: window.location.href };
                 if (navigator.share) {
                   try { await navigator.share(shareData); } catch (_) {}
                 } else {
-                  await navigator.clipboard.writeText(`${venue.name} — ${venue.location} | A-List`);
+                  await navigator.clipboard.writeText(`${venue.name} â ${venue.location} | A-List`);
                   // brief visual feedback via aria-label change handled by browser
                 }
               }}
@@ -243,7 +244,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
             ))}
           </TabsList>
 
-          {/* ── TABLES TAB ─────────────────────────────────────────────────── */}
+          {/* ââ TABLES TAB âââââââââââââââââââââââââââââââââââââââââââââââââââ */}
           <TabsContent value="tables" className="space-y-6 mt-0">
 
             {/* Date selector */}
@@ -300,7 +301,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                         </div>
                         <div className="flex items-center gap-3 text-[9px] uppercase tracking-widest text-white/40">
                           <span>{table.section}</span>
-                          <span>{table.capacity_min}–{table.capacity_max} guests</span>
+                          <span>{table.capacity_min}â{table.capacity_max} guests</span>
                         </div>
                       </div>
                       <div className="text-right">
@@ -354,7 +355,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                   onClick={() => onBookTable({ ...venue, selectedTable, selectedDate })}
                   className="w-full h-14 bg-[#E5E4E2] text-black text-[10px] font-bold uppercase tracking-[0.3em] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
-                  Book {selectedTable.name} · ${(selectedTable.min_spend || 0).toLocaleString()} min
+                  Book {selectedTable.name} Â· ${(selectedTable.min_spend || 0).toLocaleString()} min
                 </button>
               </div>
             )}
@@ -366,7 +367,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
             )}
           </TabsContent>
 
-          {/* ── FLOOR MAP TAB ──────────────────────────────────────────────── */}
+          {/* ââ FLOOR MAP TAB ââââââââââââââââââââââââââââââââââââââââââââââââ */}
           <TabsContent value="floor-map" className="mt-0">
             <div className="space-y-4">
               {/* Date selector */}
@@ -398,7 +399,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                     <div>
                       <p className="text-[11px] font-bold uppercase tracking-widest">{selectedTable.name}</p>
                       <p className="text-[9px] text-white/40 uppercase tracking-wider mt-0.5">
-                        {selectedTable.section} · {selectedTable.capacity_min}–{selectedTable.capacity_max} guests
+                        {selectedTable.section} Â· {selectedTable.capacity_min}â{selectedTable.capacity_max} guests
                       </p>
                     </div>
                     <div className="text-right">
@@ -425,7 +426,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
           </TabsContent>
 
 
-          {/* LIVE VIEW TAB — first-person immersive table perspective */}
+          {/* LIVE VIEW TAB â first-person immersive table perspective */}
           <TabsContent value="live-view" className="mt-0 space-y-6">
             <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-bold">
               What you'll actually see from each table
@@ -451,7 +452,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                   <div className="absolute bottom-3 left-3 right-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white">{table.name}</p>
                     <p className="text-[8px] uppercase tracking-widest text-white/50 mt-0.5">
-                      {table.capacity_min}–{table.capacity_max} guests · ${(table.min_spend || 0).toLocaleString()} min
+                      {table.capacity_min}â{table.capacity_max} guests Â· ${(table.min_spend || 0).toLocaleString()} min
                     </p>
                   </div>
                 </div>
@@ -462,7 +463,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                       { label: 'DJ Booth', value: i === 0 ? 'Direct sightline' : i === 1 ? 'Elevated angle' : 'Side stage' },
                       { label: 'Dance Floor', value: i === 0 ? 'Full panoramic' : i === 1 ? "Bird's eye" : 'Left panoramic' },
                       { label: 'Stage', value: i === 0 ? 'Centre view' : i === 1 ? 'Full visibility' : 'Terrace access' },
-                      { label: 'Bar', value: i === 0 ? '15m · easy access' : i === 1 ? '8m · closest' : '20m · far end' },
+                      { label: 'Bar', value: i === 0 ? '15m Â· easy access' : i === 1 ? '8m Â· closest' : '20m Â· far end' },
                     ].map(({ label, value }) => (
                       <div key={label} className="border border-white/5 px-3 py-2">
                         <p className="text-[7px] uppercase tracking-widest text-white/25">{label}</p>
