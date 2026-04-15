@@ -1,7 +1,6 @@
 // A-List Service Worker
 // Strategy: cache-first for static assets, network-first for API calls
-
-const CACHE_NAME = 'alist-v1';
+const CACHE_NAME = 'alist-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
