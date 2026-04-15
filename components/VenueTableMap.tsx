@@ -3,14 +3,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Users, ZoomIn, ZoomOut, Maximize2, X, ChevronRight } from 'lucide-react';
 
-// ── Category config ────────────────────────────────────────────────────────────
+// ââ Category config ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const CAT: Record<string, { color: string; glow: string; label: string; icon: string }> = {
-  vip:         { color: '#a855f7', glow: 'rgba(168,85,247,0.4)', label: 'VIP',         icon: '★' },
-  skybox:      { color: '#3b82f6', glow: 'rgba(59,130,246,0.4)',  label: 'Skybox',     icon: '◈' },
-  booth:       { color: '#10b981', glow: 'rgba(16,185,129,0.4)',  label: 'Booth',      icon: '▣' },
-  stage_front: { color: '#f59e0b', glow: 'rgba(245,158,11,0.4)',  label: 'Stage Front',icon: '♦' },
-  patio:       { color: '#06b6d4', glow: 'rgba(6,182,212,0.4)',   label: 'Patio',      icon: '◎' },
-  bar:         { color: '#ef4444', glow: 'rgba(239,68,68,0.4)',   label: 'Bar',        icon: '▲' },
+  vip:         { color: '#a855f7', glow: 'rgba(168,85,247,0.4)', label: 'VIP',         icon: 'â' },
+  skybox:      { color: '#3b82f6', glow: 'rgba(59,130,246,0.4)',  label: 'Skybox',     icon: 'â' },
+  booth:       { color: '#10b981', glow: 'rgba(16,185,129,0.4)',  label: 'Booth',      icon: 'â£' },
+  stage_front: { color: '#f59e0b', glow: 'rgba(245,158,11,0.4)',  label: 'Stage Front',icon: 'â¦' },
+  patio:       { color: '#06b6d4', glow: 'rgba(6,182,212,0.4)',   label: 'Patio',      icon: 'â' },
+  bar:         { color: '#ef4444', glow: 'rgba(239,68,68,0.4)',   label: 'Bar',        icon: 'â²' },
 };
 
 function catCfg(cat: string) { return CAT[cat] ?? CAT.vip; }
@@ -33,6 +33,9 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pulseOn, setPulseOn] = useState(true);
   const svgRef = useRef<SVGSVGElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const lastTouchDist = useRef<number | null>(null);
+  const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setPulseOn(p => !p), 1400);
@@ -65,6 +68,54 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
   const zoomOut = () => setZoom(z => Math.max(z - 0.35, 0.5));
   const reset   = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
 
+  // Touch handlers for mobile
+  const getTouchDist = (touches: React.TouchList) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+  const getTouchCenter = (touches: React.TouchList) => ({
+    x: (touches[0].clientX + touches[1].clientX) / 2,
+    y: (touches[0].clientY + touches[1].clientY) / 2,
+  });
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if ((e.target as Element).closest('[data-table]')) return;
+    if (e.touches.length === 2) {
+      lastTouchDist.current = getTouchDist(e.touches);
+      lastTouchCenter.current = getTouchCenter(e.touches);
+    } else if (e.touches.length === 1) {
+      setIsPanning(true);
+      setPanStart({ x: e.touches[0].clientX - pan.x, y: e.touches[0].clientY - pan.y });
+    }
+  }, [pan]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    if (e.touches.length === 2 && lastTouchDist.current !== null) {
+      const newDist = getTouchDist(e.touches);
+      const scale = newDist / lastTouchDist.current;
+      setZoom(z => Math.max(0.5, Math.min(3.5, z * scale)));
+      lastTouchDist.current = newDist;
+      const center = getTouchCenter(e.touches);
+      if (lastTouchCenter.current) {
+        setPan(p => ({
+          x: p.x + (center.x - lastTouchCenter.current!.x),
+          y: p.y + (center.y - lastTouchCenter.current!.y),
+        }));
+      }
+      lastTouchCenter.current = center;
+    } else if (e.touches.length === 1 && isPanning) {
+      setPan({ x: e.touches[0].clientX - panStart.x, y: e.touches[0].clientY - panStart.y });
+    }
+  }, [isPanning, panStart]);
+
+  const handleTouchEnd = useCallback(() => {
+    setIsPanning(false);
+    lastTouchDist.current = null;
+    lastTouchCenter.current = null;
+  }, []);
+
   const dateLabel = date
     ? new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
     : 'Tonight';
@@ -72,7 +123,7 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
   return (
     <div className="flex flex-col gap-3 select-none">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
+      {/* ââ Header âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-white/80">
@@ -92,7 +143,7 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
         </div>
       </div>
 
-      {/* ── Category filter pills ───────────────────────────────────────────── */}
+      {/* ââ Category filter pills âââââââââââââââââââââââââââââââââââââââââââââ */}
       <div className="flex gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
         {['all', ...categories].map(cat => {
           const isAll = cat === 'all';
@@ -121,19 +172,25 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
         })}
       </div>
 
-      {/* ── Main map ───────────────────────────────────────────────────────── */}
+      {/* ââ Main map âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
       <div
+        ref={mapContainerRef}
         className="relative rounded-2xl overflow-hidden border border-white/8"
         style={{
           background: 'radial-gradient(ellipse 80% 60% at 50% 30%, #0e0a1a 0%, #05050c 100%)',
           aspectRatio: '4/3',
           cursor: isPanning ? 'grabbing' : 'grab',
+          touchAction: 'none',
         }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         {/* Subtle grid */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.06 }}>
@@ -219,7 +276,7 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
             <rect x="38" y="95.5" width="24" height="3" rx="1" fill="#0a0a14" stroke="#ffffff15" strokeWidth="0.3" />
             <text x="50" y="97.8" textAnchor="middle" fontSize="1.7" fill="#ffffff25" fontFamily="system-ui" letterSpacing="0.8">ENTRANCE</text>
 
-            {/* ── Tables ─────────────────────────────────────────────────── */}
+            {/* ââ Tables âââââââââââââââââââââââââââââââââââââââââââââââââââ */}
             {filtered.map(table => {
               const cfg = catCfg(table.category);
               const isSel  = selectedTableId === table.id;
@@ -306,7 +363,7 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
           </g>
         </svg>
 
-        {/* ── Zoom controls ─────────────────────────────────────────────────── */}
+        {/* ââ Zoom controls âââââââââââââââââââââââââââââââââââââââââââââââââââ */}
         <div className="absolute top-3 right-3 flex flex-col gap-1">
           {[
             { icon: <ZoomIn size={11} />, fn: zoomIn },
@@ -327,7 +384,7 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
           </div>
         )}
 
-        {/* ── Hover tooltip ─────────────────────────────────────────────────── */}
+        {/* ââ Hover tooltip âââââââââââââââââââââââââââââââââââââââââââââââââââ */}
         {hoveredTable && hoveredTable.id !== selectedTableId && (
           <div className="absolute bottom-3 left-3 pointer-events-none z-10">
             <div className="bg-black/90 backdrop-blur-md border rounded-xl px-3 py-2.5"
@@ -341,7 +398,7 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
               </div>
               <p className="text-[8px] text-white/40 uppercase tracking-wider mb-1">{hoveredTable.section}</p>
               <div className="flex items-center gap-3 text-[8px] text-white/60">
-                <span className="flex items-center gap-1"><Users size={7} /> {hoveredTable.capacity_min}–{hoveredTable.capacity_max} guests</span>
+                <span className="flex items-center gap-1"><Users size={7} /> {hoveredTable.capacity_min}â{hoveredTable.capacity_max} guests</span>
                 <span>${hoveredTable.min_spend?.toLocaleString()} min</span>
               </div>
             </div>
@@ -351,12 +408,12 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
         {/* Hint text */}
         {zoom === 1 && !hoveredTable && (
           <p className="absolute bottom-3 right-3 text-[7px] uppercase tracking-widest text-white/12 pointer-events-none">
-            Scroll to zoom · Drag to pan
+            Pinch to zoom Â· Drag to pan
           </p>
         )}
       </div>
 
-      {/* ── Selected table booking panel ────────────────────────────────────── */}
+      {/* ââ Selected table booking panel ââââââââââââââââââââââââââââââââââââââ */}
       {selectedTable && (
         <div className="rounded-2xl border overflow-hidden"
           style={{
@@ -374,7 +431,7 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
                 <div>
                   <p className="text-[13px] font-bold uppercase tracking-wider text-white leading-tight">{selectedTable.name}</p>
                   <p className="text-[8px] uppercase tracking-widest text-white/35 mt-0.5">
-                    {selectedTable.section} · {catCfg(selectedTable.category).label}
+                    {selectedTable.section} Â· {catCfg(selectedTable.category).label}
                   </p>
                 </div>
               </div>
@@ -387,7 +444,7 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
             {/* Stats grid */}
             <div className="grid grid-cols-3 gap-2">
               {[
-                { label: 'Guests', value: `${selectedTable.capacity_min}–${selectedTable.capacity_max}` },
+                { label: 'Guests', value: `${selectedTable.capacity_min}â${selectedTable.capacity_max}` },
                 { label: 'Min Spend', value: `$${selectedTable.min_spend >= 1000 ? (selectedTable.min_spend / 1000).toFixed(0) + 'k' : selectedTable.min_spend}` },
                 { label: 'Status', value: 'Available', green: true },
               ].map(stat => (
@@ -434,7 +491,7 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
         </div>
       )}
 
-      {/* ── Legend ─────────────────────────────────────────────────────────── */}
+      {/* ââ Legend âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
       {!selectedTable && (
         <div className="flex flex-wrap gap-x-4 gap-y-2 px-1">
           {categories.map(cat => {
@@ -458,3 +515,4 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
     </div>
   );
 }
+
