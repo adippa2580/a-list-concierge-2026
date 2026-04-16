@@ -794,7 +794,8 @@ function generateCuratedEvents(cityName: string, searchQuery?: string) {
     name: { text: eventNames[i % eventNames.length] },
     venue: { name: venues[i % venues.length] },
     start: { local: dateOffset(s.offset, s.hour) },
-    logo: { url: logos[i % logos.length] }
+    logo: { url: logos[i % logos.length] },
+    snippet: vibes[i % vibes.length],
   }));
 
   // Filter by search query if provided

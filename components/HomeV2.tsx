@@ -146,35 +146,46 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
 
           // Sort: preference-boosted → RA → venue+photo → TM → venue-no-photo → rest
           const norm2 = (s: string) => s.toLowerCase();
-          formatted.sort((a: any, b: any) => {
-            // Preference score: higher = better match to user taste
-            const prefScore = (e: any) => {
-              if (!userPrefs.hasPreferences) return 0;
-              let score = 0;
-              const name = norm2(e.name || '');
-              const venue = norm2(e.venue || '');
-              const combined = name + ' ' + venue;
-              // Genre match
-              for (const g of userPrefs.userGenres) {
-                if (combined.includes(g)) score += 3;
-              }
-              // Event type match
-              for (const t of userPrefs.userEventTypes) {
-                if (combined.includes(t)) score += 2;
-              }
-              // Artist match
-              for (const a of userPrefs.artistNames) {
-                if (combined.includes(a)) score += 5;
-              }
-              return score;
-            };
+          const prefScore = (e: any) => {
+            if (!userPrefs.hasPreferences) return 0;
+            let score = 0;
+            const name = norm2(e.name || '');
+            const venue = norm2(e.venue || '');
+            const snippet = norm2(e.snippet || '');
+            const combined = name + ' ' + venue + ' ' + snippet;
+            // Genre match
+            for (const g of userPrefs.userGenres) {
+              if (combined.includes(g)) score += 3;
+            }
+            // Event type match
+            for (const t of userPrefs.userEventTypes) {
+              if (combined.includes(t)) score += 2;
+            }
+            // Artist match
+            for (const a of userPrefs.artistNames) {
+              if (combined.includes(a)) score += 5;
+            }
+            return score;
+          };
+
+          // Filter: when user has preferences, only show events that match at least one preference
+          let results = formatted;
+          if (userPrefs.hasPreferences) {
+            const matched = formatted.filter((e: any) => prefScore(e) > 0);
+            // If we have at least 3 matching events, show only those; otherwise show all to avoid empty feed
+            if (matched.length >= 3) {
+              results = matched;
+            }
+          }
+
+          results.sort((a: any, b: any) => {
             const pa = prefScore(a), pb = prefScore(b);
             if (pa !== pb) return pb - pa; // higher pref score first
             const rank = (e: any) => e.source === 'ra' ? 0 : (e.isVenueSource && e.image) ? 1 : e.isTicketmaster ? 2 : (e.isVenueSource) ? 3 : 4;
             return rank(a) - rank(b) || a.rawDate.getTime() - b.rawDate.getTime();
           });
 
-          setEvents(formatted);
+          setEvents(results);
           setHeroIndex(0);
         }
       } catch (e) {
