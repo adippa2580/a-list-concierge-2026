@@ -546,7 +546,7 @@ const SOUNDCLOUD_REDIRECT_URI = Deno.env.get("SOUNDCLOUD_REDIRECT_URI") || "http
 // Instagram Graph API (OAuth with Instagram Login) configuration
 // Requires: INSTAGRAM_CLIENT_ID, INSTAGRAM_CLIENT_SECRET, INSTAGRAM_REDIRECT_URI
 // App must have instagram_business_basic permission approved.
-const INSTAGRAM_CLIENT_ID = Deno.env.get("INSTAGRAM_CLIENT_ID");
+const INSTAGRAM_CLIENT_ID = Deno.env.get("INSTAGRAM_CLIENT_ID") || "3314046472089398";
 const INSTAGRAM_CLIENT_SECRET = Deno.env.get("INSTAGRAM_CLIENT_SECRET");
 // The redirect URI must be registered in your Meta app and should point
 // directly to the Supabase edge function callback endpoint:
