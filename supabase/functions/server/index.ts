@@ -536,7 +536,7 @@ const app = new Hono().basePath("/server");
 // Spotify OAuth configuration
 const SPOTIFY_CLIENT_ID = Deno.env.get("SPOTIFY_CLIENT_ID");
 const SPOTIFY_CLIENT_SECRET = Deno.env.get("SPOTIFY_CLIENT_SECRET") || "e9cd7524ce804c2c9121e1c4c87a87c6";
-const SPOTIFY_REDIRECT_URI = Deno.env.get("SPOTIFY_REDIRECT_URI") || "https://localhost:3000/spotify/callback";
+const SPOTIFY_REDIRECT_URI = Deno.env.get("SPOTIFY_REDIRECT_URI") || "https://a-list-core-application.web.app";
 
 // SoundCloud OAuth configuration
 const SOUNDCLOUD_CLIENT_ID = Deno.env.get("SOUNDCLOUD_CLIENT_ID");
