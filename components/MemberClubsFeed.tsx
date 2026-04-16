@@ -294,7 +294,7 @@ function ParkHouseLocationPicker({
           onClick={() => onSelect(opt.id)}
           className={`px-4 py-2 text-[9px] font-bold uppercase tracking-[0.2em] transition-all ${
             selected === opt.id
-              ? 'bg-white text-[#000504] !text-black'
+              ? 'bg-white text-black !text-black'
               : 'text-white/40 hover:text-white/70'
           }`}
         >
@@ -528,7 +528,7 @@ export function MemberClubsFeed({ onManageClubs }: MemberClubsFeedProps) {
   // ── Empty state ───────────────────────────────────────────────────────────────
   if (clubs.length === 0 && !loading) {
     return (
-      <div className="min-h-screen bg-[#000504] text-white flex flex-col items-center justify-center px-8 pb-32">
+      <div className="min-h-screen bg-[#060606] text-white flex flex-col items-center justify-center px-8 pb-32">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center space-y-8 max-w-xs">
           <div className="w-20 h-20 border border-white/10 bg-white/5 flex items-center justify-center mx-auto">
             <Building2 size={32} className="text-white/20" />
@@ -538,7 +538,7 @@ export function MemberClubsFeed({ onManageClubs }: MemberClubsFeedProps) {
             <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 leading-loose">Connect your private club memberships to unlock a dedicated member-only event feed.</p>
           </div>
           <div className="flex flex-col gap-3 w-full">
-            <button onClick={onManageClubs} className="w-full py-4 bg-white text-[#000504] font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all flex items-center justify-center gap-2 !text-black">
+            <button onClick={onManageClubs} className="w-full py-4 bg-white text-black font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all flex items-center justify-center gap-2 !text-black">
               <Plus size={12} className="text-black" /> Connect a Club
             </button>
             <div className="flex items-start gap-3 p-4 border border-[#E5E4E2]/10 text-left">
@@ -552,7 +552,7 @@ export function MemberClubsFeed({ onManageClubs }: MemberClubsFeedProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#000504] text-white pb-32">
+    <div className="min-h-screen bg-[#060606] text-white pb-32">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="pt-2 px-6 pb-4">
@@ -797,7 +797,7 @@ export function MemberClubsFeed({ onManageClubs }: MemberClubsFeedProps) {
                                 href={event.portalUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="flex-1 py-3 font-bold text-[9px] uppercase tracking-[0.25em] transition-all flex items-center justify-center gap-2 bg-white text-[#000504] hover:bg-[#E5E4E2] !text-black"
+                                className="flex-1 py-3 font-bold text-[9px] uppercase tracking-[0.25em] transition-all flex items-center justify-center gap-2 bg-white text-black hover:bg-[#E5E4E2] !text-black"
                               >
                                 <ExternalLink size={11} className="text-black" /> View in Portal
                               </a>
@@ -807,7 +807,7 @@ export function MemberClubsFeed({ onManageClubs }: MemberClubsFeedProps) {
                                 className={`flex-1 py-3 font-bold text-[9px] uppercase tracking-[0.25em] transition-all flex items-center justify-center gap-2 ${
                                   rsvped
                                     ? 'border border-[#E5E4E2]/30 text-[#E5E4E2]/60 hover:border-red-500/30 hover:text-red-400'
-                                    : 'bg-white text-[#000504] hover:bg-[#E5E4E2] !text-black'
+                                    : 'bg-white text-black hover:bg-[#E5E4E2] !text-black'
                                 }`}
                               >
                                 {rsvped ? <><Check size={11} /> RSVP'd — Cancel</> : <><Zap size={11} className="text-black" /> RSVP Now</>}

@@ -89,7 +89,7 @@ export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreen
   // ── Success state ──────────────────────────────────────────────────────────
   if (joined && preview) {
     return (
-      <div className="min-h-screen bg-[#000504] flex flex-col items-center justify-center px-8 text-white">
+      <div className="min-h-screen bg-[#060606] flex flex-col items-center justify-center px-8 text-white">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -113,7 +113,7 @@ export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreen
   // ── Error state ────────────────────────────────────────────────────────────
   if (loadError) {
     return (
-      <div className="min-h-screen bg-[#000504] flex flex-col items-center justify-center px-8 text-white">
+      <div className="min-h-screen bg-[#060606] flex flex-col items-center justify-center px-8 text-white">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -138,7 +138,7 @@ export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreen
   // ── Loading state ──────────────────────────────────────────────────────────
   if (!preview) {
     return (
-      <div className="min-h-screen bg-[#000504] flex items-center justify-center">
+      <div className="min-h-screen bg-[#060606] flex items-center justify-center">
         <Loader2 size={24} className="text-[#E5E4E2]/30 animate-spin" />
       </div>
     );
@@ -148,7 +148,7 @@ export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreen
   const expiresIn = Math.max(0, Math.floor((preview.expiresAt - Date.now()) / (1000 * 60 * 60)));
 
   return (
-    <div className="min-h-screen bg-[#000504] flex flex-col text-white">
+    <div className="min-h-screen bg-[#060606] flex flex-col text-white">
       {/* Top glow */}
       <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-b from-[#E5E4E2]/5 to-transparent pointer-events-none" />
 
@@ -166,7 +166,7 @@ export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreen
 
           {/* Crew card */}
           <div className="border border-[#E5E4E2]/15 bg-zinc-950/80 p-8 space-y-6 relative overflow-hidden">
-            <div className="absolute inset-0 marble-bg opacity-10 pointer-events-none" />
+            <div className="absolute inset-0 opacity-10 pointer-events-none" />
             <div className="relative z-10 text-center space-y-4">
               <p className="text-[8px] font-bold uppercase tracking-[0.4em] text-white/30">Join Group</p>
               <div className="text-5xl">{preview.crewEmoji}</div>
@@ -200,7 +200,7 @@ export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreen
               onChange={(e) => setJoinerName(e.target.value)}
               placeholder="Enter your name to join..."
               maxLength={30}
-              className="bg-transparent border-white/10 rounded-none h-12 text-[11px] tracking-widest placeholder:text-white/20 focus:border-white transition-all"
+              className="bg-transparent border-white/10 rounded-xl h-12 text-[11px] tracking-widest placeholder:text-white/20 focus:border-white transition-all"
               onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
               autoFocus
             />
@@ -214,7 +214,7 @@ export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreen
             <Button
               onClick={handleJoin}
               disabled={!joinerName.trim() || joining}
-              className="w-full h-13 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[9px] uppercase tracking-[0.3em] disabled:opacity-30 !text-black h-12"
+              className="w-full h-13 bg-white text-black hover:bg-[#E5E4E2] rounded-full font-bold text-[9px] uppercase tracking-[0.3em] disabled:opacity-30 !text-black h-12"
             >
               {joining
                 ? <><Loader2 size={14} className="animate-spin mr-2" />Joining...</>

@@ -122,9 +122,9 @@ export function BookingsSchedule() {
   };
 
   return (
-    <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
+    <div className="min-h-screen bg-[#060606] text-white pb-40">
       {/* Header */}
-      <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-6 sticky top-0 z-20">
+      <div className="bg-[#060606]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-6 sticky top-0 z-20">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-3xl font-serif italic platinum-gradient leading-none tracking-tight">My Bookings</h2>
@@ -220,7 +220,7 @@ export function BookingsSchedule() {
                           <span className="font-bold">{booking.reference}</span>
                         </div>
                       </div>
-                      <Badge variant="outline" className={`${statusColor(booking.status)} border text-[8px] font-bold uppercase tracking-[0.2em] px-2 py-1 h-fit flex items-center gap-1 rounded-none whitespace-nowrap`}>
+                      <Badge variant="outline" className={`${statusColor(booking.status)} border text-[8px] font-bold uppercase tracking-[0.2em] px-2 py-1 h-fit flex items-center gap-1 rounded-xl whitespace-nowrap`}>
                         {statusIcon(booking.status)}
                         <span>{booking.status}</span>
                       </Badge>
@@ -264,7 +264,7 @@ export function BookingsSchedule() {
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {booking.crewMembers.map((member, idx) => (
-                            <Badge key={idx} variant="secondary" className="bg-white/5 text-white/70 border-white/10 text-[8px] font-bold uppercase tracking-[0.1em] rounded-none">
+                            <Badge key={idx} variant="secondary" className="bg-white/5 text-white/70 border-white/10 text-[8px] font-bold uppercase tracking-[0.1em] rounded-sm">
                               {member}
                             </Badge>
                           ))}

@@ -119,7 +119,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
   if (!venue) return null;
 
   return (
-    <div className="min-h-screen bg-[#000504] text-white pb-32 marble-bg">
+    <div className="min-h-screen bg-[#060606] text-white pb-32">
       {/* Hero Section */}
       <div className="relative h-72 overflow-hidden">
         {mediaView === 'gallery' ? (
@@ -129,7 +129,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
               alt={venue.name}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#000504] via-[#000504]/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#060606] via-[#060606]/40 to-transparent" />
           </>
         ) : (
           <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
@@ -204,10 +204,10 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
         {/* Title Overlay */}
         <div className="absolute bottom-0 left-0 right-0 px-6 pb-6">
           <div className="flex items-center gap-2 mb-2">
-            <Badge className="bg-[#E5E4E2] text-black text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-none border-0">
+            <Badge className="bg-white text-black text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-xl border-0">
               Verified Partner
             </Badge>
-            <Badge className="bg-white/10 border border-white/20 text-white text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-none">
+            <Badge className="bg-white/10 border border-white/20 text-white text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-sm">
               {venue.category}
             </Badge>
           </div>
@@ -232,12 +232,12 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
       {/* Content */}
       <div className="px-6 py-8">
         <Tabs defaultValue="tables" className="w-full">
-          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-none h-auto p-0 justify-start gap-6 mb-8 overflow-x-auto scrollbar-hide">
+          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-xl h-auto p-0 justify-start gap-6 mb-8 overflow-x-auto scrollbar-hide">
             {['Tables', 'Floor Map', 'Live View', 'Rules'].map(tab => (
               <TabsTrigger
                 key={tab}
                 value={tab.toLowerCase().replace(' ', '-')}
-                className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 data-[state=active]:text-white transition-all whitespace-nowrap flex-shrink-0"
+                className="rounded-xl bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 data-[state=active]:text-white transition-all whitespace-nowrap flex-shrink-0"
               >
                 {tab}
               </TabsTrigger>
@@ -353,7 +353,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
               <div className="sticky bottom-4 left-0 right-0">
                 <button
                   onClick={() => onBookTable({ ...venue, selectedTable, selectedDate })}
-                  className="w-full h-14 bg-[#E5E4E2] text-black text-[10px] font-bold uppercase tracking-[0.3em] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                  className="w-full h-14 bg-white text-black text-[10px] font-bold uppercase tracking-[0.3em] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                 >
                   Book {selectedTable.name} Â· ${(selectedTable.min_spend || 0).toLocaleString()} min
                 </button>
@@ -416,7 +416,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                   )}
                   <button
                     onClick={() => onBookTable({ ...venue, selectedTable, selectedDate })}
-                    className="w-full h-12 bg-[#E5E4E2] text-black text-[10px] font-bold uppercase tracking-[0.3em] active:scale-[0.98] transition-all rounded-sm"
+                    className="w-full h-12 bg-white text-black text-[10px] font-bold uppercase tracking-[0.3em] active:scale-[0.98] transition-all rounded-sm"
                   >
                     Book This Table
                   </button>
@@ -473,7 +473,7 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
                   </div>
                   <button
                     onClick={() => onBookTable({ ...venue, selectedTable: table, selectedDate })}
-                    className="w-full py-3 bg-white text-[#000504] font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all mt-2"
+                    className="w-full py-3 bg-white text-black font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all mt-2"
                   >
                     Book This Table
                   </button>

@@ -127,9 +127,9 @@ export function EventCalendar() {
   }, [filteredEvents]);
 
   return (
-    <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
+    <div className="min-h-screen bg-[#060606] text-white pb-40">
       {/* Header */}
-      <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-4 sticky top-0 z-20">
+      <div className="bg-[#060606]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-4 sticky top-0 z-20">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-3xl font-serif italic platinum-gradient leading-none tracking-tight">Event Calendar</h2>
@@ -164,7 +164,7 @@ export function EventCalendar() {
             placeholder="SEARCH EVENTS..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-7 bg-transparent border-0 border-b border-white/10 rounded-none px-0 py-2 text-white placeholder:text-white/20 focus-visible:ring-0 focus-visible:border-[#E5E4E2] transition-all tracking-[0.2em] text-[10px] font-bold uppercase h-10 w-full"
+            className="pl-7 bg-transparent border-0 border-b border-white/10 rounded-xl px-0 py-2 text-white placeholder:text-white/20 focus-visible:ring-0 focus-visible:border-[#E5E4E2] transition-all tracking-[0.2em] text-[10px] font-bold uppercase h-10 w-full"
           />
         </div>
       </div>
@@ -187,9 +187,9 @@ export function EventCalendar() {
         {Object.entries(groupedEvents).map(([dateKey, dateEvents]) => (
           <div key={dateKey} className="space-y-4">
             {/* Date Header */}
-            <div className="sticky top-[220px] z-10 bg-[#000504]/90 backdrop-blur-md py-2 -mx-6 px-6 border-y border-[#E5E4E2]/5 flex justify-between items-center">
+            <div className="sticky top-[220px] z-10 bg-[#060606]/90 backdrop-blur-md py-2 -mx-6 px-6 border-y border-[#E5E4E2]/5 flex justify-between items-center">
               <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-white">{dateKey}</span>
-              <Badge variant="outline" className="border-[#E5E4E2]/10 text-[#E5E4E2]/40 text-[7px] uppercase tracking-[0.2em] px-2 py-0 h-4 rounded-none">
+              <Badge variant="outline" className="border-[#E5E4E2]/10 text-[#E5E4E2]/40 text-[7px] uppercase tracking-[0.2em] px-2 py-0 h-4 rounded-sm">
                 {dateEvents.length} Events
               </Badge>
             </div>

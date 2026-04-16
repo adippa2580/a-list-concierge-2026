@@ -138,7 +138,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center p-6 overflow-y-auto bg-[#000504] text-white">
+    <div className="min-h-screen relative flex items-center justify-center p-6 overflow-y-auto bg-[#060606] text-white">
       {/* Background */}
       <div className="absolute inset-0 z-0">
         <div
@@ -148,7 +148,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
               'url(https://images.unsplash.com/photo-1767713421795-ca09a9d05c38?q=80&w=1080&auto=format&fit=crop)',
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#000504] via-[#000504]/95 to-[#000504]/50" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#060606] via-[#060606]/95 to-[#000504]/50" />
       </div>
 
       <div className="relative z-10 w-full max-w-sm space-y-10">
@@ -163,7 +163,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
             type="button"
             onClick={() => { setMode('signin'); setError(''); setResetSent(false); }}
             className={`flex-1 py-3 text-[9px] font-bold uppercase tracking-[0.25em] transition-all ${
-              mode === 'signin' ? 'bg-white text-[#000504]' : 'text-white/40 hover:text-white/60'
+              mode === 'signin' ? 'bg-white text-black' : 'text-white/40 hover:text-white/60'
             }`}
           >
             Sign In
@@ -172,7 +172,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
             type="button"
             onClick={() => { setMode('signup'); setError(''); setResetSent(false); }}
             className={`flex-1 py-3 text-[9px] font-bold uppercase tracking-[0.25em] transition-all ${
-              mode === 'signup' ? 'bg-white text-[#000504]' : 'text-white/40 hover:text-white/60'
+              mode === 'signup' ? 'bg-white text-black' : 'text-white/40 hover:text-white/60'
             }`}
           >
             Create Account
@@ -204,7 +204,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
                     placeholder="YOUR EMAIL"
                     value={email}
                     onChange={e => { setEmail(e.target.value); setEmailError(''); setError(''); }}
-                    className={`bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${emailError ? 'border-red-500/50' : ''}`}
+                    className={`bg-transparent border-white/10 rounded-xl h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${emailError ? 'border-red-500/50' : ''}`}
                   />
                   {emailError && <p className="text-red-300 text-[9px] uppercase tracking-widest">{emailError}</p>}
                   {error && <p className="text-red-300 text-[9px] uppercase tracking-widest">{error}</p>}
@@ -213,7 +213,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
                   type="button"
                   onClick={handlePasswordReset}
                   disabled={loading}
-                  className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black transition-all disabled:opacity-50"
+                  className="w-full h-14 bg-white text-black hover:bg-[#E5E4E2] rounded-full font-bold text-[10px] uppercase tracking-[0.3em] !text-black transition-all disabled:opacity-50"
                 >
                   {loading ? 'Sending...' : 'Send Reset Link'}
                 </Button>
@@ -249,7 +249,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
                   placeholder="YOUR NAME"
                   value={displayName}
                   onChange={(e) => { setDisplayName(e.target.value); setDisplayNameError(''); }}
-                  className={`bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${displayNameError ? 'border-red-500/50' : ''}`}
+                  className={`bg-transparent border-white/10 rounded-xl h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${displayNameError ? 'border-red-500/50' : ''}`}
                 />
                 {displayNameError && (
                   <p className="text-red-300 text-[9px] uppercase tracking-widest mt-1">{displayNameError}</p>
@@ -266,7 +266,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
                 placeholder="EMAIL ADDRESS"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); setEmailError(''); }}
-                className={`bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${
+                className={`bg-transparent border-white/10 rounded-xl h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${
                   emailError ? 'border-red-500/50' : ''
                 }`}
               />
@@ -284,7 +284,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
                 placeholder="PASSWORD"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setPasswordError(''); }}
-                className={`bg-transparent border-white/10 rounded-none h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${
+                className={`bg-transparent border-white/10 rounded-xl h-14 text-[11px] uppercase tracking-widest placeholder:text-white/20 focus:border-[#E5E4E2] transition-all ${
                   passwordError ? 'border-red-500/50' : ''
                 }`}
               />
@@ -306,7 +306,7 @@ export function LoginScreen({ onSuccess }: LoginScreenProps) {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] active:bg-[#D5D4D2] active:scale-95 rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="w-full h-14 bg-white text-black hover:bg-[#E5E4E2] active:bg-[#D5D4D2] active:scale-95 rounded-full font-bold text-[10px] uppercase tracking-[0.3em] !text-black transition-all disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-white/30"
           >
             {loading ? 'Verifying...' : mode === 'signin' ? 'Verify & Enter' : 'Create Account'}
           </Button>

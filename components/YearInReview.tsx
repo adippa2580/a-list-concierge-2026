@@ -62,7 +62,7 @@ export function YearInReview() {
   const maxSpend = Math.max(...yearStats.monthlyActivity.map(m => m.spend));
 
   return (
-    <div className="min-h-screen bg-black pb-20 marble-bg">
+    <div className="min-h-screen bg-black pb-20">
       {/* Hero Header */}
       <div className="relative bg-zinc-950 border-b border-white/10 p-10 pt-20 text-center overflow-hidden">
         <div className="absolute inset-0 opacity-20 pointer-events-none">
@@ -99,7 +99,7 @@ export function YearInReview() {
 
         <div className="mt-10 flex gap-3 justify-center relative z-10">
           <Button
-            className="bg-white text-black hover:bg-zinc-200 h-12 px-8 rounded-none uppercase tracking-widest text-[10px] font-bold !text-black"
+            className="bg-white text-black hover:bg-zinc-200 h-12 px-8 rounded-xl uppercase tracking-widest text-[10px] font-bold !text-black"
             onClick={async () => {
               const text = `My A-List Year in Review — ${yearStats.venuesVisited} venues, ${yearStats.nightsOut} nights out. #AList`;
               if (navigator.share) {
@@ -117,7 +117,7 @@ export function YearInReview() {
           </Button>
           <Button
             variant="outline"
-            className="border-white/20 text-white hover:bg-white/5 h-12 px-8 rounded-none uppercase tracking-widest text-[10px] font-bold"
+            className="border-white/20 text-white hover:bg-white/5 h-12 px-8 rounded-xl uppercase tracking-widest text-[10px] font-bold"
             onClick={() => {
               localStorage.setItem('alist_year_archived', JSON.stringify({...yearStats, archivedAt: new Date().toISOString()}));
               setArchived(true);
@@ -156,8 +156,8 @@ export function YearInReview() {
         <div className="bg-zinc-950 border border-white/5 p-8">
           <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mb-8">Sonic Preference</h3>
           <div className="flex items-center gap-6">
-            <Avatar className="w-20 h-20 rounded-none gold-border">
-              <AvatarFallback className="rounded-none bg-zinc-900 text-2xl font-light text-white">
+            <Avatar className="w-20 h-20 rounded-xl gold-border">
+              <AvatarFallback className="rounded-xl bg-zinc-900 text-2xl font-light text-white">
                 {yearStats.topArtist.avatar}
               </AvatarFallback>
             </Avatar>
@@ -235,7 +235,7 @@ export function YearInReview() {
           <p className="text-[10px] uppercase tracking-[0.3em] text-white/40 leading-relaxed">
             Allow the community to witness your nightlife legacy
           </p>
-          <Button className="w-full bg-white text-black hover:bg-zinc-200 uppercase tracking-widest text-[11px] font-bold h-14 rounded-none !text-black">
+          <Button className="w-full bg-white text-black hover:bg-zinc-200 uppercase tracking-widest text-[11px] font-bold h-14 rounded-xl !text-black">
             Broadcast Summary
           </Button>
         </div>

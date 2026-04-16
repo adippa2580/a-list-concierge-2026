@@ -63,7 +63,7 @@
     --platinum-light: #f5f5f7;
     --platinum-dark: #8e8e93;
     --emerald: #011410;
-    --emerald-dark: #000504;
+    --emerald-dark: #060606;
     --marble-accent: rgba(255, 255, 255, 0.01);
 
     --chart-1: oklch(0.488 0.243 162);
@@ -93,7 +93,7 @@ html {
   }
 
   body {
-    background-color: #000504;
+    background-color: #060606;
     color: #ffffff;
     font-family: var(--font-sans);
   }
@@ -243,8 +243,8 @@ html {
     border: 1px solid transparent;
     background-image:
       linear-gradient(
-        var(--emerald-dark, #000504),
-        var(--emerald-dark, #000504)
+        var(--emerald-dark, #060606),
+        var(--emerald-dark, #060606)
       ),
       linear-gradient(135deg, #8e8e93, #e5e4e2, #f5f5f7, #8e8e93);
     background-origin: border-box;

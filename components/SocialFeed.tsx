@@ -194,7 +194,7 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                 viewport={{ once: true }}
                 transition={{ duration: 0.8, delay: index * 0.1 }}
                 onClick={() => onVenueClick(venue)}
-                className="w-full group cursor-pointer platinum-border rounded-sm overflow-hidden bg-[#0a0a0a] shadow-2xl"
+                className="w-full group cursor-pointer rounded-xl border border-white/10 overflow-hidden bg-[#0a0a0a] shadow-2xl"
               >
                 {/* Featured Image */}
                 <div className="relative aspect-video overflow-hidden bg-zinc-900">
@@ -287,13 +287,13 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6 }}
-                  className="px-4 py-4 platinum-border rounded-sm bg-gradient-to-br from-[#0a0a0a] to-[#000504] my-4 group"
+                  className="px-4 py-4 rounded-xl border border-white/10 bg-gradient-to-br from-[#0a0a0a] to-[#060606] my-4 group"
                 >
                   {/* User Header with Tier Badge */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-4">
-                      <Avatar className="w-12 h-12 rounded-none platinum-border overflow-hidden bg-zinc-800">
-                        <AvatarFallback className="bg-[#0a0a0a] text-[11px] font-bold text-[#E5E4E2] rounded-none">
+                      <Avatar className="w-12 h-12 rounded-xl platinum-border overflow-hidden bg-zinc-800">
+                        <AvatarFallback className="bg-[#0a0a0a] text-[11px] font-bold text-[#E5E4E2] rounded-sm">
                           {post.user.avatar}
                         </AvatarFallback>
                       </Avatar>
@@ -324,7 +324,7 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                   <motion.div
                     whileHover={{ scale: 1.02 }}
                     transition={{ duration: 0.3 }}
-                    className="mb-3 group/venue cursor-pointer platinum-border rounded-sm overflow-hidden bg-[#000504]"
+                    className="mb-3 group/venue cursor-pointer rounded-xl border border-white/10 overflow-hidden bg-[#060606]"
                     onClick={() => onVenueClick(post.venue)}
                   >
                     <div className="flex h-20 overflow-hidden">

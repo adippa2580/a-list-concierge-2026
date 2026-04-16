@@ -54,7 +54,7 @@ export function BookingForm({ eventName, venueName, price, onSuccess }: BookingF
           <div className="space-y-2">
             <Label className="text-[9px] uppercase tracking-widest text-white/40">Guests</Label>
             <Select defaultValue="2">
-              <SelectTrigger className="bg-black border-white/10 rounded-none h-10 text-xs">
+              <SelectTrigger className="bg-black border-white/10 rounded-xl h-10 text-xs">
                 <SelectValue placeholder="Guests" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-white/10 text-white">
@@ -68,7 +68,7 @@ export function BookingForm({ eventName, venueName, price, onSuccess }: BookingF
           <div className="space-y-2">
             <Label className="text-[9px] uppercase tracking-widest text-white/40">Section</Label>
             <Select defaultValue="vip">
-              <SelectTrigger className="bg-black border-white/10 rounded-none h-10 text-xs">
+              <SelectTrigger className="bg-black border-white/10 rounded-xl h-10 text-xs">
                 <SelectValue placeholder="Section" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-white/10 text-white">
@@ -101,7 +101,7 @@ export function BookingForm({ eventName, venueName, price, onSuccess }: BookingF
 
         <Button 
           type="submit"
-          className="w-full bg-white hover:bg-zinc-200 text-black rounded-none h-12 text-[10px] font-bold uppercase tracking-[0.2em] transition-all group-hover:bg-[#d4af37]"
+          className="w-full bg-white hover:bg-zinc-200 text-black rounded-xl h-12 text-[10px] font-bold uppercase tracking-[0.2em] transition-all group-hover:bg-[#d4af37]"
         >
           REQUEST INVITATION
           <ChevronRight size={14} className="ml-1" />

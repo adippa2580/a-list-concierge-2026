@@ -237,7 +237,7 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
   const STEP_LABELS = ['Profile', 'Social', 'Clubs', 'Enter'];
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#000504] text-white flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-[#060606] text-white flex flex-col overflow-hidden">
       {/* Progress bar */}
       <div className="flex-shrink-0 pt-safe px-6 pt-6 pb-4 space-y-4">
         <div className="flex items-center justify-between">
@@ -248,7 +248,7 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
                 <div
                   className={`flex items-center justify-center w-5 h-5 text-[7px] font-bold uppercase tracking-widest transition-all duration-500 ${
                     i < step
-                      ? 'bg-white text-[#000504]'
+                      ? 'bg-white text-black'
                       : i === step
                       ? 'border border-[#E5E4E2] text-[#E5E4E2]'
                       : 'border border-white/10 text-white/20'
@@ -393,7 +393,7 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
                       value={instagramHandle}
                       onChange={e => setInstagramHandle(e.target.value.replace(/^@/, ''))}
                       placeholder="yourhandle"
-                      className="w-full bg-zinc-950 border border-white/10 rounded-none h-12 pl-8 pr-4 text-[11px] uppercase tracking-widest text-white placeholder:text-white/20 focus:border-[#E5E4E2]/40 focus:outline-none transition-all"
+                      className="w-full bg-zinc-950 border border-white/10 rounded-xl h-12 pl-8 pr-4 text-[11px] uppercase tracking-widest text-white placeholder:text-white/20 focus:border-[#E5E4E2]/40 focus:outline-none transition-all"
                     />
                   </div>
                   {instagramHandle.trim() && (
@@ -412,7 +412,7 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
                     value={soundcloudUsername}
                     onChange={e => setSoundcloudUsername(e.target.value)}
                     placeholder="soundcloud.com/yourname"
-                    className="w-full bg-zinc-950 border border-white/10 rounded-none h-12 px-4 text-[11px] uppercase tracking-widest text-white placeholder:text-white/20 focus:border-[#E5E4E2]/40 focus:outline-none transition-all"
+                    className="w-full bg-zinc-950 border border-white/10 rounded-xl h-12 px-4 text-[11px] uppercase tracking-widest text-white placeholder:text-white/20 focus:border-[#E5E4E2]/40 focus:outline-none transition-all"
                   />
                   {soundcloudUsername.trim() && (
                     <p className="text-[8px] text-green-400/70 uppercase tracking-widest">Username saved</p>
@@ -556,7 +556,7 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
                       <select
                         value={selectedTemplate.name}
                         onChange={e => handleTemplateChange(e.target.value)}
-                        className="w-full bg-[#000504] border border-white/10 text-white text-[10px] uppercase tracking-widest px-3 py-2.5 focus:outline-none focus:border-[#E5E4E2] transition-colors appearance-none"
+                        className="w-full bg-[#060606] border border-white/10 text-white text-[10px] uppercase tracking-widest px-3 py-2.5 focus:outline-none focus:border-[#E5E4E2] transition-colors appearance-none"
                       >
                         {KNOWN_CLUBS.map(c => (
                           <option key={c.name} value={c.name}>{c.name}</option>
@@ -627,7 +627,7 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
                     <button
                       onClick={addClub}
                       disabled={!!connectingClub}
-                      className="w-full py-3.5 bg-white text-[#000504] font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all disabled:opacity-50 flex items-center justify-center gap-2 !text-black"
+                      className="w-full py-3.5 bg-white text-black font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all disabled:opacity-50 flex items-center justify-center gap-2 !text-black"
                     >
                       {connectingClub ? (
                         <>
@@ -676,7 +676,7 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
                   transition={{ delay: 0.2, type: 'spring', stiffness: 260, damping: 18 }}
                   className="w-16 h-16 bg-white mx-auto flex items-center justify-center"
                 >
-                  <PartyPopper size={28} className="text-[#000504]" />
+                  <PartyPopper size={28} className="text-black" />
                 </motion.div>
                 <div>
                   <p className="text-[9px] font-bold uppercase tracking-[0.4em] text-white/30 mb-2">You're All Set</p>
@@ -733,7 +733,7 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
         {step < TOTAL_STEPS - 1 ? (
           <button
             onClick={step === 0 ? saveProfile : nextStep}
-            className="flex items-center gap-3 bg-white text-[#000504] font-bold text-[10px] uppercase tracking-[0.3em] px-8 py-4 hover:bg-[#E5E4E2] transition-all !text-black"
+            className="flex items-center gap-3 bg-white text-black font-bold text-[10px] uppercase tracking-[0.3em] px-8 py-4 hover:bg-[#E5E4E2] transition-all !text-black"
           >
             {step === 2 && clubs.length === 0 ? 'Skip' : 'Continue'}
             <ChevronRight size={14} className="text-black" />
@@ -742,7 +742,7 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
           <button
             onClick={finish}
             disabled={finishing}
-            className="flex items-center gap-3 bg-white text-[#000504] font-bold text-[10px] uppercase tracking-[0.3em] px-8 py-4 hover:bg-[#E5E4E2] transition-all disabled:opacity-60 !text-black"
+            className="flex items-center gap-3 bg-white text-black font-bold text-[10px] uppercase tracking-[0.3em] px-8 py-4 hover:bg-[#E5E4E2] transition-all disabled:opacity-60 !text-black"
           >
             {finishing ? (
               <><Loader2 size={14} className="animate-spin text-black" /> Entering...</>

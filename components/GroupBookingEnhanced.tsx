@@ -345,7 +345,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
 
   // ââ Shared step header âââââââââââââââââââââââââââââââââââââââââââââââââââ
   const StepHeader = ({ title, onBack: goBack }: { title: string; onBack: () => void }) => (
-    <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-5 sticky top-0 z-20">
+    <div className="bg-[#060606]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-5 sticky top-0 z-20">
       <div className="flex items-center gap-4 mb-4">
         <button onClick={goBack} className="min-w-[44px] min-h-[44px] -ml-2 flex items-center justify-center text-white/40 hover:text-white active:scale-95 transition-all">
           <X size={18} />
@@ -371,7 +371,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
   const PriceBar = () => {
     const pp = members.length ? Math.ceil(totalCost / members.length) : null;
     return (
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-30 bg-[#000504]/95 backdrop-blur-xl border-t border-[#E5E4E2]/10 px-6 py-4 flex items-center justify-between">
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-30 bg-[#060606]/95 backdrop-blur-xl border-t border-[#E5E4E2]/10 px-6 py-4 flex items-center justify-between">
         <div>
           <p className="text-[7px] uppercase tracking-[0.3em] text-white/30 font-bold">Min. Spend</p>
           <p className="text-lg font-serif italic">${tableMin.toLocaleString()}</p>
@@ -389,7 +389,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
 
   // ââ TABLE SELECTION SCREEN âââââââââââââââââââââââââââââââââââââââââââââââ
   if (screen === 'table') return (
-    <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
+    <div className="min-h-screen bg-[#060606] text-white pb-40">
       <StepHeader title="Select Table" onBack={onBack ?? (() => {})} />
       <div className="px-6 py-8 space-y-4">
         <p className="text-[9px] uppercase tracking-[0.3em] text-white/30 font-bold mb-2">Choose your table for the night</p>
@@ -405,7 +405,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
           </button>
         ))}
         <Button onClick={() => setScreen('crew-select')}
-          className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black flex items-center justify-between px-8 mt-4"
+          className="w-full h-14 bg-white text-black hover:bg-[#E5E4E2] rounded-full font-bold text-[10px] uppercase tracking-[0.3em] !text-black flex items-center justify-between px-8 mt-4"
         >
           <span>Select Crew</span><ChevronRight size={16} />
         </Button>
@@ -415,8 +415,8 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
 
   // ââ CREW SELECT SCREEN âââââââââââââââââââââââââââââââââââââââââââââââââââ
   if (screen === 'crew-select') return (
-    <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
-      <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-6 sticky top-0 z-20">
+    <div className="min-h-screen bg-[#060606] text-white pb-40">
+      <div className="bg-[#060606]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-6 sticky top-0 z-20">
         <div className="flex items-center gap-4 mb-1">
           <button onClick={() => setScreen('table')} className="min-w-[44px] min-h-[44px] -ml-2 flex items-center justify-center text-white/40 hover:text-white active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-[#E5E4E2]/50"><X size={18} /></button>
           <div>
@@ -536,7 +536,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
 
   // ââ SPLIT SCREEN âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   if (screen === 'split') return (
-    <div className="min-h-screen bg-[#000504] text-white pb-36 marble-bg">
+    <div className="min-h-screen bg-[#060606] text-white pb-36">
       <StepHeader title="Payment Split" onBack={() => setScreen('crew-select')} />
       <PriceBar />
 
@@ -707,7 +707,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
 
         <Button onClick={() => setScreen('addons')}
           disabled={splitMethod === 'custom' && !customBalanced && !lockedCustom}
-          className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black flex items-center justify-between px-8 disabled:opacity-30"
+          className="w-full h-14 bg-white text-black hover:bg-[#E5E4E2] rounded-full font-bold text-[10px] uppercase tracking-[0.3em] !text-black flex items-center justify-between px-8 disabled:opacity-30"
         >
           <span>Choose Add-ons</span><ChevronRight size={16} />
         </Button>
@@ -723,7 +723,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
 
   // ââ ADD-ONS SCREEN ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   return (
-    <div className="min-h-screen bg-[#000504] text-white pb-36 marble-bg">
+    <div className="min-h-screen bg-[#060606] text-white pb-36">
       <StepHeader title="Add-ons" onBack={() => setScreen('split')} />
       <PriceBar />
 
@@ -906,7 +906,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
         </div>
 
         <Button onClick={handleConfirm}
-          className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black flex items-center justify-between px-8"
+          className="w-full h-14 bg-white text-black hover:bg-[#E5E4E2] rounded-full font-bold text-[10px] uppercase tracking-[0.3em] !text-black flex items-center justify-between px-8"
         >
           <span>Review &amp; Confirm</span><ChevronRight size={16} />
         </Button>
@@ -936,8 +936,8 @@ function ConfirmScreen({ splitData, totalCost, splitMethod, memberRails, setMemb
   };
 
   return (
-    <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
-      <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-6 sticky top-0 z-20">
+    <div className="min-h-screen bg-[#060606] text-white pb-40">
+      <div className="bg-[#060606]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-6 sticky top-0 z-20">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="text-white/40 hover:text-white transition-colors"><X size={20} /></button>
           <div>
@@ -950,7 +950,7 @@ function ConfirmScreen({ splitData, totalCost, splitMethod, memberRails, setMemb
       <div className="px-6 py-10 space-y-10">
         {/* Your share â prominent, not full total */}
         <div className="bg-zinc-950 border border-white/10 p-8 text-center relative overflow-hidden">
-          <div className="absolute inset-0 marble-bg opacity-20 pointer-events-none" />
+          <div className="absolute inset-0 opacity-20 pointer-events-none" />
           <div className="relative z-10">
             <p className="text-[8px] uppercase tracking-[0.4em] text-white/30 font-bold mb-2">Your Share</p>
             <p className="text-5xl font-serif italic platinum-gradient">${yourShare.toLocaleString()}</p>
@@ -1072,7 +1072,7 @@ function ConfirmScreen({ splitData, totalCost, splitMethod, memberRails, setMemb
         </div>
 
         <Button onClick={onSend} disabled={confirming}
-          className="w-full h-14 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[10px] uppercase tracking-[0.3em] !text-black flex items-center justify-between px-8"
+          className="w-full h-14 bg-white text-black hover:bg-[#E5E4E2] rounded-full font-bold text-[10px] uppercase tracking-[0.3em] !text-black flex items-center justify-between px-8"
         >
           {confirming ? <><Loader2 size={16} className="animate-spin mr-3 !text-black" />Opening links...</> : <><span>Send Payment Requests</span><ArrowRight size={16} /></>}
         </Button>
@@ -1089,7 +1089,7 @@ function SentScreen({ splitData, inviteCode, bookingId, venue, onBack }: {
   splitData: SplitMember[]; inviteCode: string; bookingId: number | null; venue: any; onBack?: () => void;
 }) {
   return (
-    <div className="min-h-screen bg-[#000504] text-white flex flex-col items-center justify-center px-8">
+    <div className="min-h-screen bg-[#060606] text-white flex flex-col items-center justify-center px-8">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
         transition={{ type: 'spring', stiffness: 200, damping: 20 }}

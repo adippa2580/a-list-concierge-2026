@@ -88,7 +88,7 @@ export function Inbox({ onBack }: InboxProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#000504] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#060606] text-white flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 size={24} className="text-[#E5E4E2]/40 animate-spin mx-auto" />
           <p className="text-[9px] uppercase tracking-[0.3em] text-white/30">Loading invitations...</p>
@@ -98,9 +98,9 @@ export function Inbox({ onBack }: InboxProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#000504] text-white pb-20 marble-bg">
+    <div className="min-h-screen bg-[#060606] text-white pb-20">
       {/* Header */}
-      <div className="bg-[#000504]/80 backdrop-blur-md sticky top-0 z-20 px-6 pt-16 pb-4 border-b border-white/10">
+      <div className="bg-[#060606]/80 backdrop-blur-md sticky top-0 z-20 px-6 pt-16 pb-4 border-b border-white/10">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Invitations</h1>
           <div className="flex items-center gap-4">
@@ -127,13 +127,13 @@ export function Inbox({ onBack }: InboxProps) {
             placeholder="SEARCH INVITES..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 bg-transparent border-0 border-b border-white/20 rounded-none px-0 py-2 text-white placeholder:text-white/30 focus-visible:ring-0 focus-visible:border-white transition-all tracking-[0.2em] text-[10px] font-bold uppercase h-10 w-full"
+            className="pl-8 bg-transparent border-0 border-b border-white/20 rounded-xl px-0 py-2 text-white placeholder:text-white/30 focus-visible:ring-0 focus-visible:border-white transition-all tracking-[0.2em] text-[10px] font-bold uppercase h-10 w-full"
           />
         </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-none h-auto p-0 justify-start gap-8">
+          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-xl h-auto p-0 justify-start gap-8">
             {[
               { value: 'all', label: 'All' },
               { value: 'incoming', label: 'Received' },
@@ -142,7 +142,7 @@ export function Inbox({ onBack }: InboxProps) {
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-2 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 data-[state=active]:text-white transition-all"
+                className="rounded-xl bg-transparent border-b-2 border-transparent px-0 py-2 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/60 data-[state=active]:text-white transition-all"
               >
                 {tab.label}
               </TabsTrigger>

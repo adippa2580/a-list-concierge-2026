@@ -132,7 +132,7 @@ export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                         placeholder="NAME"
                         required
-                        className="bg-transparent border-white/10 rounded-none h-12 text-[10px] uppercase tracking-widest placeholder:text-white/20 focus:border-white transition-all"
+                        className="bg-transparent border-white/10 rounded-xl h-12 text-[10px] uppercase tracking-widest placeholder:text-white/20 focus:border-white transition-all"
                       />
                     </div>
                     <div className="relative">
@@ -158,7 +158,7 @@ export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
                         type="date"
                         value={formData.date}
                         onChange={(e) => setFormData({...formData, date: e.target.value})}
-                        className="bg-transparent border-white/10 rounded-none h-12 text-[10px] uppercase tracking-widest focus:border-white transition-all invert brightness-200"
+                        className="bg-transparent border-white/10 rounded-xl h-12 text-[10px] uppercase tracking-widest focus:border-white transition-all invert brightness-200"
                       />
                     </div>
                     <div className="relative">
@@ -190,7 +190,7 @@ export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
               <Button
                 type="submit"
                 disabled={submitting || !formData.name.trim()}
-                className="w-full h-14 bg-white text-zinc-950 hover:bg-zinc-200 rounded-none font-bold text-[10px] uppercase tracking-[0.3em] flex items-center justify-between px-8 !text-black disabled:opacity-50"
+                className="w-full h-14 bg-white text-zinc-950 hover:bg-zinc-200 rounded-full font-bold text-[10px] uppercase tracking-[0.3em] flex items-center justify-between px-8 !text-black disabled:opacity-50"
               >
                 {submitting ? (
                   <><Loader2 size={14} className="animate-spin !text-black" /><span>Submitting...</span></>
@@ -227,7 +227,7 @@ export function BookingModal({ isOpen, onClose, tile }: BookingModalProps) {
               <Button 
                 onClick={handleClose}
                 variant="outline"
-                className="w-full border-white/10 text-white hover:bg-white/5 rounded-none font-bold text-[9px] uppercase tracking-[0.3em]"
+                className="w-full border-white/10 text-white hover:bg-white/5 rounded-full font-bold text-[9px] uppercase tracking-[0.3em]"
               >
                 Return to Concierge
               </Button>

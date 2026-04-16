@@ -230,7 +230,7 @@ export function CrewBuilder() {
   // ── Loading screen ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#000504] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#060606] text-white flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 size={24} className="text-[#E5E4E2]/40 animate-spin mx-auto" />
           <p className="text-[9px] uppercase tracking-[0.3em] text-white/30">Loading crews...</p>
@@ -245,9 +245,9 @@ export function CrewBuilder() {
 
   return (
     <>
-    <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
+    <div className="min-h-screen bg-[#060606] text-white pb-40">
       {/* Header */}
-      <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-8 sticky top-0 z-20">
+      <div className="bg-[#060606]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-8 sticky top-0 z-20">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-3xl font-serif italic platinum-gradient leading-none tracking-tight">Crews &amp; Alliances</h2>
@@ -258,7 +258,7 @@ export function CrewBuilder() {
         </div>
 
         <Tabs value={activeTab} onValueChange={(v: string) => { setActiveTab(v); setSelectedCrew(null); }} className="w-full">
-          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-none h-auto p-0 justify-start gap-8">
+          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-xl h-auto p-0 justify-start gap-8">
             {[
               { value: 'crews', label: 'My Crews' },
               { value: 'leaderboard', label: 'Leaderboard' }
@@ -266,7 +266,7 @@ export function CrewBuilder() {
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.3em] text-white/30 data-[state=active]:text-white transition-all"
+                className="rounded-xl bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.3em] text-white/30 data-[state=active]:text-white transition-all"
               >
                 {tab.label}
               </TabsTrigger>
@@ -295,7 +295,7 @@ export function CrewBuilder() {
                 className="bg-zinc-950 border border-white/10 p-6 cursor-pointer hover:border-[#E5E4E2]/30 transition-all relative overflow-hidden group"
                 whileHover={{ y: -2 }}
               >
-                <div className="absolute inset-0 marble-bg opacity-10 pointer-events-none" />
+                <div className="absolute inset-0 opacity-10 pointer-events-none" />
                 <div className="relative z-10">
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-4">
@@ -305,7 +305,7 @@ export function CrewBuilder() {
                       <div>
                         <h3 className="text-lg font-bold uppercase tracking-wider">{crew.name}</h3>
                         <div className="flex items-center gap-2 mt-1">
-                          <Badge className={`border text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-none font-bold ${levelClass(crew.level)}`}>
+                          <Badge className={`border text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-full font-bold ${levelClass(crew.level)}`}>
                             {crew.level}
                           </Badge>
                           <span className="text-[8px] uppercase tracking-widest text-white/30">{crew.members?.length || 1} Members</span>
@@ -369,7 +369,7 @@ export function CrewBuilder() {
               <div>
                 <h3 className="text-2xl font-serif italic uppercase tracking-wider">{selectedCrew.name}</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge className={`border text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-none font-bold ${levelClass(selectedCrew.level)}`}>
+                  <Badge className={`border text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-full font-bold ${levelClass(selectedCrew.level)}`}>
                     {selectedCrew.level}
                   </Badge>
                 </div>
@@ -430,7 +430,7 @@ export function CrewBuilder() {
                   onKeyDown={(e) => e.key === 'Enter' && handleAddMember()}
                   placeholder="Add member by name..."
                   disabled={addingMember}
-                  className="flex-1 bg-transparent border-white/10 rounded-none h-10 text-[10px] uppercase tracking-widest placeholder:text-white/20 focus:border-white/40 transition-all"
+                  className="flex-1 bg-transparent border-white/10 rounded-xl h-10 text-[10px] uppercase tracking-widest placeholder:text-white/20 focus:border-white/40 transition-all"
                 />
                 <button
                   onClick={handleAddMember}
@@ -509,7 +509,7 @@ export function CrewBuilder() {
                 }`}
               >
                 <div className={`w-8 h-8 flex items-center justify-center font-bold text-[11px] ${
-                  entry.rank === 1 ? 'bg-[#E5E4E2] text-[#000504]' : 'bg-white/5 text-white/40'
+                  entry.rank === 1 ? 'bg-white text-black' : 'bg-white/5 text-white/40'
                 }`}>
                   {entry.rank === 1 ? <Crown size={14} /> : `#${entry.rank}`}
                 </div>
@@ -564,7 +564,7 @@ export function CrewBuilder() {
                   onChange={(e) => setNewCrewName(e.target.value)}
                   placeholder="ENTER CREW NAME..."
                   maxLength={20}
-                  className="bg-transparent border-white/10 rounded-none h-12 text-[10px] uppercase tracking-widest placeholder:text-white/20 focus:border-white transition-all"
+                  className="bg-transparent border-white/10 rounded-xl h-12 text-[10px] uppercase tracking-widest placeholder:text-white/20 focus:border-white transition-all"
                   onKeyDown={(e) => e.key === 'Enter' && handleCreateCrew()}
                 />
               </div>
@@ -601,7 +601,7 @@ export function CrewBuilder() {
               <Button
                 onClick={handleCreateCrew}
                 disabled={!newCrewName.trim() || creating}
-                className="w-full h-12 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[9px] uppercase tracking-[0.3em] disabled:opacity-30 !text-black"
+                className="w-full h-12 bg-white text-black hover:bg-[#E5E4E2] rounded-full font-bold text-[9px] uppercase tracking-[0.3em] disabled:opacity-30 !text-black"
               >
                 {creating ? <Loader2 size={14} className="animate-spin mr-2" /> : null}
                 {creating ? 'Creating...' : 'Create Crew'}

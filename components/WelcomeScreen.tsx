@@ -8,7 +8,7 @@ interface WelcomeScreenProps {
 
 export function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-end pb-24 overflow-hidden bg-[#000504]">
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-end pb-24 overflow-hidden bg-[#060606]">
       {/* Background image with overlays */}
       <div className="absolute inset-0 z-0">
         <div 
@@ -17,8 +17,8 @@ export function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
             backgroundImage: 'url(https://images.unsplash.com/photo-1514525253361-bee8718a74a2?q=80&w=1080&auto=format&fit=crop)'
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#000504] via-[#000504]/80 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-b from-[#000504]/60 via-transparent to-[#000504]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#060606] via-[#060606]/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#060606]/60 via-transparent to-[#000504]" />
       </div>
 
       {/* Logo with glow */}

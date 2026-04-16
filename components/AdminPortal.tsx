@@ -106,7 +106,7 @@ export function AdminPortal() {
   ] as const;
 
   return (
-    <div className="min-h-screen bg-[#000504] text-white pb-24">
+    <div className="min-h-screen bg-[#060606] text-white pb-24">
 
       {/* Header */}
       <div className="px-6 pt-8 pb-6 border-b border-white/5">

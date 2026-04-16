@@ -155,9 +155,9 @@ export function AIConcierge() {
   };
 
   return (
-    <div className="min-h-screen bg-[#000504] text-white flex flex-col">
+    <div className="min-h-screen bg-[#060606] text-white flex flex-col">
       {/* Header */}
-      <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-6 sticky top-0 z-20">
+      <div className="bg-[#060606]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-6 sticky top-0 z-20">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <AListLogo variant="icon" size="sm" />
@@ -208,10 +208,10 @@ export function AIConcierge() {
               )}
               <div className={`px-5 py-4 ${
                 msg.role === 'user'
-                  ? 'bg-white text-[#000504] ml-auto'
+                  ? 'bg-white text-black ml-auto'
                   : 'bg-zinc-950 border border-white/10 text-white'
               }`}>
-                <p className={`text-sm leading-relaxed font-light ${msg.role === 'user' ? 'text-[#000504]' : ''}`}>
+                <p className={`text-sm leading-relaxed font-light ${msg.role === 'user' ? 'text-black' : ''}`}>
                   {msg.content}
                 </p>
               </div>
@@ -284,7 +284,7 @@ export function AIConcierge() {
             <button
               key={s}
               onClick={() => handleSend(s)}
-              className="flex-shrink-0 px-4 py-2 border border-[#E5E4E2]/20 text-[9px] font-bold uppercase tracking-widest text-white/40 hover:text-white hover:border-[#E5E4E2]/50 bg-[#000504]/90 backdrop-blur-md transition-all whitespace-nowrap"
+              className="flex-shrink-0 px-4 py-2 border border-[#E5E4E2]/20 text-[9px] font-bold uppercase tracking-widest text-white/40 hover:text-white hover:border-[#E5E4E2]/50 bg-[#060606]/90 backdrop-blur-md transition-all whitespace-nowrap"
             >
               {s}
             </button>
@@ -293,20 +293,20 @@ export function AIConcierge() {
       </div>
 
       {/* Input */}
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#000504]/95 backdrop-blur-xl border-t border-white/10 px-5 py-4 z-40">
+      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#060606]/95 backdrop-blur-xl border-t border-white/10 px-5 py-4 z-40">
         <div className="flex gap-3 items-center">
           <Input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !isTyping && handleSend()}
             placeholder="Ask your concierge..."
-            className="flex-1 bg-zinc-950 border-white/10 rounded-none h-12 text-sm placeholder:text-white/20 focus:border-[#E5E4E2]/40 focus:ring-0 transition-all"
+            className="flex-1 bg-zinc-950 border-white/10 rounded-xl h-12 text-sm placeholder:text-white/20 focus:border-[#E5E4E2]/40 focus:ring-0 transition-all"
             disabled={isTyping}
           />
           <Button
             onClick={() => handleSend()}
             disabled={!inputValue.trim() || isTyping}
-            className="h-12 w-12 bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none disabled:opacity-30 flex-shrink-0 !text-black"
+            className="h-12 w-12 bg-white text-black hover:bg-[#E5E4E2] rounded-xl disabled:opacity-30 flex-shrink-0 !text-black"
           >
             <Send size={16} />
           </Button>

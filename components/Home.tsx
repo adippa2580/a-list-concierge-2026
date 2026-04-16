@@ -681,9 +681,9 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
     if (events.length === 0) return null;
     return (
       <div className="space-y-4">
-        <div className="sticky top-[120px] z-10 bg-[#000504]/90 backdrop-blur-md px-6 py-3 -mx-6 border-y border-[#E5E4E2]/5 flex justify-between items-center">
+        <div className="sticky top-[120px] z-10 bg-[#060606]/90 backdrop-blur-md px-6 py-3 -mx-6 border-y border-[#E5E4E2]/5 flex justify-between items-center">
           <span className="text-[10px] font-bold uppercase tracking-[0.4em] text-white">{title}</span>
-          <Badge variant="outline" className="border-[#E5E4E2]/10 text-[#E5E4E2]/40 text-[7px] uppercase tracking-[0.2em] px-2 py-0 h-4 rounded-none">
+          <Badge variant="outline" className="border-[#E5E4E2]/10 text-[#E5E4E2]/40 text-[7px] uppercase tracking-[0.2em] px-2 py-0 h-4 rounded-sm">
             {events.length} Events
           </Badge>
         </div>
@@ -693,7 +693,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
   };
 
   return (
-    <div className="min-h-screen pb-32 bg-[#000504] text-white marble-bg">
+    <div className="min-h-screen pb-32 bg-[#060606] text-white">
 
       {/* ── Favourite Clubs Strip ── */}
       {favouriteVenues.length > 0 && (
@@ -733,7 +733,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
                   <div className="absolute top-1.5 right-1.5 bg-black/60 backdrop-blur-sm p-1 border border-red-500/30">
                     <Heart size={8} fill="currentColor" className="text-red-500" />
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#000504]/80 via-transparent to-transparent" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#060606]/80 via-transparent to-transparent" />
                 </div>
                 {/* Info */}
                 <div className="px-2.5 py-2">
@@ -862,7 +862,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-white/20 group-hover:text-[#E5E4E2] transition-colors" size={14} />
           <Input
             placeholder="SEARCH CLUBS, VENUES, EVENTS..."
-            className="pl-7 bg-transparent border-0 border-b border-white/10 rounded-none px-0 py-2 text-white placeholder:text-white/20 focus-visible:ring-0 focus-visible:border-[#E5E4E2] transition-all tracking-[0.2em] text-[10px] font-bold uppercase h-10 w-full"
+            className="pl-7 bg-transparent border-0 border-b border-white/10 rounded-xl px-0 py-2 text-white placeholder:text-white/20 focus-visible:ring-0 focus-visible:border-[#E5E4E2] transition-all tracking-[0.2em] text-[10px] font-bold uppercase h-10 w-full"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -890,7 +890,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
                 onClick={() => { setDateFilter(isActive ? null : key); setMonthFilter(null); setShowMonthDropdown(false); }}
                 className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 border text-[8px] font-bold uppercase tracking-widest transition-all active:scale-95 ${
                   isActive
-                    ? 'bg-white text-[#000504] border-white !text-black'
+                    ? 'bg-white text-black border-white !text-black'
                     : 'border-white/15 text-white/40 hover:border-white/30 hover:text-white/70'
                 }`}
               >

@@ -4,7 +4,7 @@ import { AListLogo } from './AListLogo';
 
 export function Footer() {
   return (
-    <footer className="border-t border-[#E5E4E2]/5 py-10 px-6 bg-[#000504]">
+    <footer className="border-t border-[#E5E4E2]/5 py-10 px-6 bg-[#060606]">
       <div className="max-w-md mx-auto space-y-8">
 
         {/* Logo */}

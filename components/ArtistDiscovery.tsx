@@ -290,7 +290,7 @@ export function ArtistDiscovery() {
   return (
     <div className="min-h-screen bg-black text-white pb-32">
       {/* Header */}
-      <div className="bg-black/80 backdrop-blur-md sticky top-0 z-20 px-6 pt-8 pb-4 border-b border-white/10 marble-bg">
+      <div className="bg-black/80 backdrop-blur-md sticky top-0 z-20 px-6 pt-8 pb-4 border-b border-white/10">
         <h1 className="text-[11px] font-bold tracking-[0.2em] uppercase text-white/60 mb-6 gold-gradient">Talent & Events</h1>
 
         {/* Minimal Search */}
@@ -301,7 +301,7 @@ export function ArtistDiscovery() {
             placeholder="SEARCH ARTISTS..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 bg-transparent border-0 border-b border-white/20 rounded-none px-0 py-2 text-white placeholder:text-white/30 focus-visible:ring-0 focus-visible:border-gold transition-all tracking-[0.2em] text-[11px] font-bold uppercase h-10 w-full"
+            className="pl-8 bg-transparent border-0 border-b border-white/20 rounded-xl px-0 py-2 text-white placeholder:text-white/30 focus-visible:ring-0 focus-visible:border-gold transition-all tracking-[0.2em] text-[11px] font-bold uppercase h-10 w-full"
           />
         </div>
 
@@ -407,7 +407,7 @@ export function ArtistDiscovery() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="flex-shrink-0 w-72 platinum-border rounded-sm overflow-hidden bg-gradient-to-br from-[#0a0a0a] to-[#000504] group cursor-pointer transition-all"
+                className="flex-shrink-0 w-72 rounded-xl border border-white/10 overflow-hidden bg-gradient-to-br from-[#0a0a0a] to-[#060606] group cursor-pointer transition-all"
               >
                 {/* Image Section */}
                 <div className="relative h-40 overflow-hidden bg-zinc-900">
@@ -458,7 +458,7 @@ export function ArtistDiscovery() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: index * 0.05 }}
-                className="group platinum-border rounded-sm p-4 bg-gradient-to-br from-[#0a0a0a] to-[#000504] hover:bg-white/5 transition-all cursor-pointer flex items-center justify-between gap-4"
+                className="group rounded-xl border border-white/10 p-4 bg-gradient-to-br from-[#0a0a0a] to-[#060606] hover:bg-white/5 transition-all cursor-pointer flex items-center justify-between gap-4"
               >
                 <div className="flex-1 min-w-0">
                   <h4 className="text-[11px] font-bold uppercase tracking-wide text-white group-hover:platinum-gradient transition-all truncate">
@@ -544,7 +544,7 @@ function ArtistRow({ artist, isFollowing, onToggleFollow }: any) {
   return (
     <motion.div
       layout
-      className="group platinum-border rounded-sm overflow-hidden bg-gradient-to-br from-[#0a0a0a] to-[#000504] mb-6 transition-all duration-500"
+      className="group rounded-xl border border-white/10 overflow-hidden bg-gradient-to-br from-[#0a0a0a] to-[#060606] mb-6 transition-all duration-500"
     >
       {/* Card Header with Image */}
       <div className="relative h-48 overflow-hidden bg-zinc-900 cursor-pointer" onClick={() => setExpanded(!expanded)}>

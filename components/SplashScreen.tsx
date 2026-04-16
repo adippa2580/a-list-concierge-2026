@@ -17,7 +17,7 @@ export function SplashScreen({ onComplete, duration = 4000 }: SplashScreenProps)
   }, [onComplete, duration]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#000504] overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#060606] overflow-hidden">
       {/* Radial glow */}
       <div className="absolute inset-0 bg-gradient-radial from-[#011410]/30 via-transparent to-transparent" />
       

@@ -77,7 +77,7 @@ export function InstagramCallback({ onSuccess, onError }: InstagramCallbackProps
   }, [onSuccess, onError]);
 
   return (
-    <div className="min-h-screen bg-[#000504] flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-[#060606] flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <AListLogo variant="splash" size="xl" />

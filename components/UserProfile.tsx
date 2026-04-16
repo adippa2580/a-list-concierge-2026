@@ -338,7 +338,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
   // ── Render ─────────────────────────────────────────────────────────────────
   if (loading && !profile) {
     return (
-      <div className="min-h-screen bg-[#000504] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#060606] text-white flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 size={24} className="text-[#E5E4E2]/40 animate-spin mx-auto" />
           <p className="text-[9px] uppercase tracking-[0.3em] text-white/30">Loading profile...</p>
@@ -351,7 +351,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
   const achievements = profile?.achievements || [];
 
   return (
-    <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
+    <div className="min-h-screen bg-[#060606] text-white pb-40">
 
       {/* ── Edit Profile Overlay Modal ──────────────────────────────── */}
       <AnimatePresence>
@@ -447,7 +447,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={saveEdit}
-                  className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white text-[#000504] font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-colors"
+                  className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-white text-black font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-colors"
                 >
                   <Check size={12} /> Save Changes
                 </button>
@@ -495,10 +495,10 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
             <button
               onClick={() => !uploading && fileInputRef.current?.click()}
               disabled={uploading}
-              className="absolute -bottom-1 -right-1 w-7 h-7 bg-white text-[#000504] flex items-center justify-center border border-[#E5E4E2]/20 hover:bg-[#E5E4E2] transition-all"
+              className="absolute -bottom-1 -right-1 w-7 h-7 bg-white text-black flex items-center justify-center border border-[#E5E4E2]/20 hover:bg-[#E5E4E2] transition-all"
             >
               {uploading
-                ? <div className="w-3 h-3 border border-[#000504] border-t-transparent rounded-full animate-spin" />
+                ? <div className="w-3 h-3 border border-[#060606] border-t-transparent rounded-full animate-spin" />
                 : <Camera size={12} />}
             </button>
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
@@ -516,7 +516,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
                 <p className="text-[10px] text-white/40 uppercase tracking-widest mb-1 truncate">{derivedBio}</p>
               )}
               <div className="flex items-center gap-3">
-                <Badge className="bg-[#E5E4E2]/10 border border-[#E5E4E2]/20 text-[#E5E4E2] text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-none font-bold">
+                <Badge className="bg-[#E5E4E2]/10 border border-[#E5E4E2]/20 text-[#E5E4E2] text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-full font-bold">
                   {profile?.tier || 'Platinum'}
                 </Badge>
                 <span className="text-[9px] uppercase tracking-widest text-white/30">{derivedUsername}</span>
@@ -546,12 +546,12 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
       {/* ── Tabs ─────────────────────────────────────────────────────── */}
       <div className="px-6 mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-none h-auto p-0 justify-start gap-6 overflow-x-auto scrollbar-hide">
+          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-xl h-auto p-0 justify-start gap-6 overflow-x-auto scrollbar-hide">
             {['Identity', 'Connections', 'History', 'Vault'].map(tab => (
               <TabsTrigger
                 key={tab}
                 value={tab.toLowerCase()}
-                className="rounded-none bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 data-[state=active]:text-white transition-all whitespace-nowrap flex-shrink-0"
+                className="rounded-xl bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 data-[state=active]:text-white transition-all whitespace-nowrap flex-shrink-0"
               >
                 {tab}
               </TabsTrigger>
@@ -671,7 +671,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
                         />
                         <button
                           onClick={() => addClub(clubInput)}
-                          className="px-3 py-1 bg-white text-[#000504] text-[8px] font-bold uppercase tracking-widest hover:bg-[#E5E4E2] transition-colors"
+                          className="px-3 py-1 bg-white text-black text-[8px] font-bold uppercase tracking-widest hover:bg-[#E5E4E2] transition-colors"
                         >
                           Add
                         </button>
@@ -789,7 +789,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
                   Securely store payment methods, ID verification,<br />and exclusive membership documents.
                 </p>
               </div>
-              <Button className="bg-white text-[#000504] hover:bg-[#E5E4E2] rounded-none font-bold text-[9px] uppercase tracking-[0.3em] !text-black px-8">
+              <Button className="bg-white text-black hover:bg-[#E5E4E2] rounded-full font-bold text-[9px] uppercase tracking-[0.3em] !text-black px-8">
                 Set Up Vault
               </Button>
             </div>
@@ -833,7 +833,7 @@ function DiscoverabilityToggle() {
           aria-label="Toggle discoverability"
         >
           <span className={`absolute top-0.5 w-5 h-5 transition-all ${
-            discoverable ? 'left-5 bg-[#000504]' : 'left-0.5 bg-white/30'
+            discoverable ? 'left-5 bg-[#060606]' : 'left-0.5 bg-white/30'
           }`} />
         </button>
       </div>
@@ -925,7 +925,7 @@ function ConnectionsTab({ instagramConnected, instagramUsername, onConnectInstag
           </div>
           <button
             onClick={onConnectInstagram}
-            className="px-6 py-3 bg-white text-[#000504] font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all !text-black"
+            className="px-6 py-3 bg-white text-black font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all !text-black"
           >
             Connect Instagram
           </button>
@@ -1076,7 +1076,7 @@ function SocialRow({
         <Loader2 size={12} className="text-white/20 animate-spin" />
       ) : connected ? (
         <div className="flex items-center gap-2">
-          <Badge className="bg-green-500/10 border border-green-500/20 text-green-500 text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-none font-bold">
+          <Badge className="bg-green-500/10 border border-green-500/20 text-green-500 text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-full font-bold">
             Synced
           </Badge>
         </div>

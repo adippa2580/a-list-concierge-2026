@@ -100,16 +100,16 @@ export function VIPStatus() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#000504] text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[#060606] text-white flex items-center justify-center">
         <Loader2 size={24} className="text-[#E5E4E2]/40 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
+    <div className="min-h-screen bg-[#060606] text-white pb-40">
       {/* Editorial Header */}
-      <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-8 sticky top-0 z-20">
+      <div className="bg-[#060606]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-8 sticky top-0 z-20">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-3xl font-serif italic platinum-gradient leading-none tracking-tight">VIP Status</h2>
@@ -128,12 +128,12 @@ export function VIPStatus() {
           transition={{ type: 'spring', stiffness: 300 }}
         >
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
-          <div className="absolute inset-0 marble-bg opacity-30" />
+          <div className="absolute inset-0 opacity-30" />
 
           <div className="relative z-10 space-y-8">
             <div className="flex items-start justify-between">
               <AListLogo variant="minimal" size="sm" theme="monochrome" className="opacity-40" />
-              <Badge className="bg-[#E5E4E2]/10 border border-[#E5E4E2]/20 text-[#E5E4E2] text-[8px] uppercase tracking-widest px-3 py-1 rounded-none font-bold">
+              <Badge className="bg-[#E5E4E2]/10 border border-[#E5E4E2]/20 text-[#E5E4E2] text-[8px] uppercase tracking-widest px-3 py-1 rounded-full font-bold">
                 {currentTier || 'Unavailable'}
               </Badge>
             </div>

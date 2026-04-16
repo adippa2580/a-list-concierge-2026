@@ -46,7 +46,7 @@ export function PasswordResetScreen({ onComplete }: PasswordResetScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[#000504] text-white flex flex-col items-center justify-center px-6 marble-bg">
+    <div className="min-h-screen bg-[#060606] text-white flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm space-y-10">
 
         {/* Logo */}
