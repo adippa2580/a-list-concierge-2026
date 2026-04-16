@@ -345,9 +345,21 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
 
     setUploading(true);
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const dataUrl = event.target?.result as string;
+
+    // Compress image via canvas before storing (max 200x200, JPEG quality 0.7)
+    const img = new Image();
+    img.onload = async () => {
+      const MAX = 200;
+      let w = img.width, h = img.height;
+      if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
+      else       { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { setUploading(false); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
       try {
         localStorage.setItem(AVATAR_STORAGE_KEY, dataUrl);
         setAvatarUrl(dataUrl);
@@ -368,8 +380,8 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
         toast.error('Could not save photo — try a smaller image');
       } finally { setUploading(false); }
     };
-    reader.onerror = () => { toast.error('Failed to read image'); setUploading(false); };
-    reader.readAsDataURL(file);
+    img.onerror = () => { toast.error('Failed to read image'); setUploading(false); };
+    img.src = URL.createObjectURL(file);
     e.target.value = '';
   };
 
