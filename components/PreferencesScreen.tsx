@@ -81,6 +81,15 @@ export function PreferencesScreen({ onClose }: PreferencesScreenProps) {
           if (match) newGenres.add(match);
         }
         setSelectedGenres(newGenres);
+        // Auto-save preferences after import
+        await fetch(
+          `https://${projectId}.supabase.co/functions/v1/server/preferences?userId=${userId}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+            body: JSON.stringify({ genres: [...newGenres], eventTypes: [...selectedTypes] }),
+          }
+        );
       }
     } catch (_) {}
     setLoadingSpotify(false);
@@ -107,6 +116,15 @@ export function PreferencesScreen({ onClose }: PreferencesScreenProps) {
           if (match) newGenres.add(match);
         }
         setSelectedGenres(newGenres);
+        // Auto-save preferences after import
+        await fetch(
+          `https://${projectId}.supabase.co/functions/v1/server/preferences?userId=${userId}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+            body: JSON.stringify({ genres: [...newGenres], eventTypes: [...selectedTypes] }),
+          }
+        );
       }
     } catch (_) {}
     setLoadingAppleMusic(false);
