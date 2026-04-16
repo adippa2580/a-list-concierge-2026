@@ -19,10 +19,22 @@ function useFavouriteVenues() {
   return favs;
 }
 
-function usePrivateClubs() {
-  const [clubs] = useState<any[]>(() => {
+function usePrivateClubs(userId: string) {
+  const [clubs, setClubs] = useState<any[]>(() => {
     try { return JSON.parse(localStorage.getItem(CLUBS_KEY) || '[]'); } catch { return []; }
   });
+  // Restore from DB if localStorage is empty
+  useEffect(() => {
+    if (clubs.length > 0 || !userId || userId === 'default_user') return;
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
+      headers: { Authorization: `Bearer ${publicAnonKey}` }
+    }).then(r => r.ok ? r.json() : null).then(data => {
+      if (data?.privateClubs?.length) {
+        localStorage.setItem(CLUBS_KEY, JSON.stringify(data.privateClubs));
+        setClubs(data.privateClubs);
+      }
+    }).catch(() => {});
+  }, [userId]);
   return clubs;
 }
 

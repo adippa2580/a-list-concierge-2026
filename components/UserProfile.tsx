@@ -208,6 +208,14 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
           setAvatarUrl(data.avatarUrl);
           window.dispatchEvent(new Event('alist-avatar-updated'));
         }
+        // Restore private clubs from DB if not in localStorage
+        if (data.privateClubs?.length) {
+          const localClubs = JSON.parse(localStorage.getItem('alist_private_clubs') || '[]');
+          if (localClubs.length === 0) {
+            localStorage.setItem('alist_private_clubs', JSON.stringify(data.privateClubs));
+            window.dispatchEvent(new Event('alist-clubs-updated'));
+          }
+        }
       }
     } catch (e) {
       console.error('Profile fetch error:', e);

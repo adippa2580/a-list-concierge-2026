@@ -192,6 +192,12 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
     const updated = [...clubs, newClub];
     setClubs(updated);
     localStorage.setItem(CLUBS_KEY, JSON.stringify(updated));
+    // Persist to database
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+      body: JSON.stringify({ privateClubs: updated.map(c => ({ id: c.id, name: c.name, portalUrl: c.portalUrl, connected: c.connected })) }),
+    }).catch(() => {});
     setConnectingClub(null);
     setAddingClub(false);
     setNewClubName(KNOWN_CLUBS[0].name);
@@ -205,6 +211,12 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
     const updated = clubs.filter(c => c.id !== id);
     setClubs(updated);
     localStorage.setItem(CLUBS_KEY, JSON.stringify(updated));
+    // Persist to database
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+      body: JSON.stringify({ privateClubs: updated.map(c => ({ id: c.id, name: c.name, portalUrl: c.portalUrl, connected: c.connected })) }),
+    }).catch(() => {});
   };
 
   // ── Navigation ────────────────────────────────────────────────────────────
