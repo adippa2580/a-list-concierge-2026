@@ -4,7 +4,7 @@ import { MapPin, Search, Navigation, Check, Ticket, ChevronLeft, ChevronRight, E
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
-import { useAuth } from '../utils/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 

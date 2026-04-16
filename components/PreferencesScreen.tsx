@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { X, Music, Music2, Sparkles, Check, Loader2, ChevronRight } from 'lucide-react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
-import { useAuth } from '../utils/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const GENRE_OPTIONS = [
   'House', 'Tech House', 'Deep House', 'Techno', 'EDM', 'Trance',
