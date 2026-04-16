@@ -1316,10 +1316,11 @@ app.put("/profile", async (c) => {
 app.get("/social/profile", async (c) => {
   const userId = c.req.query("userId") || "default_user";
 
-  const [spotifyRaw, soundcloudRaw, instagramRaw] = await Promise.all([
+  const [spotifyRaw, soundcloudRaw, instagramRaw, appleMusicRaw] = await Promise.all([
     kv.get(`spotify_token_${userId}`),
     kv.get(`soundcloud_token_${userId}`),
     kv.get(`instagram_token_${userId}`),
+    kv.get(`apple_music_token_${userId}`),
   ]);
 
   const spotify = spotifyRaw as {
@@ -1334,6 +1335,11 @@ app.get("/social/profile", async (c) => {
   const instagram = instagramRaw as {
     access_token: string; expires_at: number;
     instagram_user_id?: number; username?: string;
+  } | null;
+
+  const appleMusic = appleMusicRaw as {
+    user_token?: string; storefront?: string;
+    connected_at?: number; expires_at?: number;
   } | null;
 
   // Spotify: fetch /me live if token is valid (we may not have cached profile data)
@@ -1390,7 +1396,145 @@ app.get("/social/profile", async (c) => {
         ? Math.floor((instagram!.expires_at - Date.now()) / 86_400_000)
         : null,
     },
+    apple_music: {
+      connected: !!appleMusic?.user_token && (appleMusic.expires_at ?? 0) > Date.now(),
+      storefront: appleMusic?.storefront || null,
+      days_until_expiry: appleMusic?.expires_at
+        ? Math.floor((appleMusic.expires_at - Date.now()) / 86_400_000)
+        : null,
+    },
   });
+});
+
+// ── Apple Music: Developer token + store user token + top artists ─────────────
+// MusicKit JS flow: client loads MusicKit → requests developer token from us →
+// user authorizes in-browser → client sends us the user music token → we store
+// it and use it for API calls to api.music.apple.com
+app.get("/apple-music/developer-token", async (c) => {
+  // Developer token is a JWT signed with the MusicKit private key.
+  // For now we read a pre-generated token from secrets / KV (token can be
+  // generated with 6-month expiry and rotated). This keeps the edge function
+  // free of native crypto deps.
+  const token =
+    Deno.env.get("APPLE_MUSIC_DEVELOPER_TOKEN") ||
+    (await kv.get("config:apple_music_developer_token") as string | null);
+
+  if (!token) {
+    return c.json({ error: "Apple Music developer token not configured" }, 503);
+  }
+  return c.json({ token });
+});
+
+app.post("/apple-music/store-token", async (c) => {
+  const userId = c.req.query("userId") || "default_user";
+  const body = await c.req.json() as { userToken?: string; storefront?: string };
+
+  if (!body.userToken) {
+    return c.json({ error: "userToken required" }, 400);
+  }
+
+  // Apple Music user tokens are long-lived (6 months) — no refresh flow.
+  await kv.set(`apple_music_token_${userId}`, {
+    user_token: body.userToken,
+    storefront: body.storefront || "us",
+    connected_at: Date.now(),
+    // Treat as ~6 month expiry for UI display purposes
+    expires_at: Date.now() + 180 * 24 * 60 * 60 * 1000,
+  });
+
+  return c.json({ success: true });
+});
+
+app.post("/apple-music/disconnect", async (c) => {
+  const userId = c.req.query("userId") || "default_user";
+  await kv.del(`apple_music_token_${userId}`);
+  await kv.del(`apple_music_taste_${userId}`);
+  return c.json({ success: true });
+});
+
+app.get("/apple-music/top-artists", async (c) => {
+  const userId = c.req.query("userId") || "default_user";
+  const tokenRecord = await kv.get(`apple_music_token_${userId}`) as {
+    user_token?: string; storefront?: string;
+  } | null;
+
+  const devToken =
+    Deno.env.get("APPLE_MUSIC_DEVELOPER_TOKEN") ||
+    (await kv.get("config:apple_music_developer_token") as string | null);
+
+  if (!tokenRecord?.user_token) {
+    return c.json({ error: "Apple Music not connected" }, 401);
+  }
+  if (!devToken) {
+    return c.json({ error: "Apple Music developer token not configured" }, 503);
+  }
+
+  try {
+    // Fetch heavy rotation (most-played recent) + recently played tracks
+    const headers = {
+      "Authorization": `Bearer ${devToken}`,
+      "Music-User-Token": tokenRecord.user_token,
+    };
+
+    const [heavyRes, recentRes] = await Promise.all([
+      fetch("https://api.music.apple.com/v1/me/history/heavy-rotation?limit=20", { headers }),
+      fetch("https://api.music.apple.com/v1/me/recent/played/tracks?limit=30", { headers }),
+    ]);
+
+    const heavy = heavyRes.ok ? await heavyRes.json() : { data: [] };
+    const recent = recentRes.ok ? await recentRes.json() : { data: [] };
+
+    // Extract artist names from heavy rotation (albums/artists/playlists) + recent tracks
+    const artistMap = new Map<string, { name: string; image: string | null; count: number }>();
+
+    for (const item of (heavy.data || [])) {
+      const attr = item.attributes || {};
+      const name = attr.artistName;
+      if (!name) continue;
+      const img = attr.artwork?.url
+        ? attr.artwork.url.replace("{w}", "300").replace("{h}", "300")
+        : null;
+      const existing = artistMap.get(name.toLowerCase());
+      if (existing) { existing.count += 2; }
+      else { artistMap.set(name.toLowerCase(), { name, image: img, count: 2 }); }
+    }
+
+    for (const item of (recent.data || [])) {
+      const attr = item.attributes || {};
+      const name = attr.artistName;
+      if (!name) continue;
+      const img = attr.artwork?.url
+        ? attr.artwork.url.replace("{w}", "300").replace("{h}", "300")
+        : null;
+      const existing = artistMap.get(name.toLowerCase());
+      if (existing) { existing.count += 1; if (!existing.image) existing.image = img; }
+      else { artistMap.set(name.toLowerCase(), { name, image: img, count: 1 }); }
+    }
+
+    const topArtists = Array.from(artistMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+      .map(a => ({ name: a.name, image: a.image }));
+
+    // Apple Music API doesn't expose genre tags per-user the way Spotify does.
+    // Extract genreNames from heavy rotation items where available.
+    const genreCount: Record<string, number> = {};
+    for (const item of (heavy.data || [])) {
+      for (const g of (item.attributes?.genreNames || [])) {
+        if (g && g !== "Music") genreCount[g] = (genreCount[g] || 0) + 1;
+      }
+    }
+    const topGenres = Object.entries(genreCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15)
+      .map(([g]) => g);
+
+    await kv.set(`apple_music_taste_${userId}`, { topGenres, topArtists, updatedAt: Date.now() });
+
+    return c.json({ topGenres, topArtists });
+  } catch (e: unknown) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+  }
 });
 
 // ── User Preferences: GET / POST ──────────────────────────────────────────────
@@ -1466,18 +1610,23 @@ app.get("/events/personalized", async (c) => {
   const userId = c.req.query("userId") || "default_user";
   const city = c.req.query("city") || "Miami";
 
-  // Fetch user preferences and Spotify taste in parallel
-  const [prefs, taste] = await Promise.all([
+  // Fetch user preferences and Spotify + Apple Music taste in parallel
+  const [prefs, spotifyTaste, appleMusicTaste] = await Promise.all([
     kv.get(`preferences:${userId}`) as Promise<{ genres?: string[]; eventTypes?: string[] } | null>,
     kv.get(`spotify_taste_${userId}`) as Promise<{ topGenres?: string[]; topArtists?: { name: string }[] } | null>,
+    kv.get(`apple_music_taste_${userId}`) as Promise<{ topGenres?: string[]; topArtists?: { name: string }[] } | null>,
   ]);
 
   const userGenres = [
     ...(prefs?.genres || []),
-    ...(taste?.topGenres || []),
+    ...(spotifyTaste?.topGenres || []),
+    ...(appleMusicTaste?.topGenres || []),
   ].map(g => g.toLowerCase());
   const userEventTypes = (prefs?.eventTypes || []).map(t => t.toLowerCase());
-  const artistNames = (taste?.topArtists || []).map(a => a.name.toLowerCase());
+  const artistNames = [
+    ...(spotifyTaste?.topArtists || []),
+    ...(appleMusicTaste?.topArtists || []),
+  ].map(a => a.name.toLowerCase());
 
   return c.json({
     userGenres,

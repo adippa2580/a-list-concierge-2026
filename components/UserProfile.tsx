@@ -1,6 +1,6 @@
 'use client';
 
-import { User, Shield, Camera, Music, TrendingUp, Award, Star, Lock, CheckCircle2, Loader2, Edit2, Check, X, Instagram, Headphones, RefreshCw, ExternalLink, Zap, Building2, Plus, KeyRound, Trash2 } from 'lucide-react';
+import { User, Shield, Camera, Music, Music2, TrendingUp, Award, Star, Lock, CheckCircle2, Loader2, Edit2, Check, X, Instagram, Headphones, RefreshCw, ExternalLink, Zap, Building2, Plus, KeyRound, Trash2 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -62,6 +62,11 @@ interface SocialProfile {
   instagram: {
     connected: boolean;
     username: string | null;
+    days_until_expiry: number | null;
+  };
+  apple_music: {
+    connected: boolean;
+    storefront: string | null;
     days_until_expiry: number | null;
   };
 }
@@ -333,6 +338,102 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
         toast.error('Could not connect Instagram', { description: data.error || 'Check that Instagram credentials are configured' });
       }
     } catch { toast.error('Could not connect Instagram'); }
+  };
+
+  // Apple Music uses MusicKit JS (in-page SDK) rather than a redirect OAuth flow.
+  // We load the SDK, request a developer token from our backend, then prompt
+  // the user to authorize — which returns a long-lived user music token we
+  // store server-side for reading their taste profile.
+  const connectAppleMusic = async () => {
+    const loadMusicKit = () => new Promise<void>((resolve, reject) => {
+      if ((window as any).MusicKit) return resolve();
+      const existing = document.querySelector('script[src*="musickit"]') as HTMLScriptElement | null;
+      if (existing) { existing.addEventListener('load', () => resolve()); return; }
+      const script = document.createElement('script');
+      script.src = 'https://js-cdn.music.apple.com/musickit/v3/musickit.js';
+      script.async = true;
+      script.setAttribute('data-web-components', '');
+      script.onload = () => {
+        // MusicKit fires 'musickitloaded' after initial setup
+        document.addEventListener('musickitloaded', () => resolve(), { once: true });
+        setTimeout(() => resolve(), 2000); // fallback
+      };
+      script.onerror = () => reject(new Error('Failed to load MusicKit'));
+      document.head.appendChild(script);
+    });
+
+    try {
+      toast.loading('Loading Apple Music...', { id: 'apple-music-connect' });
+
+      // 1. Get the developer token from our backend
+      const tokenRes = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/apple-music/developer-token`,
+        { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+      );
+      const tokenData = await tokenRes.json();
+      if (!tokenData.token) {
+        toast.error('Apple Music not configured', {
+          id: 'apple-music-connect',
+          description: tokenData.error || 'Missing developer token'
+        });
+        return;
+      }
+
+      // 2. Load the MusicKit JS SDK
+      await loadMusicKit();
+
+      const MusicKit = (window as any).MusicKit;
+      if (!MusicKit) {
+        toast.error('Could not load Apple Music', { id: 'apple-music-connect' });
+        return;
+      }
+
+      // 3. Configure MusicKit with our developer token
+      await MusicKit.configure({
+        developerToken: tokenData.token,
+        app: { name: 'A-List', build: '1.0.0' },
+      });
+
+      const instance = MusicKit.getInstance();
+      toast.dismiss('apple-music-connect');
+
+      // 4. Trigger authorization (Apple ID popup)
+      const userToken = await instance.authorize();
+      if (!userToken) {
+        toast.error('Apple Music authorization cancelled');
+        return;
+      }
+
+      const storefront = instance.storefrontId || 'us';
+
+      // 5. Store the user token server-side
+      const storeRes = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/apple-music/store-token?userId=${userId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${publicAnonKey}`
+          },
+          body: JSON.stringify({ userToken, storefront }),
+        }
+      );
+      if (!storeRes.ok) {
+        toast.error('Failed to save Apple Music connection');
+        return;
+      }
+
+      toast.success('Apple Music connected');
+      fetchSocialProfile();
+    } catch (e: unknown) {
+      toast.dismiss('apple-music-connect');
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('denied')) {
+        toast.error('Apple Music authorization cancelled');
+      } else {
+        toast.error('Could not connect Apple Music', { description: msg });
+      }
+    }
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -618,6 +719,19 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
                 avatar={social?.soundcloud.avatar_url || null}
                 onConnect={connectSoundCloud}
                 isSource={!customName && !social?.instagram.connected && !social?.spotify.connected && social?.soundcloud.connected === true}
+              />
+
+              {/* Apple Music */}
+              <SocialRow
+                icon={<Music2 size={16} className="text-[#E5E4E2]" />}
+                name="Apple Music"
+                connected={social?.apple_music.connected ?? false}
+                loading={socialLoading}
+                handle={social?.apple_music.connected ? (social.apple_music.storefront ? `Storefront: ${social.apple_music.storefront.toUpperCase()}` : 'Connected') : null}
+                meta={social?.apple_music.days_until_expiry != null ? `Token expires in ${social.apple_music.days_until_expiry}d` : null}
+                avatar={null}
+                onConnect={connectAppleMusic}
+                isSource={false}
               />
             </div>
 

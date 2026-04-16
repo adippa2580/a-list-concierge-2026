@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Music, Sparkles, Check, Loader2, ChevronRight } from 'lucide-react';
+import { X, Music, Music2, Sparkles, Check, Loader2, ChevronRight } from 'lucide-react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { useAuth } from '../utils/AuthContext';
 
@@ -34,6 +34,9 @@ export function PreferencesScreen({ onClose }: PreferencesScreenProps) {
   const [spotifyGenres, setSpotifyGenres] = useState<string[]>([]);
   const [spotifyArtists, setSpotifyArtists] = useState<{ name: string; image: string | null }[]>([]);
   const [loadingSpotify, setLoadingSpotify] = useState(false);
+  const [appleMusicGenres, setAppleMusicGenres] = useState<string[]>([]);
+  const [appleMusicArtists, setAppleMusicArtists] = useState<{ name: string; image: string | null }[]>([]);
+  const [loadingAppleMusic, setLoadingAppleMusic] = useState(false);
   const [loadingPrefs, setLoadingPrefs] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -81,6 +84,32 @@ export function PreferencesScreen({ onClose }: PreferencesScreenProps) {
       }
     } catch (_) {}
     setLoadingSpotify(false);
+  };
+
+  // Fetch Apple Music taste
+  const fetchAppleMusicTaste = async () => {
+    setLoadingAppleMusic(true);
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/apple-music/top-artists?userId=${userId}`,
+        { headers: { Authorization: `Bearer ${publicAnonKey}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setAppleMusicGenres(data.topGenres || []);
+        setAppleMusicArtists((data.topArtists || []).slice(0, 6));
+        // Auto-select Apple Music genres (fuzzy match to our options)
+        const newGenres = new Set(selectedGenres);
+        for (const g of (data.topGenres || []).slice(0, 5)) {
+          const match = GENRE_OPTIONS.find(opt =>
+            opt.toLowerCase().includes(g.toLowerCase()) || g.toLowerCase().includes(opt.toLowerCase())
+          );
+          if (match) newGenres.add(match);
+        }
+        setSelectedGenres(newGenres);
+      }
+    } catch (_) {}
+    setLoadingAppleMusic(false);
   };
 
   const toggleGenre = (g: string) => {
@@ -173,6 +202,49 @@ export function PreferencesScreen({ onClose }: PreferencesScreenProps) {
             >
               {loadingSpotify ? <Loader2 size={12} className="animate-spin" /> : <Music size={12} />}
               {loadingSpotify ? 'Analyzing...' : 'Import My Music Taste'}
+            </button>
+          )}
+        </div>
+
+        {/* Apple Music Import */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Music2 size={14} className="text-pink-400" />
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/60">Import from Apple Music</h3>
+          </div>
+          {appleMusicArtists.length > 0 ? (
+            <div>
+              <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-hide">
+                {appleMusicArtists.map((a, i) => (
+                  <div key={i} className="flex-shrink-0 text-center w-16">
+                    {a.image ? (
+                      <img src={a.image} alt={a.name} className="w-14 h-14 rounded-full object-cover mx-auto border border-white/10" />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full bg-white/10 mx-auto flex items-center justify-center text-xs font-bold">{a.name[0]}</div>
+                    )}
+                    <p className="text-[8px] text-white/50 mt-1.5 truncate">{a.name}</p>
+                  </div>
+                ))}
+              </div>
+              {appleMusicGenres.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-[8px] uppercase tracking-widest text-white/30 mb-2">Your top genres from Apple Music</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {appleMusicGenres.slice(0, 8).map((g, i) => (
+                      <span key={i} className="px-2.5 py-1 rounded-full bg-pink-500/10 border border-pink-500/20 text-[9px] text-pink-400 font-medium">{g}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={fetchAppleMusicTaste}
+              disabled={loadingAppleMusic}
+              className="w-full py-3 rounded-full bg-pink-500/10 border border-pink-500/20 text-[10px] font-bold uppercase tracking-widest text-pink-400 hover:bg-pink-500/20 transition-all flex items-center justify-center gap-2"
+            >
+              {loadingAppleMusic ? <Loader2 size={12} className="animate-spin" /> : <Music2 size={12} />}
+              {loadingAppleMusic ? 'Analyzing...' : 'Import My Apple Music Taste'}
             </button>
           )}
         </div>
