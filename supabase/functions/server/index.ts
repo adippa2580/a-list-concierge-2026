@@ -634,12 +634,16 @@ app.get("/spotify/callback", async (c) => {
   const userId = rawState.startsWith("spotify:") ? rawState.slice(8) : rawState;
 
   try {
+    // Read client secret — env var has hardcoded fallback, also try KV
+    const clientSecret = SPOTIFY_CLIENT_SECRET ||
+      (await kv.get("config:spotify_client_secret") as string | null) || "";
+
     // Exchange code for access token
     const tokenResponse = await fetch("https://accounts.spotify.com/api/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Authorization": `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`)}`
+        "Authorization": `Basic ${btoa(`${SPOTIFY_CLIENT_ID}:${clientSecret}`)}`
       },
       body: new URLSearchParams({
         grant_type: "authorization_code",
@@ -649,8 +653,14 @@ app.get("/spotify/callback", async (c) => {
     });
 
     if (!tokenResponse.ok) {
-      const error = await tokenResponse.text();
-      return c.json({ error: "Failed to exchange code for token" }, tokenResponse.status as ContentfulStatusCode);
+      const errorBody = await tokenResponse.text();
+      console.error("[Spotify] Token exchange " + tokenResponse.status + ": " + errorBody + " redirect_uri=" + SPOTIFY_REDIRECT_URI);
+      return c.json({
+        error: "Failed to exchange code for token",
+        spotify_status: tokenResponse.status,
+        spotify_error: errorBody,
+        redirect_uri_used: SPOTIFY_REDIRECT_URI,
+      }, tokenResponse.status as ContentfulStatusCode);
     }
 
     const tokenData = await tokenResponse.json();
