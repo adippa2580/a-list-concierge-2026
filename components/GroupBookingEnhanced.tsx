@@ -17,7 +17,7 @@ const API = `https://${projectId}.supabase.co/functions/v1/server`;
 const HEADERS = { Authorization: `Bearer ${publicAnonKey}`, 'Content-Type': 'application/json' };
 
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// ââ Types âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 type SplitMethod = 'even' | 'host' | 'custom';
 type PaymentRail = 'venmo' | 'cashapp' | 'applepay' | 'zelle' | 'cash';
 type Screen = 'table' | 'crew-select' | 'split' | 'addons' | 'review' | 'sent';
@@ -26,7 +26,7 @@ interface CrewMember { name: string; avatar: string; role: string; spend: number
 interface Crew { id: number; name: string; emoji: string; level: string; members: CrewMember[]; }
 interface SplitMember extends CrewMember { amount: number; confirmed: boolean; }
 
-// ── Liquor Inventory (Brand Partnerships/Sponsorships) ──────────────────────────
+// ââ Liquor Inventory (Brand Partnerships/Sponsorships) ââââââââââââââââââââââââââ
 const LIQUOR_INVENTORY = {
   vodka: [
     { name: 'Grey Goose', brand: 'Vodka', tier: 'Standard', price: 280 },
@@ -44,9 +44,9 @@ const LIQUOR_INVENTORY = {
     { name: 'Louis XIII', brand: 'Cognac', tier: 'Elite', price: 4200 },
   ],
   champagne: [
-    { name: 'Moët & Chandon', brand: 'Champagne', tier: 'Standard', price: 220 },
-    { name: 'Dom Pérignon', brand: 'Champagne', tier: 'Premium', price: 750 },
-    { name: 'Dom Pérignon Rosé', brand: 'Champagne', tier: 'Elite', price: 1200 },
+    { name: 'MoÃ«t & Chandon', brand: 'Champagne', tier: 'Standard', price: 220 },
+    { name: 'Dom PÃ©rignon', brand: 'Champagne', tier: 'Premium', price: 750 },
+    { name: 'Dom PÃ©rignon RosÃ©', brand: 'Champagne', tier: 'Elite', price: 1200 },
   ],
   whiskey: [
     { name: 'Macallan 12', brand: 'Whiskey', tier: 'Standard', price: 320 },
@@ -55,7 +55,7 @@ const LIQUOR_INVENTORY = {
   ],
 };
 
-// ── Mixer Inventory (Brand Partnerships/Sponsorships) ────────────────────────────
+// ââ Mixer Inventory (Brand Partnerships/Sponsorships) ââââââââââââââââââââââââââââ
 const MIXER_INVENTORY = {
   energy: [
     { name: 'Red Bull', brand: 'Energy Drink', tier: 'Standard', price: 8 },
@@ -80,7 +80,7 @@ const MIXER_INVENTORY = {
   ],
 };
 
-// ── Static packages with tier info ──────────────────────────────────────────────
+// ââ Static packages with tier info ââââââââââââââââââââââââââââââââââââââââââââââ
 const LIQUOR_PACKAGES = [
   { id: 0, name: 'Standard Selection', tier: 'Standard', bottles: 2, price: 800, description: 'Perfect for the night' },
   { id: 1, name: 'Premium Reserve', tier: 'Premium', bottles: 3, price: 1500, description: 'Elevated experience' },
@@ -93,7 +93,7 @@ const MIXER_PACKAGES = [
   { id: 2, name: 'Elite Set', tier: 'Elite', price: 450, description: 'Signature mixers' },
 ];
 
-// ── Payment rails with real deep-link generators ──────────────────────────────
+// ââ Payment rails with real deep-link generators ââââââââââââââââââââââââââââââ
 const PAYMENT_RAILS: {
   id: PaymentRail;
   label: string;
@@ -137,7 +137,7 @@ const PAYMENT_RAILS: {
 
 interface GroupBookingProps { venue?: any; onBack?: () => void; }
 
-// ── Helper to get bottles/mixers available in a tier ──────────────────────────────
+// ââ Helper to get bottles/mixers available in a tier ââââââââââââââââââââââââââââââ
 const getBottlesInTier = (tier: string) => {
   const all = Object.values(LIQUOR_INVENTORY).flat();
   return all.filter(b => b.tier === tier);
@@ -148,19 +148,20 @@ const getMixersInTier = (tier: string) => {
   return all.filter(m => m.tier === tier);
 };
 
-// ── Main Component ─────────────────────────────────────────────────────────────
+// ââ Main Component âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 export function GroupBooking({ venue, onBack }: GroupBookingProps) {
   const { userId: USER_ID } = useAuth();
-  const [screen, setScreen] = useState<Screen>('table');
+  const [screen, setScreen] = useState<Screen>(venue?.selectedTable ? 'crew-select' : 'table');
   const [crews, setCrews] = useState<Crew[]>([]);
   const [loadingCrews, setLoadingCrews] = useState(true);
   const [selectedCrew, setSelectedCrew] = useState<Crew | null>(null);
 
   // Table options (pulled from venue or defaults)
+  const selectedTableMin = venue?.selectedTable?.min_spend ?? venue?.selectedTable?.min ?? 1500;
   const TABLE_OPTIONS = [
-    { name: 'Standard VIP', capacity: '2–4 guests', min: venue?.selectedTable?.min ?? 1500 },
-    { name: 'Premium Booth', capacity: '4–8 guests', min: (venue?.selectedTable?.min ?? 1500) + 1000 },
-    { name: 'Main Stage Table', capacity: '8–12 guests', min: (venue?.selectedTable?.min ?? 1500) + 2500 },
+    { name: venue?.selectedTable?.name ?? 'Standard VIP', capacity: '2–4 guests', min: selectedTableMin },
+    { name: 'Premium Booth', capacity: '4–8 guests', min: selectedTableMin + 1000 },
+    { name: 'Main Stage Table', capacity: '8–12 guests', min: selectedTableMin + 2500 },
   ];
   const [selectedTableIdx, setSelectedTableIdx] = useState(0);
 
@@ -212,7 +213,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     }));
   }, [selectedCrew, manualMembers, totalCost]);
 
-  // ── Split calculations ────────────────────────────────────────────────────
+  // ââ Split calculations ââââââââââââââââââââââââââââââââââââââââââââââââââââ
   const splitData: SplitMember[] = useMemo(() => {
     const mems = crewMembers;
     if (!mems.length) return [];
@@ -222,8 +223,17 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     }
     if (splitMethod === 'host') {
       const nonHost = mems.filter(m => m.role !== 'Captain');
-      const memberShare = nonHost.length > 0 ? Math.ceil((liquorCost + mixerCost) / nonHost.length) : 0;
-      return mems.map(m => ({ ...m, amount: m.role === 'Captain' ? tableMin : memberShare }));
+      if (nonHost.length === 0) {
+        return mems.map(m => ({ ...m, amount: totalCost }));
+      }
+      const memberShare = Math.ceil((liquorCost + mixerCost) / nonHost.length);
+      let hostShare = tableMin;
+      if (hostShare < memberShare) {
+        const evenShare = Math.ceil(totalCost / mems.length);
+        const hostExtra = totalCost - (evenShare * nonHost.length);
+        return mems.map(m => ({ ...m, amount: m.role === 'Captain' ? hostExtra : evenShare }));
+      }
+      return mems.map(m => ({ ...m, amount: m.role === 'Captain' ? hostShare : memberShare }));
     }
     // custom
     return mems.map(m => ({
@@ -242,7 +252,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     setCustomAmounts(prev => ({ ...prev, [name]: Math.max(0, base + delta) }));
   };
 
-  // ── Handlers ────────────────────────────────────────────────────────────
+  // ââ Handlers ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   const handleConfirm = () => {
     if (splitMethod === 'custom' && !customBalanced) {
       toast.error(`Split is $${Math.abs(customDiff)} ${customDiff > 0 ? 'over' : 'short'}`);
@@ -291,7 +301,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
         const data = await res.json();
         setSavedBookingId(data.booking?.id ?? null);
       } else {
-        toast.error('Failed to save booking — payment links still sent');
+        toast.error('Failed to save booking â payment links still sent');
       }
 
       // Open payment deep-links for each non-Captain member
@@ -313,12 +323,12 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     }
   };
 
-  // ── Step indicator ────────────────────────────────────────────────────────
+  // ââ Step indicator ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   const STEPS: Screen[] = ['table', 'crew-select', 'split', 'addons', 'review'];
   const stepIdx = STEPS.indexOf(screen);
   const stepLabels = ['Table', 'Crew', 'Split', 'Add-ons', 'Review'];
 
-  // ── Screens ──────────────────────────────────────────────────────────────
+  // ââ Screens ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   if (screen === 'sent') return <SentScreen splitData={splitData} inviteCode={inviteCode} bookingId={savedBookingId} venue={venue} onBack={onBack} />;
 
   if (screen === 'review') return (
@@ -333,7 +343,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     />
   );
 
-  // ── Shared step header ───────────────────────────────────────────────────
+  // ââ Shared step header âââââââââââââââââââââââââââââââââââââââââââââââââââ
   const StepHeader = ({ title, onBack: goBack }: { title: string; onBack: () => void }) => (
     <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-5 sticky top-0 z-20">
       <div className="flex items-center gap-4 mb-4">
@@ -357,7 +367,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     </div>
   );
 
-  // ── Inline price bar — shows min spend + per-person only (hides full total) ──
+  // ââ Inline price bar â shows min spend + per-person only (hides full total) ââ
   const PriceBar = () => {
     const pp = members.length ? Math.ceil(totalCost / members.length) : null;
     return (
@@ -377,7 +387,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     );
   };
 
-  // ── TABLE SELECTION SCREEN ───────────────────────────────────────────────
+  // ââ TABLE SELECTION SCREEN âââââââââââââââââââââââââââââââââââââââââââââââ
   if (screen === 'table') return (
     <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
       <StepHeader title="Select Table" onBack={onBack ?? (() => {})} />
@@ -403,7 +413,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     </div>
   );
 
-  // ── CREW SELECT SCREEN ───────────────────────────────────────────────────
+  // ââ CREW SELECT SCREEN âââââââââââââââââââââââââââââââââââââââââââââââââââ
   if (screen === 'crew-select') return (
     <div className="min-h-screen bg-[#000504] text-white pb-40 marble-bg">
       <div className="bg-[#000504]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-6 sticky top-0 z-20">
@@ -414,7 +424,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
             <h2 className="text-2xl font-serif italic platinum-gradient">Select Your Crew</h2>
           </div>
         </div>
-        {venue && <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold mt-3">{venue.name} • {TABLE_OPTIONS[selectedTableIdx].name} • Min ${tableMin.toLocaleString()}</p>}
+        {venue && <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 font-bold mt-3">{venue.name} â¢ {TABLE_OPTIONS[selectedTableIdx].name} â¢ Min ${tableMin.toLocaleString()}</p>}
       </div>
 
       <div className="px-6 py-10 space-y-4">
@@ -424,7 +434,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
           </div>
         ) : (
           <>
-            {/* Create Crew Button — Always First */}
+            {/* Create Crew Button â Always First */}
             <div className="space-y-1">
               <p className="text-[7px] uppercase tracking-[0.3em] text-white/20 font-bold pl-1">New</p>
             <motion.button
@@ -449,7 +459,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
             </motion.button>
             </div>
 
-            {/* Existing Crews — clearly distinct from "create new" */}
+            {/* Existing Crews â clearly distinct from "create new" */}
             {crews.length > 0 && (
               <div className="space-y-2">
                 <p className="text-[7px] uppercase tracking-[0.3em] text-white/20 font-bold pl-1">Your Crews</p>
@@ -474,7 +484,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                               <span className="text-[6px] font-bold uppercase tracking-widest px-1.5 py-0.5 bg-[#E5E4E2]/10 text-[#E5E4E2]/60 border border-[#E5E4E2]/15">Saved</span>
                             </div>
                             <p className="text-[8px] uppercase tracking-widest text-white/30">
-                              {crew.level} · {crew.members?.length ?? 0} members
+                              {crew.level} Â· {crew.members?.length ?? 0} members
                             </p>
                           </div>
                         </div>
@@ -501,7 +511,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
             {crews.length === 0 && (
               <div className="text-center py-12 space-y-4">
                 <Users size={32} className="text-white/10 mx-auto" />
-                <p className="text-[9px] uppercase tracking-[0.3em] text-white/30">No crews yet — start with the option above</p>
+                <p className="text-[9px] uppercase tracking-[0.3em] text-white/30">No crews yet â start with the option above</p>
               </div>
             )}
 
@@ -521,10 +531,10 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
     </div>
   );
 
-  // ── Shared members list (crew or manual) ─────────────────────────────────
+  // ââ Shared members list (crew or manual) âââââââââââââââââââââââââââââââââ
   const members = selectedCrew ? splitData : manualMembers.length ? splitData : [];
 
-  // ── SPLIT SCREEN ─────────────────────────────────────────────────────────
+  // ââ SPLIT SCREEN âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   if (screen === 'split') return (
     <div className="min-h-screen bg-[#000504] text-white pb-36 marble-bg">
       <StepHeader title="Payment Split" onBack={() => setScreen('crew-select')} />
@@ -532,7 +542,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
 
       <div className="px-6 py-8 space-y-8">
 
-        {/* Manual Member Entry — when no crew selected */}
+        {/* Manual Member Entry â when no crew selected */}
         {!selectedCrew && (
           <div className="space-y-4">
             <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Add Members</h3>
@@ -614,7 +624,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
             <motion.div key={splitMethod} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
               className="bg-zinc-950/60 border border-white/5 px-5 py-4 text-[9px] text-white/40 uppercase tracking-wider leading-relaxed"
             >
-              {splitMethod === 'even' && `Each of the ${members.length || '—'} members pays $${members.length ? Math.ceil(totalCost / members.length).toLocaleString() : '—'}.`}
+              {splitMethod === 'even' && `Each of the ${members.length || 'â'} members pays $${members.length ? Math.ceil(totalCost / members.length).toLocaleString() : 'â'}.`}
               {splitMethod === 'host' && `You cover $${tableMin.toLocaleString()} table min. Members split the bottles & mixers.`}
               {splitMethod === 'custom' && 'Set each person\'s amount. Must total exactly before proceeding.'}
             </motion.div>
@@ -640,7 +650,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                 <div className="flex justify-between text-[8px] uppercase tracking-widest">
                   <span className="text-white/30">Allocated ${customTotal.toLocaleString()} / ${totalCost.toLocaleString()}</span>
                   <span className={customBalanced ? 'text-emerald-400' : customDiff > 0 ? 'text-red-400' : 'text-amber-400'}>
-                    {customBalanced ? '✓ Balanced' : customDiff > 0 ? `$${customDiff} over` : `$${Math.abs(customDiff)} short`}
+                    {customBalanced ? 'â Balanced' : customDiff > 0 ? `$${customDiff} over` : `$${Math.abs(customDiff)} short`}
                   </span>
                 </div>
                 <div className="h-0.5 bg-white/5">
@@ -684,7 +694,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                         <button key={d} onClick={() => adjustCustom(member.name, d)}
                           className="flex-1 text-[7px] font-bold uppercase tracking-widest py-1 border border-white/5 text-white/30 hover:border-white/20 hover:text-white/60 transition-all"
                         >
-                          {d > 0 ? '+' : '−'}${Math.abs(d)}
+                          {d > 0 ? '+' : 'â'}${Math.abs(d)}
                         </button>
                       ))}
                     </div>
@@ -704,14 +714,14 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
         {splitMethod === 'custom' && !customBalanced && (
           <p className="text-[8px] uppercase tracking-widest text-amber-400 text-center flex items-center justify-center gap-2">
             <AlertCircle size={11} />
-            {customDiff > 0 ? `$${customDiff} over` : `$${Math.abs(customDiff)} short`} — balance before proceeding
+            {customDiff > 0 ? `$${customDiff} over` : `$${Math.abs(customDiff)} short`} â balance before proceeding
           </p>
         )}
       </div>
     </div>
   );
 
-  // ── ADD-ONS SCREEN ────────────────────────────────────────────────────────
+  // ââ ADD-ONS SCREEN ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
   return (
     <div className="min-h-screen bg-[#000504] text-white pb-36 marble-bg">
       <StepHeader title="Add-ons" onBack={() => setScreen('split')} />
@@ -730,7 +740,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                 <div key={index} className={`border transition-all ${isSelected ? 'border-[#E5E4E2]/30 bg-white/5' : 'border-white/5 hover:border-white/20'}`}>
                   <button onClick={() => {
                     setSelectedLiquor(index);
-                    // Reset to empty set when switching packages — user picks fresh
+                    // Reset to empty set when switching packages â user picks fresh
                     setSelectedBottles(new Set());
                   }} className="w-full p-5 text-left">
                     <div className="flex justify-between items-start">
@@ -739,7 +749,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                           <h4 className="text-xs font-bold uppercase tracking-widest">{pkg.name}</h4>
                           <span className="text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 border border-[#E5E4E2]/30 bg-[#E5E4E2]/5 text-[#E5E4E2]">{pkg.tier}</span>
                         </div>
-                        <p className="text-[8px] uppercase tracking-widest text-white/30">{pkg.description} · {pkg.bottles} bottles</p>
+                        <p className="text-[8px] uppercase tracking-widest text-white/30">{pkg.description} Â· {pkg.bottles} bottles</p>
                       </div>
                       <div className="text-right">
                         <span className="text-lg font-light">${pkg.price.toLocaleString()}</span>
@@ -764,7 +774,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
                           return (
                             <p className="text-[7px] uppercase tracking-widest text-white/40 mb-3 font-bold">
                               {tierSelected.length === pkg.bottles
-                                ? `${pkg.bottles} bottle${pkg.bottles > 1 ? 's' : ''} selected ✓`
+                                ? `${pkg.bottles} bottle${pkg.bottles > 1 ? 's' : ''} selected â`
                                 : `Select ${remaining} more bottle${remaining !== 1 ? 's' : ''} (${tierSelected.length}/${pkg.bottles})`}
                             </p>
                           );
@@ -905,7 +915,7 @@ export function GroupBooking({ venue, onBack }: GroupBookingProps) {
   );
 }
 
-// ── Confirm Screen ─────────────────────────────────────────────────────────────
+// ââ Confirm Screen âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function ConfirmScreen({ splitData, totalCost, splitMethod, memberRails, setMemberRails, memberHandles, setMemberHandles, venue, liquorPkg, mixerPkg, selectedBottles, selectedMixers, confirming, onBack, onSend, tableMin, tableName }: {
   splitData: SplitMember[]; totalCost: number; splitMethod: SplitMethod;
   memberRails: Record<string, PaymentRail>; setMemberRails: (r: any) => void;
@@ -938,13 +948,13 @@ function ConfirmScreen({ splitData, totalCost, splitMethod, memberRails, setMemb
       </div>
 
       <div className="px-6 py-10 space-y-10">
-        {/* Your share — prominent, not full total */}
+        {/* Your share â prominent, not full total */}
         <div className="bg-zinc-950 border border-white/10 p-8 text-center relative overflow-hidden">
           <div className="absolute inset-0 marble-bg opacity-20 pointer-events-none" />
           <div className="relative z-10">
             <p className="text-[8px] uppercase tracking-[0.4em] text-white/30 font-bold mb-2">Your Share</p>
             <p className="text-5xl font-serif italic platinum-gradient">${yourShare.toLocaleString()}</p>
-            <p className="text-[8px] uppercase tracking-widest text-white/20 mt-3">{tableName} · {splitMethod === 'even' ? 'Even Split' : splitMethod === 'host' ? 'Host Led' : 'Custom'}</p>
+            <p className="text-[8px] uppercase tracking-widest text-white/20 mt-3">{tableName} Â· {splitMethod === 'even' ? 'Even Split' : splitMethod === 'host' ? 'Host Led' : 'Custom'}</p>
           </div>
         </div>
 
@@ -1074,7 +1084,7 @@ function ConfirmScreen({ splitData, totalCost, splitMethod, memberRails, setMemb
   );
 }
 
-// ── Sent / Success Screen ──────────────────────────────────────────────────────
+// ââ Sent / Success Screen ââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function SentScreen({ splitData, inviteCode, bookingId, venue, onBack }: {
   splitData: SplitMember[]; inviteCode: string; bookingId: number | null; venue: any; onBack?: () => void;
 }) {
@@ -1093,7 +1103,7 @@ function SentScreen({ splitData, inviteCode, bookingId, venue, onBack }: {
           </div>
           <h2 className="text-3xl font-serif italic platinum-gradient">Booking Confirmed</h2>
           <p className="text-[9px] uppercase tracking-[0.3em] text-white/30 mt-3">
-            Payment requests sent · {venue?.name ?? 'Venue'}
+            Payment requests sent Â· {venue?.name ?? 'Venue'}
           </p>
         </div>
 
@@ -1114,7 +1124,7 @@ function SentScreen({ splitData, inviteCode, bookingId, venue, onBack }: {
               <div className="text-right">
                 <p className="text-sm font-light font-serif italic">${m.amount.toLocaleString()}</p>
                 <p className={`text-[7px] uppercase tracking-widest mt-0.5 ${m.role === 'Captain' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                  {m.role === 'Captain' ? '✓ Confirmed' : 'Pending'}
+                  {m.role === 'Captain' ? 'â Confirmed' : 'Pending'}
                 </p>
               </div>
             </div>
@@ -1140,4 +1150,4 @@ function SentScreen({ splitData, inviteCode, bookingId, venue, onBack }: {
       </motion.div>
     </div>
   );
-}
+              }
