@@ -6,7 +6,9 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { motion, AnimatePresence } from 'motion/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 const eventRecaps = [
   {
@@ -260,21 +262,69 @@ const artists = [
 const genres = ['All', 'House', 'Techno', 'EDM', 'Hip-Hop', 'Latin'];
 
 export function ArtistDiscovery() {
+  const { userId } = useAuth();
   const [followedArtists, setFollowedArtists] = useState<number[]>(
     artists.filter(a => a.following).map(a => a.id)
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('All');
+  const [userArtists, setUserArtists] = useState<typeof artists>([]);
+  const [userGenres, setUserGenres] = useState<string[]>([]);
+
+  // Load followed artists and user taste from DB
+  useEffect(() => {
+    if (!userId || userId === 'default_user') return;
+
+    // Load saved followed artists
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
+      headers: { Authorization: `Bearer ${publicAnonKey}` }
+    }).then(r => r.ok ? r.json() : null).then(data => {
+      if (data?.followedArtists?.length) setFollowedArtists(data.followedArtists);
+    }).catch(() => {});
+
+    // Load user taste (Spotify + Apple Music artists)
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/events/personalized?userId=${userId}&city=Miami`, {
+      headers: { Authorization: `Bearer ${publicAnonKey}` }
+    }).then(r => r.ok ? r.json() : null).then(data => {
+      if (data) {
+        setUserGenres(data.userGenres || []);
+        if (data.artistNames?.length) {
+          const userArtistList = data.artistNames.slice(0, 6).map((name: string, i: number) => ({
+            id: 1000 + i,
+            name: name.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+            genre: data.userGenres?.[i % (data.userGenres.length || 1)] || 'Music',
+            followers: '',
+            image: `https://images.unsplash.com/photo-${1501386761578 + i * 111}?q=80&w=600&auto=format&fit=crop`,
+            spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(name)}/artists`,
+            upcomingShows: [],
+            following: true,
+            trending: false,
+            fromUserTaste: true,
+          }));
+          setUserArtists(userArtistList);
+        }
+      }
+    }).catch(() => {});
+  }, [userId]);
 
   const toggleFollow = (artistId: number) => {
-    setFollowedArtists(prev =>
-      prev.includes(artistId)
+    setFollowedArtists(prev => {
+      const next = prev.includes(artistId)
         ? prev.filter(id => id !== artistId)
-        : [...prev, artistId]
-    );
+        : [...prev, artistId];
+      // Save to DB
+      fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+        body: JSON.stringify({ followedArtists: next }),
+      }).catch(() => {});
+      return next;
+    });
   };
 
-  const filteredArtists = artists.filter(artist => {
+  // Combine user taste artists + hardcoded artists, then filter
+  const allArtists = [...userArtists, ...artists];
+  const filteredArtists = allArtists.filter(artist => {
     const matchesSearch = artist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       artist.genre.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -285,6 +335,17 @@ export function ArtistDiscovery() {
       (selectedGenre === 'Latin' && artist.genre.includes('Reggaeton'));
 
     return matchesSearch && matchesGenre;
+  });
+
+  // Sort: user taste artists first, then preference-genre matches, then rest
+  filteredArtists.sort((a: any, b: any) => {
+    const fromTaste = (x: any) => x.fromUserTaste ? 0 : 1;
+    if (fromTaste(a) !== fromTaste(b)) return fromTaste(a) - fromTaste(b);
+    const genreMatch = (x: any) => {
+      const g = x.genre.toLowerCase();
+      return userGenres.some(ug => g.includes(ug) || ug.includes(g)) ? 0 : 1;
+    };
+    return genreMatch(a) - genreMatch(b);
   });
 
   return (
