@@ -169,7 +169,40 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
         `https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`,
         { headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
-      if (res.ok) setProfile(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setProfile(data);
+
+        // Hydrate localStorage from DB if local values are empty (new device / cleared cache)
+        if (!localStorage.getItem(CUSTOM_NAME_KEY) && data.name) {
+          localStorage.setItem(CUSTOM_NAME_KEY, data.name);
+          setCustomName(data.name);
+        }
+        if (!localStorage.getItem(CUSTOM_BIO_KEY) && data.bio) {
+          localStorage.setItem(CUSTOM_BIO_KEY, data.bio);
+          setCustomBio(data.bio);
+        }
+        if (!localStorage.getItem(CUSTOM_LOC_KEY) && data.personalDetails?.location) {
+          localStorage.setItem(CUSTOM_LOC_KEY, data.personalDetails.location);
+          setCustomLoc(data.personalDetails.location);
+        }
+        if (!localStorage.getItem(CUSTOM_EMAIL_KEY) && data.personalDetails?.email) {
+          localStorage.setItem(CUSTOM_EMAIL_KEY, data.personalDetails.email);
+          setCustomEmail(data.personalDetails.email);
+        }
+        if (!localStorage.getItem(CUSTOM_PHONE_KEY) && data.personalDetails?.phone) {
+          localStorage.setItem(CUSTOM_PHONE_KEY, data.personalDetails.phone);
+          setCustomPhone(data.personalDetails.phone);
+        }
+        if (!localStorage.getItem(CUSTOM_SINCE_KEY) && data.memberSince) {
+          localStorage.setItem(CUSTOM_SINCE_KEY, data.memberSince);
+          setCustomSince(data.memberSince);
+        }
+        if (!localStorage.getItem(CUSTOM_USERNAME_KEY) && data.username) {
+          localStorage.setItem(CUSTOM_USERNAME_KEY, data.username);
+          setCustomUsername(data.username);
+        }
+      }
     } catch (e) {
       console.error('Profile fetch error:', e);
     } finally {
@@ -232,7 +265,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     setEditing(true);
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     localStorage.setItem(CUSTOM_NAME_KEY,     editName.trim());
     localStorage.setItem(CUSTOM_BIO_KEY,      editBio.trim());
     localStorage.setItem(CUSTOM_LOC_KEY,      editLoc.trim());
@@ -250,6 +283,28 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     setEditing(false);
     toast.success('Profile updated');
     onProfileUpdate?.();
+
+    // Persist to database (survives across devices/browsers)
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
+          body: JSON.stringify({
+            name: editName.trim(),
+            bio: editBio.trim(),
+            username: editUsername.trim(),
+            personalDetails: {
+              location: editLoc.trim(),
+              email: editEmail.trim(),
+              phone: editPhone.trim(),
+            },
+            memberSince: editSince.trim(),
+          }),
+        }
+      );
+    } catch (_) { /* silent — localStorage is the fallback */ }
   };
 
   const cancelEdit = () => setEditing(false);

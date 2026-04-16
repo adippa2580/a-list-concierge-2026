@@ -224,14 +224,40 @@ export default function App() {
     }
   }, []);
 
-  // Auto-transition from splash to welcome
+  // Auto-transition from splash — check for existing session first
   useEffect(() => {
-    if (appState === "splash") {
-      const timer = setTimeout(() => {
-        setAppState("welcome");
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
+    if (appState !== "splash") return;
+
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // User has a valid session — go straight to the app
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('onboarding_complete')
+              .eq('id', session.user.id)
+              .single();
+            if (profile?.onboarding_complete) {
+              setAppState('app');
+              return;
+            }
+          } catch {
+            const done = localStorage.getItem(ONBOARDING_DONE_KEY);
+            if (done) { setAppState('app'); return; }
+          }
+          setAppState('onboarding');
+          return;
+        }
+      } catch {
+        // getSession failed — fall through to welcome
+      }
+      setTimeout(() => setAppState('welcome'), 2500);
+    };
+
+    const timer = setTimeout(checkSession, 500);
+    return () => clearTimeout(timer);
   }, [appState]);
 
   const handleLogin = async () => {
