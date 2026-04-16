@@ -566,7 +566,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
                   onClick={() => fileInputRef.current?.click()}
                 >
                   {displayAvatar
-                    ? <img src={displayAvatar} alt="avatar" className="w-full h-full object-cover" />
+                    ? <img src={displayAvatar} alt="avatar" className="w-full h-full object-cover" loading="eager" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     : <User size={24} className="text-white/20" />}
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <Camera size={14} className="text-white" />
@@ -667,7 +667,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
           <div className="relative group flex-shrink-0">
             <div className="w-20 h-20 platinum-border overflow-hidden bg-[#011410] flex items-center justify-center">
               {displayAvatar ? (
-                <img src={displayAvatar} alt="Profile" className="w-full h-full object-cover" />
+                <img src={displayAvatar} alt="Profile" className="w-full h-full object-cover" loading="eager" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               ) : (
                 <User size={32} className="text-[#E5E4E2]/30" />
               )}
@@ -1240,7 +1240,7 @@ function SocialRow({
         {/* Avatar or icon */}
         <div className="w-10 h-10 border border-white/10 bg-white/5 flex items-center justify-center overflow-hidden flex-shrink-0">
           {avatar ? (
-            <img src={avatar} alt={name} className="w-full h-full object-cover" />
+            <img src={avatar} alt={name} className="w-full h-full object-cover" loading="eager" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
           ) : icon}
         </div>
         <div>

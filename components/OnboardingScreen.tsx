@@ -314,7 +314,7 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
                   className="group relative w-28 h-28 border-2 border-dashed border-white/20 hover:border-[#E5E4E2]/50 transition-all flex items-center justify-center overflow-hidden"
                 >
                   {avatarUrl ? (
-                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" loading="eager" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   ) : (
                     <div className="text-center">
                       <Camera size={24} className="mx-auto text-white/20 mb-1 group-hover:text-white/50 transition-colors" />

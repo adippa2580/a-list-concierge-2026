@@ -413,7 +413,7 @@ export default function App() {
               <button onClick={() => navigateTo("profile")} className="relative group">
                 <div className="w-10 h-10 platinum-border overflow-hidden bg-[#011410] flex items-center justify-center">
                   {userAvatar ? (
-                    <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
+                    <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" loading="eager" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   ) : (
                     <User size={18} className="text-[#E5E4E2]/40" />
                   )}
