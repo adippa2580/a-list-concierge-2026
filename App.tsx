@@ -24,6 +24,7 @@ import { MemberClubsFeed } from "./components/MemberClubsFeed";
 import { AIConcierge } from "./components/AIConcierge";
 import { AdminPortal } from "./components/AdminPortal";
 import { HomeV2 } from "./components/HomeV2";
+import { PreferencesScreen } from "./components/PreferencesScreen";
 import { PasswordResetScreen } from "./components/PasswordResetScreen";
 import { AdminGateScreen } from "./components/AdminGateScreen";
 import { AListLogo } from "./components/AListLogo";
@@ -73,6 +74,7 @@ export default function App() {
   const [useHomeV2, setUseHomeV2] = useState(() => {
     try { return localStorage.getItem('alist_use_v2') === 'true'; } catch { return false; }
   });
+  const [showPreferences, setShowPreferences] = useState(false);
   const [selectedVenue, setSelectedVenue] = useState<any>(null);
   const [selectedTable, setSelectedTable] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -516,6 +518,7 @@ export default function App() {
                       onOpenCalendar={() => navigateTo("calendar")}
                       onViewAllArtists={() => navigateTo("artists")}
                       onViewMemberClubs={() => navigateTo("member-clubs")}
+                      onOpenPreferences={() => setShowPreferences(true)}
                     />
                   ) : (
                     <Home
@@ -626,6 +629,11 @@ export default function App() {
           </AnimatePresence>
         </div>
       </div>
+      {showPreferences && (
+        <div className="fixed inset-0 z-50">
+          <PreferencesScreen onClose={() => setShowPreferences(false)} />
+        </div>
+      )}
     </div>
   );
 }

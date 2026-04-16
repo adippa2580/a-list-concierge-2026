@@ -1,9 +1,10 @@
 'use client';
 
-import { MapPin, Search, Navigation, Check, Ticket, ChevronLeft, ChevronRight, ExternalLink, Flame, Calendar, Users } from 'lucide-react';
+import { MapPin, Search, Navigation, Check, Ticket, ChevronLeft, ChevronRight, ExternalLink, Flame, Calendar, Users, Sliders } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { useAuth } from '../utils/AuthContext';
 import { toast } from 'sonner';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 
@@ -47,7 +48,8 @@ function fakeAttendance(eventId: string): string {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtists, onViewMemberClubs }: any) {
+export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtists, onViewMemberClubs, onOpenPreferences }: any) {
+  const { userId } = useAuth();
   const [currentLocation, setCurrentLocation] = useState(() => {
     try { return localStorage.getItem('alist_location') || 'Miami, FL'; } catch { return 'Miami, FL'; }
   });
@@ -64,6 +66,15 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
   const locationSubmittingRef = useRef(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const favouriteVenues = useFavouriteVenues();
+  const [userPrefs, setUserPrefs] = useState<{ userGenres: string[]; userEventTypes: string[]; artistNames: string[]; hasPreferences: boolean }>({ userGenres: [], userEventTypes: [], artistNames: [], hasPreferences: false });
+
+  // Fetch user preferences for event ranking
+  useEffect(() => {
+    if (!userId || userId === 'default_user') return;
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/events/personalized?userId=${userId}&city=${currentLocation}`, {
+      headers: { Authorization: `Bearer ${publicAnonKey}` }
+    }).then(r => r.ok ? r.json() : null).then(d => { if (d) setUserPrefs(d); }).catch(() => {});
+  }, [userId, currentLocation]);
 
   // Debounce search
   useEffect(() => {
@@ -133,8 +144,32 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
             }
           });
 
-          // Sort: RA → venue+photo → TM → venue-no-photo → rest
+          // Sort: preference-boosted → RA → venue+photo → TM → venue-no-photo → rest
+          const norm2 = (s: string) => s.toLowerCase();
           formatted.sort((a: any, b: any) => {
+            // Preference score: higher = better match to user taste
+            const prefScore = (e: any) => {
+              if (!userPrefs.hasPreferences) return 0;
+              let score = 0;
+              const name = norm2(e.name || '');
+              const venue = norm2(e.venue || '');
+              const combined = name + ' ' + venue;
+              // Genre match
+              for (const g of userPrefs.userGenres) {
+                if (combined.includes(g)) score += 3;
+              }
+              // Event type match
+              for (const t of userPrefs.userEventTypes) {
+                if (combined.includes(t)) score += 2;
+              }
+              // Artist match
+              for (const a of userPrefs.artistNames) {
+                if (combined.includes(a)) score += 5;
+              }
+              return score;
+            };
+            const pa = prefScore(a), pb = prefScore(b);
+            if (pa !== pb) return pb - pa; // higher pref score first
             const rank = (e: any) => e.source === 'ra' ? 0 : (e.isVenueSource && e.image) ? 1 : e.isTicketmaster ? 2 : (e.isVenueSource) ? 3 : 4;
             return rank(a) - rank(b) || a.rawDate.getTime() - b.rawDate.getTime();
           });
@@ -305,6 +340,14 @@ export function HomeV2({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArt
             className="flex-shrink-0 p-1 text-white/40 hover:text-white transition-colors"
           >
             <Search size={13} />
+          </button>
+
+          {/* Preferences */}
+          <button
+            onClick={onOpenPreferences}
+            className={`flex-shrink-0 p-1 transition-colors ${userPrefs.hasPreferences ? 'text-purple-400' : 'text-white/40 hover:text-white'}`}
+          >
+            <Sliders size={13} />
           </button>
         </div>
 

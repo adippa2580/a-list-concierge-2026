@@ -1393,6 +1393,100 @@ app.get("/social/profile", async (c) => {
   });
 });
 
+// ── User Preferences: GET / POST ──────────────────────────────────────────────
+app.get("/preferences", async (c) => {
+  const userId = c.req.query("userId") || "default_user";
+  const prefs = await kv.get(`preferences:${userId}`) as {
+    genres?: string[]; eventTypes?: string[]; updatedAt?: number;
+  } | null;
+  return c.json(prefs || { genres: [], eventTypes: [] });
+});
+
+app.post("/preferences", async (c) => {
+  const userId = c.req.query("userId") || "default_user";
+  const body = await c.req.json();
+  const existing = await kv.get(`preferences:${userId}`) as Record<string, unknown> | null;
+  const updated = { ...(existing || {}), ...body, updatedAt: Date.now() };
+  await kv.set(`preferences:${userId}`, updated);
+  return c.json(updated);
+});
+
+// ── Spotify Top Artists + Genres ───────────────────────────────────────────────
+app.get("/spotify/top-artists", async (c) => {
+  const userId = c.req.query("userId") || "default_user";
+  const spotify = await kv.get(`spotify_token_${userId}`) as {
+    access_token: string; refresh_token?: string; expires_at: number;
+  } | null;
+
+  if (!spotify?.access_token || spotify.expires_at < Date.now()) {
+    return c.json({ error: "Spotify not connected or token expired" }, 401);
+  }
+
+  try {
+    const [artistsRes, recentRes] = await Promise.all([
+      fetch("https://api.spotify.com/v1/me/top/artists?limit=20&time_range=medium_term", {
+        headers: { "Authorization": `Bearer ${spotify.access_token}` },
+      }),
+      fetch("https://api.spotify.com/v1/me/top/tracks?limit=20&time_range=short_term", {
+        headers: { "Authorization": `Bearer ${spotify.access_token}` },
+      }),
+    ]);
+
+    const artists = artistsRes.ok ? await artistsRes.json() : { items: [] };
+    const tracks = recentRes.ok ? await recentRes.json() : { items: [] };
+
+    // Extract unique genres from top artists
+    const genreCount: Record<string, number> = {};
+    for (const a of (artists.items || [])) {
+      for (const g of (a.genres || [])) {
+        genreCount[g] = (genreCount[g] || 0) + 1;
+      }
+    }
+    const topGenres = Object.entries(genreCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15)
+      .map(([g]) => g);
+
+    const topArtists = (artists.items || []).slice(0, 10).map((a: any) => ({
+      name: a.name, id: a.id, genres: a.genres || [],
+      image: a.images?.[0]?.url || null, popularity: a.popularity,
+    }));
+
+    // Cache for event matching
+    await kv.set(`spotify_taste_${userId}`, { topGenres, topArtists, updatedAt: Date.now() });
+
+    return c.json({ topGenres, topArtists });
+  } catch (e: unknown) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
+  }
+});
+
+// ── Personalized Event Feed ───────────────────────────────────────────────────
+app.get("/events/personalized", async (c) => {
+  const userId = c.req.query("userId") || "default_user";
+  const city = c.req.query("city") || "Miami";
+
+  // Fetch user preferences and Spotify taste in parallel
+  const [prefs, taste] = await Promise.all([
+    kv.get(`preferences:${userId}`) as Promise<{ genres?: string[]; eventTypes?: string[] } | null>,
+    kv.get(`spotify_taste_${userId}`) as Promise<{ topGenres?: string[]; topArtists?: { name: string }[] } | null>,
+  ]);
+
+  const userGenres = [
+    ...(prefs?.genres || []),
+    ...(taste?.topGenres || []),
+  ].map(g => g.toLowerCase());
+  const userEventTypes = (prefs?.eventTypes || []).map(t => t.toLowerCase());
+  const artistNames = (taste?.topArtists || []).map(a => a.name.toLowerCase());
+
+  return c.json({
+    userGenres,
+    userEventTypes,
+    artistNames,
+    hasPreferences: userGenres.length > 0 || userEventTypes.length > 0,
+  });
+});
+
 // ── Invites: GET / POST / PATCH ───────────────────────────────────────────────
 const DEFAULT_INVITES = {
   incoming: [
