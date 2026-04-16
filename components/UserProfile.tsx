@@ -202,6 +202,12 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
           localStorage.setItem(CUSTOM_USERNAME_KEY, data.username);
           setCustomUsername(data.username);
         }
+        // Restore avatar from DB if not in localStorage
+        if (!localStorage.getItem(AVATAR_STORAGE_KEY) && data.avatarUrl) {
+          localStorage.setItem(AVATAR_STORAGE_KEY, data.avatarUrl);
+          setAvatarUrl(data.avatarUrl);
+          window.dispatchEvent(new Event('alist-avatar-updated'));
+        }
       }
     } catch (e) {
       console.error('Profile fetch error:', e);
@@ -332,7 +338,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
 
     setUploading(true);
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const dataUrl = event.target?.result as string;
       try {
         localStorage.setItem(AVATAR_STORAGE_KEY, dataUrl);
@@ -340,6 +346,16 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
         window.dispatchEvent(new Event('alist-avatar-updated'));
         toast.success('Profile photo updated');
         onProfileUpdate?.();
+
+        // Persist avatar to database
+        await fetch(
+          `https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
+            body: JSON.stringify({ avatarUrl: dataUrl }),
+          }
+        );
       } catch (_err) {
         toast.error('Could not save photo — try a smaller image');
       } finally { setUploading(false); }

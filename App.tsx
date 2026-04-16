@@ -136,6 +136,7 @@ export default function App() {
         const data = await res.json();
         // Only use server avatar if no local upload exists
         if (data.avatarUrl && !localStorage.getItem(AVATAR_KEY)) {
+          localStorage.setItem(AVATAR_KEY, data.avatarUrl);
           setUserAvatar(data.avatarUrl);
         }
       }
