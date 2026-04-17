@@ -134,6 +134,12 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     setClubInput('');
     setShowAddClub(false);
     toast.success(`${trimmed} connected`);
+    // Persist to database
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+      body: JSON.stringify({ privateClubs: updated.map(c => ({ id: c.id, name: c.name, portalUrl: c.portalUrl || '', connected: true })) }),
+    }).catch(() => {});
   };
 
   const removeClub = (id: string, name: string) => {
@@ -141,6 +147,12 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     localStorage.setItem(CLUBS_KEY, JSON.stringify(updated));
     setClubs(updated);
     toast.success(`${name} removed`);
+    // Persist to database
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+      body: JSON.stringify({ privateClubs: updated.map(c => ({ id: c.id, name: c.name, portalUrl: c.portalUrl || '', connected: true })) }),
+    }).catch(() => {});
   };
 
 
