@@ -45,6 +45,7 @@ import {
   Shield,
   Crown,
   Building2,
+  Share2,
 } from "lucide-react";
 import { Button } from "./components/ui/button";
 
@@ -63,9 +64,139 @@ type ViewType =
   | "calendar"
   | "member-clubs"
   | "bookings"
+  | "invite"
   | "admin";
 
 type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify-callback" | "soundcloud-callback" | "instagram-callback" | "join-crew" | "password-reset" | "admin-gate";
+
+// ── Invite Screen ─────────────────────────────────────────────────────────────
+function InviteScreen({ userId }: { userId: string }) {
+  const [copied, setCopied] = useState(false);
+  const [inviteCount, setInviteCount] = useState(0);
+
+  const referralCode = userId.slice(0, 8).toUpperCase();
+  const inviteUrl = `https://a-list-core-application.web.app?ref=${referralCode}`;
+  const inviteMessage = `Join me on A-List \u2014 the exclusive nightlife app for curated events, VIP tables, and crew experiences. Use my invite link: ${inviteUrl}`;
+
+  useEffect(() => {
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
+      headers: { Authorization: `Bearer ${publicAnonKey}` }
+    }).then(r => r.ok ? r.json() : null).then(data => {
+      if (data?.invitesSent) setInviteCount(data.invitesSent);
+    }).catch(() => {});
+  }, [userId]);
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* fallback */ }
+  };
+
+  const shareNative = async () => {
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+      body: JSON.stringify({ invitesSent: inviteCount + 1 }),
+    }).catch(() => {});
+    setInviteCount(c => c + 1);
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'A-List \u2014 Your World, Curated', text: inviteMessage, url: inviteUrl });
+      } catch { /* user cancelled */ }
+    } else {
+      copyLink();
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#060606] text-white pb-32">
+      <div className="px-6 pt-8 pb-6 border-b border-white/10">
+        <p className="text-[7px] uppercase tracking-[0.4em] text-white/30 font-bold">Exclusive Access</p>
+        <h1 className="text-3xl font-serif italic text-white mt-1">Invite to A-List</h1>
+      </div>
+
+      <div className="px-6 py-8 space-y-8">
+        <div className="relative overflow-hidden border border-white/10 p-6 bg-gradient-to-br from-purple-900/20 to-pink-900/10">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-full -translate-y-8 translate-x-8" />
+          <div className="relative">
+            <p className="text-[8px] uppercase tracking-[0.4em] text-purple-400 font-bold mb-3">Your Referral Code</p>
+            <p className="text-3xl font-mono font-bold tracking-[0.2em] text-white mb-1">{referralCode}</p>
+            <p className="text-[10px] text-white/40 mt-2">Share this code with friends to give them exclusive access to A-List</p>
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-bold mb-3">Invite Link</p>
+          <div className="flex gap-2">
+            <div className="flex-1 bg-white/5 border border-white/10 px-4 py-3 text-[10px] text-white/60 font-mono truncate">
+              {inviteUrl}
+            </div>
+            <button onClick={copyLink} className={`px-4 py-3 text-[9px] font-bold uppercase tracking-widest transition-all ${copied ? 'bg-green-500 text-black' : 'bg-white text-black hover:bg-white/90'}`}>
+              {copied ? '\u2713 Copied' : 'Copy'}
+            </button>
+          </div>
+        </div>
+
+        <button onClick={shareNative} className="w-full py-4 bg-white text-black font-bold text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 hover:bg-white/90 transition-all">
+          <Share2 size={16} />
+          Share Invite
+        </button>
+
+        <div className="grid grid-cols-3 gap-3">
+          <a href={`sms:&body=${encodeURIComponent(inviteMessage)}`} className="flex flex-col items-center gap-2 py-4 bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+            <span className="text-lg">\ud83d\udcac</span>
+            <span className="text-[8px] uppercase tracking-widest text-white/40 font-bold">iMessage</span>
+          </a>
+          <a href={`https://wa.me/?text=${encodeURIComponent(inviteMessage)}`} target="_blank" rel="noopener" className="flex flex-col items-center gap-2 py-4 bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+            <span className="text-lg">\ud83d\udcf1</span>
+            <span className="text-[8px] uppercase tracking-widest text-white/40 font-bold">WhatsApp</span>
+          </a>
+          <a href={`mailto:?subject=${encodeURIComponent('Join A-List')}&body=${encodeURIComponent(inviteMessage)}`} className="flex flex-col items-center gap-2 py-4 bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
+            <span className="text-lg">\u2709\ufe0f</span>
+            <span className="text-[8px] uppercase tracking-widest text-white/40 font-bold">Email</span>
+          </a>
+        </div>
+
+        <div className="border border-white/10 p-5">
+          <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-bold mb-4">Your Invites</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-4xl font-serif italic text-white">{inviteCount}</p>
+              <p className="text-[9px] text-white/40 mt-1">Friends invited</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[9px] text-purple-400 font-bold uppercase tracking-widest">
+                {inviteCount >= 10 ? 'Ambassador' : inviteCount >= 5 ? 'Connector' : inviteCount >= 1 ? 'Member' : 'Start Inviting'}
+              </p>
+              <p className="text-[8px] text-white/30 mt-1">
+                {inviteCount < 5 ? `${5 - inviteCount} more for Connector status` : inviteCount < 10 ? `${10 - inviteCount} more for Ambassador` : 'Top tier reached'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 font-bold mb-3">How It Works</p>
+          <div className="space-y-3">
+            {[
+              { step: '1', text: 'Share your unique invite link with friends' },
+              { step: '2', text: 'They sign up using your referral code' },
+              { step: '3', text: 'Both of you unlock exclusive perks and status' },
+            ].map(({ step, text }) => (
+              <div key={step} className="flex items-center gap-3">
+                <div className="w-7 h-7 bg-white/5 border border-white/10 flex items-center justify-center text-[9px] font-bold text-white/50 flex-shrink-0">{step}</div>
+                <p className="text-[10px] text-white/50">{text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const { userId } = useAuth();
@@ -484,6 +615,7 @@ export default function App() {
                         <MenuButton icon={Shield} label="VIP Status" onClick={() => navigateTo("vip")} />
                         <MenuButton icon={Trophy} label="2025 Year in Review" onClick={() => navigateTo("year-review")} />
                         <MenuButton icon={Sparkles} label="AI Concierge" onClick={() => navigateTo("ai-concierge")} highlight />
+                        <MenuButton icon={Share2} label="Invite to A-List" onClick={() => navigateTo("invite")} highlight />
                         <div className="my-3 border-t border-white/8" />
                         <MenuButton icon={Shield} label="Admin Portal" onClick={() => navigateTo("admin")} danger />
                         <MenuButton
@@ -582,6 +714,7 @@ export default function App() {
                 {currentView === "ai-concierge" && <AIConcierge />}
                 {currentView === "calendar" && <EventCalendar />}
                 {currentView === "bookings" && <BookingsSchedule />}
+                {currentView === "invite" && <InviteScreen userId={userId} />}
                 {currentView === "admin" && <AdminPortal />}
                 {currentView === "member-clubs" && (
                   <MemberClubsFeed onManageClubs={() => navigateTo("profile")} />
