@@ -237,6 +237,15 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
           onboarding_complete: true,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'id' });
+
+        // Save private clubs to KV profile with real user ID
+        if (clubs.length > 0) {
+          await fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${user.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+            body: JSON.stringify({ privateClubs: clubs.map(c => ({ id: c.id, name: c.name, portalUrl: c.portalUrl, connected: c.connected })) }),
+          });
+        }
       }
     } catch (e) {
       console.error('Failed to save onboarding to DB:', e);

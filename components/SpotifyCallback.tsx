@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AListLogo } from './AListLogo';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
@@ -13,11 +13,18 @@ interface SpotifyCallbackProps {
 export function SpotifyCallback({ onSuccess, onError }: SpotifyCallbackProps) {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Connecting your Spotify account...');
+  const didRun = useRef(false);
 
   useEffect(() => {
+    // Prevent double-fire in React strict mode
+    if (didRun.current) return;
+    didRun.current = true;
+
     const handleCallback = async () => {
+      // Clear URL params immediately to prevent re-fire on navigation
+      window.history.replaceState({}, document.title, window.location.pathname);
+
       try {
-        // Get the code and state from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         const state = urlParams.get('state');
@@ -25,15 +32,15 @@ export function SpotifyCallback({ onSuccess, onError }: SpotifyCallbackProps) {
 
         if (error) {
           setStatus('error');
-          setMessage(`Spotify authorization failed: ${error}`);
-          setTimeout(() => onError(), 3000);
+          setMessage(`Spotify authorization was declined`);
+          setTimeout(() => onError(), 2000);
           return;
         }
 
         if (!code || !state) {
           setStatus('error');
           setMessage('Missing authorization code. Please try again.');
-          setTimeout(() => onError(), 3000);
+          setTimeout(() => onError(), 2000);
           return;
         }
 
@@ -47,39 +54,29 @@ export function SpotifyCallback({ onSuccess, onError }: SpotifyCallbackProps) {
           }
         );
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'Failed to connect' }));
-          console.error('Spotify callback error:', errorData);
-          setStatus('error');
-          setMessage(errorData.error || 'Failed to complete Spotify connection');
-          setTimeout(() => onError(), 3000);
-          return;
-        }
+        const data = await response.json().catch(() => ({ error: 'Failed to connect' }));
 
-        const data = await response.json();
-
-        if (data.success) {
-          // Store the userId for future API calls
+        if (response.ok && data.success) {
           localStorage.setItem('spotify_user_id', data.userId);
-
           setStatus('success');
-          setMessage('Successfully connected to Spotify!');
-          setTimeout(() => onSuccess(), 2000);
+          setMessage('Spotify connected!');
+          setTimeout(() => onSuccess(), 1500);
         } else {
+          console.error('Spotify callback error:', data);
           setStatus('error');
-          setMessage('Failed to connect to Spotify');
-          setTimeout(() => onError(), 3000);
+          setMessage(data.spotify_error ? 'Connection failed — please try again' : (data.error || 'Failed to connect'));
+          setTimeout(() => onSuccess(), 2500); // Go to app anyway — user is logged in
         }
       } catch (error) {
         console.error('Callback processing error:', error);
         setStatus('error');
         setMessage('An error occurred. Please try again.');
-        setTimeout(() => onError(), 3000);
+        setTimeout(() => onSuccess(), 2500); // Go to app anyway
       }
     };
 
     handleCallback();
-  }, [onSuccess, onError]);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-950 via-black to-pink-950 flex flex-col items-center justify-center p-6">

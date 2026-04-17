@@ -472,7 +472,7 @@ export default function App() {
         onSuccess={handleLogin}
         onError={() => {
           window.history.replaceState({}, document.title, window.location.pathname);
-          setAppState('login');
+          handleLogin();
         }}
       />
     );
