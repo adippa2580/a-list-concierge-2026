@@ -1,291 +1,706 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Button } from '@/components/ui/button'
-import { ExternalLink, Heart, MessageCircle, RefreshCw } from 'lucide-react'
+import { Search, Bell, BellOff, Music, MapPin, Calendar, Users, Play, ArrowUpRight } from 'lucide-react';
+import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Avatar, AvatarFallback } from './ui/avatar';
+import { motion, AnimatePresence } from 'motion/react';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 
-// Sub-tab types
-type ArtistDiscoverySubTab = 'artists' | 'scene-dispatch'
-
-interface InstagramPost {
-  permalink: string
-  author: string
-  authorAvatar?: string
-  caption: string
-  imageUrl: string
-  likes: number
-  comments: number
-  timestamp: string
-}
-
-// City selector chip component
-function CityChip({ city, selected, onClick }: { city: string; selected: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-        selected
-          ? 'bg-purple-600 text-white shadow-sm'
-          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-      }`}
-    >
-      {city}
-    </button>
-  )
-}
-
-// Instagram post card component
-function ScenePostCard({ post }: { post: InstagramPost }) {
-  const timeAgo = (timestamp: string) => {
-    const seconds = Math.floor((Date.now() - new Date(timestamp).getTime()) / 1000)
-    if (seconds < 60) return 'just now'
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-    return `${Math.floor(seconds / 86400)}d ago`
+const eventRecaps = [
+  {
+    id: 1,
+    artist: 'Sonoshvq',
+    venue: 'Soho Beach House',
+    date: 'March 15, 2026',
+    vibeDescription: 'Electric peak hour set with curated house selection',
+    attendanceCount: '340+',
+    image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: 2,
+    artist: 'Charlotte de Witte',
+    venue: 'Factory Town',
+    date: 'March 13, 2026',
+    vibeDescription: 'Hypnotic techno voyage pushing boundaries',
+    attendanceCount: '520+',
+    image: 'https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=600&auto=format&fit=crop'
+  },
+  {
+    id: 3,
+    artist: 'Peggy Gou',
+    venue: 'LIV Miami',
+    date: 'March 10, 2026',
+    vibeDescription: 'Disco-tinged deep house journey',
+    attendanceCount: '680+',
+    image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600&auto=format&fit=crop'
   }
+];
 
-  return (
-    <Card className="overflow-hidden hover:shadow-lg transition-shadow">
-      <CardContent className="p-0">
-        {/* Author header */}
-        <div className="flex items-center gap-3 p-4">
-          {post.authorAvatar ? (
-            <img
-              src={post.authorAvatar}
-              alt={post.author}
-              className="w-10 h-10 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-pink-400" />
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm truncate">@{post.author}</p>
-            <p className="text-xs text-gray-500">{timeAgo(post.timestamp)}</p>
-          </div>
-          <a
-            href={post.permalink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-gray-400 hover:text-purple-600 transition-colors"
-          >
-            <ExternalLink className="w-5 h-5" />
-          </a>
-        </div>
+const tracksOfTheWeek = [
+  {
+    id: 1,
+    trackName: 'Phosphene',
+    artist: 'Sonoshvq',
+    vibe: 'PEAK HOUR',
+    playCount: '3.2K'
+  },
+  {
+    id: 2,
+    trackName: 'Berghain',
+    artist: 'Charlotte de Witte',
+    vibe: 'DEEP CUT',
+    playCount: '2.8K'
+  },
+  {
+    id: 3,
+    trackName: 'Eyes',
+    artist: 'Peggy Gou',
+    vibe: 'OPENER',
+    playCount: '4.1K'
+  },
+  {
+    id: 4,
+    trackName: 'Frequency of Love',
+    artist: 'John Summit',
+    vibe: 'PEAK HOUR',
+    playCount: '3.9K'
+  },
+  {
+    id: 5,
+    trackName: 'Motions',
+    artist: 'Fisher',
+    vibe: 'DEEP CUT',
+    playCount: '2.4K'
+  },
+  {
+    id: 6,
+    trackName: 'You Can Leave in a Body Bag',
+    artist: 'Black Coffee',
+    vibe: 'CLOSER',
+    playCount: '1.8K'
+  }
+];
 
-        {/* Image */}
-        <div className="relative aspect-square bg-gray-100">
-          <img
-            src={post.imageUrl}
-            alt="Post content"
-            className="w-full h-full object-cover"
-          />
-        </div>
-
-        {/* Engagement stats */}
-        <div className="flex items-center gap-4 p-4 border-b">
-          <div className="flex items-center gap-1.5 text-gray-600">
-            <Heart className="w-5 h-5" />
-            <span className="text-sm font-medium">{post.likes.toLocaleString()}</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-gray-600">
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-sm font-medium">{post.comments.toLocaleString()}</span>
-          </div>
-        </div>
-
-        {/* Caption */}
-        {post.caption && (
-          <div className="p-4">
-            <p className="text-sm text-gray-700 line-clamp-3">
-              <span className="font-semibold">@{post.author}</span> {post.caption}
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-// Scene Dispatch feed component
-function SceneDispatchFeed() {
-  const cities = ['Miami', 'NYC', 'LA', 'Chicago', 'London', 'Berlin', 'Ibiza', 'Dallas', 'Houston']
-  const [selectedCity, setSelectedCity] = useState('Miami')
-  const [posts, setPosts] = useState<InstagramPost[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const fetchPosts = async (city: string) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const response = await fetch(
-        `/api/supabase/functions/server/scene-dispatch?city=${city.toLowerCase()}`
-      )
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to fetch posts')
+const artists = [
+  {
+    id: 1,
+    name: 'Martin Garrix',
+    genre: 'Progressive House',
+    followers: '245K',
+    image: 'https://images.unsplash.com/photo-1501386761578-eac5c94b800a?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Martin%20Garrix/artists',
+    upcomingShows: [
+      {
+        venue: 'LIV Miami',
+        location: 'South Beach, Miami',
+        date: 'Tonight, 11:30 PM',
+        distance: '2.3 mi',
+        eventUrl: 'https://www.livnightclub.com'
       }
-      const data = await response.json()
-      setPosts(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load feed')
-    } finally {
-      setLoading(false)
-    }
+    ],
+    following: true,
+    trending: true
+  },
+  {
+    id: 2,
+    name: 'Tiesto',
+    genre: 'Electronic / Dance',
+    followers: '189K',
+    image: 'https://images.unsplash.com/photo-1670613074622-8c8ba08265ce?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Tiesto/artists',
+    upcomingShows: [
+      {
+        venue: 'E11EVEN Miami',
+        location: 'Downtown, Miami',
+        date: 'Friday, 11:00 PM',
+        distance: '3.1 mi',
+        eventUrl: 'https://www.11miami.com'
+      }
+    ],
+    following: true,
+    trending: false
+  },
+  {
+    id: 3,
+    name: 'John Summit',
+    genre: 'Tech House',
+    followers: '312K',
+    image: 'https://images.unsplash.com/photo-1574672280600-4accfa5b6f98?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/John%20Summit/artists',
+    upcomingShows: [
+      {
+        venue: 'Space Miami',
+        location: 'Downtown, Miami',
+        date: 'Sunday, 12:00 AM',
+        distance: '3.5 mi',
+        eventUrl: 'https://www.clubspace.com'
+      }
+    ],
+    following: false,
+    trending: true
+  },
+  {
+    id: 4,
+    name: 'Peggy Gou',
+    genre: 'House / Disco',
+    followers: '156K',
+    image: 'https://images.unsplash.com/photo-1625872778166-7b133d560b82?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Peggy%20Gou/artists',
+    upcomingShows: [
+      {
+        venue: 'Soho Beach House',
+        location: 'Mid-Beach, Miami',
+        date: 'Saturday, 10:00 PM',
+        distance: '4.2 mi',
+        eventUrl: 'https://www.sohohouse.com/houses/soho-beach-house'
+      }
+    ],
+    following: true,
+    trending: true
+  },
+  {
+    id: 5,
+    name: 'Fisher',
+    genre: 'Tech House',
+    followers: '284K',
+    image: 'https://images.unsplash.com/photo-1560443797-0b2389cb632b?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Fisher/artists',
+    upcomingShows: [
+      {
+        venue: 'Story Miami',
+        location: 'South Beach, Miami',
+        date: 'Tonight, 12:00 AM',
+        distance: '2.8 mi',
+        eventUrl: 'https://www.storynightclub.com'
+      }
+    ],
+    following: false,
+    trending: true
+  },
+  {
+    id: 6,
+    name: 'Black Coffee',
+    genre: 'Deep House',
+    followers: '210K',
+    image: 'https://images.unsplash.com/photo-1629869343830-37a495211abf?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Black%20Coffee/artists',
+    upcomingShows: [
+      {
+        venue: 'Brooklyn Mirage',
+        location: 'Brooklyn, NY',
+        date: 'Friday, 10:00 PM',
+        distance: '1.2 mi',
+        eventUrl: 'https://www.brooklynmirage.com'
+      }
+    ],
+    following: true,
+    trending: false
+  },
+  {
+    id: 7,
+    name: 'Charlotte de Witte',
+    genre: 'Techno',
+    followers: '175K',
+    image: 'https://images.unsplash.com/photo-1748867424431-eebe9aadf19f?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Charlotte%20de%20Witte/artists',
+    upcomingShows: [
+      {
+        venue: 'Factory Town',
+        location: 'Hialeah, Miami',
+        date: 'Saturday, 1:00 AM',
+        distance: '8.5 mi',
+        eventUrl: 'https://www.factorytownmiami.com'
+      }
+    ],
+    following: false,
+    trending: true
+  },
+  {
+    id: 8,
+    name: 'Solomun',
+    genre: 'Deep House',
+    followers: '198K',
+    image: 'https://images.unsplash.com/photo-1619241805829-34fb64299391?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Solomun/artists',
+    upcomingShows: [
+      {
+        venue: 'Factory Town',
+        location: 'Hialeah, Miami',
+        date: 'Sunday, 10:00 PM',
+        distance: '5.1 mi',
+        eventUrl: 'https://www.factorytownmiami.com'
+      }
+    ],
+    following: false,
+    trending: false
+  },
+  {
+    id: 9,
+    name: 'Vintage Culture',
+    genre: 'Brazilian Bass',
+    followers: '142K',
+    image: 'https://images.unsplash.com/photo-1764014353572-bcdfce164b73?q=80&w=600&auto=format&fit=crop',
+    spotifyUrl: 'https://open.spotify.com/search/Vintage%20Culture/artists',
+    upcomingShows: [
+      {
+        venue: 'Hyde Beach',
+        location: 'South Beach, Miami',
+        date: 'Tomorrow, 2:00 PM',
+        distance: '2.5 mi',
+        eventUrl: 'https://www.sbe.com/nightlife/hyde/hyde-beach-miami'
+      }
+    ],
+    following: false,
+    trending: true
   }
+];
 
+const genres = ['All', 'House', 'Techno', 'EDM', 'Hip-Hop', 'Latin'];
+
+export function ArtistDiscovery() {
+  const { userId } = useAuth();
+  const [followedArtists, setFollowedArtists] = useState<number[]>(
+    artists.filter(a => a.following).map(a => a.id)
+  );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState('All');
+  const [userArtists, setUserArtists] = useState<typeof artists>([]);
+  const [userGenres, setUserGenres] = useState<string[]>([]);
+
+  // Load followed artists and user taste from DB
   useEffect(() => {
-    fetchPosts(selectedCity)
-  }, [selectedCity])
+    if (!userId || userId === 'default_user') return;
+
+    // Load saved followed artists
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
+      headers: { Authorization: `Bearer ${publicAnonKey}` }
+    }).then(r => r.ok ? r.json() : null).then(data => {
+      if (data?.followedArtists?.length) setFollowedArtists(data.followedArtists);
+    }).catch(() => {});
+
+    // Load user taste (Spotify + Apple Music artists)
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/events/personalized?userId=${userId}&city=Miami`, {
+      headers: { Authorization: `Bearer ${publicAnonKey}` }
+    }).then(r => r.ok ? r.json() : null).then(data => {
+      if (data) {
+        setUserGenres(data.userGenres || []);
+        if (data.artistNames?.length) {
+          const userArtistList = data.artistNames.slice(0, 6).map((name: string, i: number) => ({
+            id: 1000 + i,
+            name: name.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+            genre: data.userGenres?.[i % (data.userGenres.length || 1)] || 'Music',
+            followers: '',
+            image: `https://images.unsplash.com/photo-${1501386761578 + i * 111}?q=80&w=600&auto=format&fit=crop`,
+            spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(name)}/artists`,
+            upcomingShows: [],
+            following: true,
+            trending: false,
+            fromUserTaste: true,
+          }));
+          setUserArtists(userArtistList);
+        }
+      }
+    }).catch(() => {});
+  }, [userId]);
+
+  const toggleFollow = (artistId: number) => {
+    setFollowedArtists(prev => {
+      const next = prev.includes(artistId)
+        ? prev.filter(id => id !== artistId)
+        : [...prev, artistId];
+      // Save to DB
+      fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+        body: JSON.stringify({ followedArtists: next }),
+      }).catch(() => {});
+      return next;
+    });
+  };
+
+  // Combine user taste artists + hardcoded artists, then filter
+  const allArtists = [...userArtists, ...artists];
+  const filteredArtists = allArtists.filter(artist => {
+    const matchesSearch = artist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      artist.genre.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesGenre = selectedGenre === 'All' || 
+      artist.genre.toLowerCase().includes(selectedGenre.toLowerCase()) ||
+      (selectedGenre === 'House' && artist.genre.includes('House')) ||
+      (selectedGenre === 'Techno' && artist.genre.includes('Tech')) ||
+      (selectedGenre === 'Latin' && artist.genre.includes('Reggaeton'));
+
+    return matchesSearch && matchesGenre;
+  });
+
+  // Sort: user taste artists first, then preference-genre matches, then rest
+  filteredArtists.sort((a: any, b: any) => {
+    const fromTaste = (x: any) => x.fromUserTaste ? 0 : 1;
+    if (fromTaste(a) !== fromTaste(b)) return fromTaste(a) - fromTaste(b);
+    const genreMatch = (x: any) => {
+      const g = x.genre.toLowerCase();
+      return userGenres.some(ug => g.includes(ug) || ug.includes(g)) ? 0 : 1;
+    };
+    return genreMatch(a) - genreMatch(b);
+  });
 
   return (
-    <div className="space-y-6">
-      {/* City selector */}
-      <div className="flex flex-wrap gap-2">
-        {cities.map((city) => (
-          <CityChip
-            key={city}
-            city={city}
-            selected={selectedCity === city}
-            onClick={() => setSelectedCity(city)}
+    <div className="min-h-screen bg-black text-white pb-32">
+      {/* Header */}
+      <div className="bg-black/80 backdrop-blur-md sticky top-0 z-20 px-6 pt-8 pb-4 border-b border-white/10">
+        <h1 className="text-[11px] font-bold tracking-[0.2em] uppercase text-white/60 mb-6 gold-gradient">Talent & Events</h1>
+
+        {/* Minimal Search */}
+        <div className="relative mb-6 group">
+          <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-white/40 group-hover:text-gold transition-all" size={14} />
+          <Input
+            type="text"
+            placeholder="SEARCH ARTISTS..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 bg-transparent border-0 border-b border-white/20 rounded-xl px-0 py-2 text-white placeholder:text-white/30 focus-visible:ring-0 focus-visible:border-gold transition-all tracking-[0.2em] text-[11px] font-bold uppercase h-10 w-full"
           />
-        ))}
+        </div>
+
+        {/* Genre Filter */}
+        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          {genres.map((genre, index) => (
+            <button
+              key={genre}
+              onClick={() => setSelectedGenre(genre)}
+              className={`px-4 py-2 border text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
+                selectedGenre === genre
+                  ? 'bg-white text-black border-white !text-black'
+                  : 'bg-transparent text-white/80 border-white/20 hover:border-gold hover:text-gold'
+              }`}
+            >
+              {genre}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Error state */}
-      {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-3">
-              <div className="flex-1">
-                <p className="font-semibold text-red-900">Failed to load feed</p>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => fetchPosts(selectedCity)}
-                className="border-red-300 text-red-700 hover:bg-red-100"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Retry
-              </Button>
+      <div className="px-6 py-8 space-y-10">
+
+        {/* SONOVOS HQ FEED */}
+        <div className="space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Sonovos HQ</h2>
+              <p className="text-[8px] uppercase tracking-widest text-white/25 mt-0.5">Weekly drops · Event recaps · Artist revenue</p>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Loading skeletons */}
-      {loading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Card key={i} className="overflow-hidden">
-              <CardContent className="p-0">
-                <div className="flex items-center gap-3 p-4">
-                  <Skeleton className="w-10 h-10 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-3 w-16" />
-                  </div>
-                </div>
-                <Skeleton className="aspect-square w-full" />
-                <div className="p-4 space-y-2">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Posts grid */}
-      {!loading && !error && posts.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {posts.map((post, idx) => (
-            <ScenePostCard key={`${post.permalink}-${idx}`} post={post} />
-          ))}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!loading && !error && posts.length === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="p-12 text-center">
-            <p className="text-gray-500">No posts found for {selectedCity}</p>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchPosts(selectedCity)}
-              className="mt-4"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  )
-}
-
-export default function ArtistDiscovery() {
-  const [subTab, setSubTab] = useState<ArtistDiscoverySubTab>('artists')
-
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Artist Discovery</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {/* Sub-tab switcher */}
-          <div className="flex gap-6 border-b mb-6">
-            <button
-              onClick={() => setSubTab('artists')}
-              className={`pb-3 px-1 text-sm font-medium transition-colors relative ${
-                subTab === 'artists'
-                  ? 'text-purple-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Artists
-              {subTab === 'artists' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600" />
-              )}
-            </button>
-            <button
-              onClick={() => setSubTab('scene-dispatch')}
-              className={`pb-3 px-1 text-sm font-medium transition-colors relative ${
-                subTab === 'scene-dispatch'
-                  ? 'text-purple-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Scene Dispatch
-              {subTab === 'scene-dispatch' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600" />
-              )}
-            </button>
+            <span className="text-[7px] font-bold uppercase tracking-widest px-2 py-1 border border-[#E5E4E2]/20 text-[#E5E4E2]/40">Live</span>
           </div>
 
-          {/* Sub-tab content */}
-          {subTab === 'artists' && (
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600">
-                Artist discovery features coming soon. This will include AI-powered artist matching,
-                booking recommendations, and performance analytics.
-              </p>
-            </div>
-          )}
+          <div className="space-y-3">
+            {[
+              {
+                type: 'WEEKLY DROP',
+                title: 'This Week in Miami',
+                body: 'Calvin Harris closes out WMC. LIV tables at 3× baseline. Four artists hitting personal revenue highs on Sonovos.',
+                date: 'Apr 14',
+                accent: true,
+              },
+              {
+                type: 'ARTIST REVENUE',
+                title: 'John Summit — $48K weekend',
+                body: 'Highest single-weekend revenue on the platform. Factory Town + Treehouse back-to-back drove 2.3K group bookings.',
+                date: 'Apr 13',
+                accent: false,
+              },
+              {
+                type: 'EVENT RECAP',
+                title: 'Peggy Gou @ LIV — Sold Out',
+                body: '680+ attended. 94% of VIP tables pre-booked via A-List. Average group size: 5.2. Repeat booking rate: 61%.',
+                date: 'Apr 10',
+                accent: false,
+              },
+              {
+                type: 'TRENDING',
+                title: 'Afro House surging in MIA',
+                body: 'Black Coffee, Themba, and Enoo Napa showing 3× streaming velocity this week. Venue demand up 40% YoY.',
+                date: 'Apr 9',
+                accent: false,
+              },
+            ].map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.06 }}
+                className={`p-4 border transition-all cursor-pointer group ${
+                  item.accent
+                    ? 'border-[#E5E4E2]/25 bg-[#E5E4E2]/5 hover:bg-[#E5E4E2]/8'
+                    : 'border-white/8 bg-zinc-950/40 hover:border-[#E5E4E2]/20'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <span className={`text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 border ${
+                    item.accent
+                      ? 'border-[#E5E4E2]/30 text-[#E5E4E2] bg-[#E5E4E2]/10'
+                      : 'border-white/15 text-white/40'
+                  }`}>{item.type}</span>
+                  <span className="text-[7px] uppercase tracking-widest text-white/25 flex-shrink-0">{item.date}</span>
+                </div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-white group-hover:platinum-gradient transition-all mb-1">
+                  {item.title}
+                </h4>
+                <p className="text-[9px] text-white/45 leading-relaxed">{item.body}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
 
-          {subTab === 'scene-dispatch' && <SceneDispatchFeed />}
-        </CardContent>
-      </Card>
+        {/* EVENT RECAPS Section */}
+        <div className="space-y-6">
+          <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Event Recaps</h2>
+
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+            {eventRecaps.map((recap, index) => (
+              <motion.div
+                key={recap.id}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="flex-shrink-0 w-72 rounded-xl border border-white/10 overflow-hidden bg-gradient-to-br from-[#0a0a0a] to-[#060606] group cursor-pointer transition-all"
+              >
+                {/* Image Section */}
+                <div className="relative h-40 overflow-hidden bg-zinc-900">
+                  <img
+                    src={recap.image}
+                    alt={recap.artist}
+                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+
+                  {/* Attendance Badge */}
+                  <div className="absolute top-4 right-4 bg-white/10 backdrop-blur-sm text-white text-[9px] font-bold uppercase tracking-widest px-3 py-2 border border-white/20">
+                    {recap.attendanceCount}
+                  </div>
+                </div>
+
+                {/* Content Section */}
+                <div className="p-4 space-y-3">
+                  <div>
+                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#E5E4E2] group-hover:platinum-gradient transition-all">
+                      {recap.artist}
+                    </h4>
+                    <p className="text-[9px] uppercase tracking-widest text-white/40 mt-1">{recap.venue}</p>
+                  </div>
+
+                  <div className="pt-2 border-t border-white/10">
+                    <p className="text-[10px] text-white/70 leading-relaxed">{recap.vibeDescription}</p>
+                  </div>
+
+                  <div className="pt-2">
+                    <p className="text-[9px] uppercase tracking-[0.15em] text-white/50">{recap.date}</p>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* TRACKS OF THE WEEK Section */}
+        <div className="space-y-6">
+          <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Tracks of the Week</h2>
+
+          <div className="space-y-2">
+            {tracksOfTheWeek.map((track, index) => (
+              <motion.div
+                key={track.id}
+                initial={{ opacity: 0, x: -10 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: index * 0.05 }}
+                className="group rounded-xl border border-white/10 p-4 bg-gradient-to-br from-[#0a0a0a] to-[#060606] hover:bg-white/5 transition-all cursor-pointer flex items-center justify-between gap-4"
+              >
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wide text-white group-hover:platinum-gradient transition-all truncate">
+                    {track.trackName}
+                  </h4>
+                  <p className="text-[10px] uppercase tracking-widest text-white/50 mt-1">{track.artist}</p>
+
+                  <div className="flex gap-3 mt-2 flex-wrap">
+                    <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-2 py-1 bg-white/10 text-[#E5E4E2] border border-white/20">
+                      {track.vibe}
+                    </span>
+                    <span className="inline-block text-[9px] uppercase tracking-widest text-white/40">
+                      {track.playCount} Plays
+                    </span>
+                  </div>
+                </div>
+
+                {/* Play Button — opens Spotify search */}
+                <button
+                  onClick={() => window.open(`https://open.spotify.com/search/${encodeURIComponent(`${track.trackName} ${track.artist}`)}`, '_blank', 'noopener,noreferrer')}
+                  className="flex-shrink-0 w-12 h-12 rounded-full border border-[#E5E4E2]/40 text-[#E5E4E2] hover:bg-white/10 hover:border-[#E5E4E2] transition-all flex items-center justify-center group/play"
+                  aria-label={`Play ${track.trackName} on Spotify`}
+                >
+                  <Play size={16} fill="currentColor" className="group-hover/play:scale-110 transition-transform" />
+                </button>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* Following Section */}
+        {followedArtists.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Following</h2>
+            </div>
+
+            <div className="space-y-1">
+              {filteredArtists
+                .filter(artist => followedArtists.includes(artist.id))
+                .map((artist) => (
+                  <ArtistRow
+                    key={artist.id}
+                    artist={artist}
+                    isFollowing={true}
+                    onToggleFollow={() => toggleFollow(artist.id)}
+                  />
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* All Artists */}
+        <div className="space-y-6">
+          <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Discover</h2>
+
+          <div className="space-y-1">
+            {filteredArtists.map((artist, index) => (
+              <motion.div
+                key={artist.id}
+                initial={{ opacity: 0, x: -10 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.05 }}
+              >
+                <ArtistRow
+                  artist={artist}
+                  isFollowing={followedArtists.includes(artist.id)}
+                  onToggleFollow={() => toggleFollow(artist.id)}
+                />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
-  )
+  );
+}
+
+function ArtistRow({ artist, isFollowing, onToggleFollow }: any) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <motion.div
+      layout
+      className="group rounded-xl border border-white/10 overflow-hidden bg-gradient-to-br from-[#0a0a0a] to-[#060606] mb-6 transition-all duration-500"
+    >
+      {/* Card Header with Image */}
+      <div className="relative h-48 overflow-hidden bg-zinc-900 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        {artist.image && (
+          <img
+            src={artist.image}
+            alt={artist.name}
+            className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+
+        {/* Trending Badge */}
+        {artist.trending && (
+          <div className="absolute top-4 right-4 bg-white text-black text-[10px] font-bold uppercase tracking-widest px-3 py-2">
+            TRENDING
+          </div>
+        )}
+
+        {/* Artist Name Overlay */}
+        <div className="absolute bottom-0 left-0 right-0 p-6">
+          <h3 className="font-serif text-3xl font-light uppercase tracking-wider text-white mb-2 group-hover:platinum-gradient transition-all">
+            {artist.name}
+          </h3>
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#E5E4E2]/60">{artist.genre}</p>
+        </div>
+      </div>
+
+      {/* Card Body */}
+      <div className="p-6 space-y-4">
+        {/* Stats Row */}
+        <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-white/50 border-b border-white/10 pb-4">
+          <span className="flex items-center gap-2">
+            <Users size={12} className="text-[#E5E4E2]/40" />
+            {artist.followers} FOLLOWERS
+          </span>
+          <span className="flex items-center gap-2">
+            <Music size={12} className="text-[#E5E4E2]/40" />
+            {artist.upcomingShows.length} SHOW
+            {artist.upcomingShows.length !== 1 ? 'S' : ''}
+          </span>
+        </div>
+
+        {/* Follow Button */}
+        <button
+          onClick={onToggleFollow}
+          className={`w-full py-3 text-[10px] font-bold uppercase tracking-widest border transition-all ${
+            isFollowing
+              ? 'border-[#E5E4E2]/40 text-[#E5E4E2] bg-white/5 hover:bg-white/10 hover:border-[#E5E4E2]'
+              : 'bg-white text-black border-white hover:bg-white/90'
+          }`}
+        >
+          {isFollowing ? '★ Following' : '+ Follow'}
+        </button>
+
+        {/* Expandable Shows Section */}
+        <AnimatePresence>
+          {expanded && artist.upcomingShows.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-3 pt-4 border-t border-white/10"
+            >
+              <p className="text-[9px] font-bold uppercase tracking-[0.3em] text-white/40">UPCOMING SETS</p>
+              {artist.upcomingShows.map((show: any, index: number) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="p-4 border border-white/20 hover:border-[#E5E4E2]/50 bg-white/5 hover:bg-white/10 transition-all group/show cursor-pointer flex items-start justify-between gap-4"
+                  onClick={() => show.eventUrl && window.open(show.eventUrl, '_blank', 'noopener,noreferrer')}
+                >
+                  <div className="flex-1">
+                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-white group-hover/show:platinum-gradient transition-all">{show.venue}</h4>
+                    <p className="text-[10px] uppercase tracking-widest text-white/50 mt-1">{show.date}</p>
+                    <p className="text-[9px] text-white/40 mt-2">{show.location}</p>
+                  </div>
+                  <ArrowUpRight size={14} className="text-white/30 group-hover/show:text-[#E5E4E2] transition-colors flex-shrink-0 mt-1" />
+                </motion.div>
+              ))}
+
+              <button
+                className="w-full flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#E5E4E2] hover:text-[#E5E4E2]/70 border border-[#E5E4E2]/20 py-3 mt-4 transition-all"
+                onClick={() => artist.spotifyUrl && window.open(artist.spotifyUrl, '_blank', 'noopener,noreferrer')}
+              >
+                <Play size={11} fill="currentColor" />
+                Listen on Spotify
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
 }
