@@ -48,9 +48,10 @@ export function InstagramCallback({ onSuccess, onError }: InstagramCallbackProps
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: 'Failed to connect' }));
+          console.error('Instagram callback error detail:', JSON.stringify(errorData));
           setStatus('error');
-          setMessage(errorData.error || 'Failed to complete Instagram connection');
-          setTimeout(() => onError(), 3000);
+          setMessage(errorData.instagram_error || errorData.error || 'Failed to complete Instagram connection');
+          setTimeout(() => onError(), 5000);
           return;
         }
 

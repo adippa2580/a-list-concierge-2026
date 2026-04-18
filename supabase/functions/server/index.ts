@@ -2095,7 +2095,7 @@ app.get("/instagram/callback", async (c) => {
     if (!tokenRes.ok) {
       const body = await tokenRes.text();
       console.error(`[Instagram] Short-lived token error ${tokenRes.status}: ${body}`);
-      return c.json({ error: "Failed to exchange code for token" }, 500);
+      return c.json({ error: "Failed to exchange code for token", instagram_status: tokenRes.status, instagram_error: body, redirect_uri_used: INSTAGRAM_REDIRECT_URI, client_id_used: INSTAGRAM_CLIENT_ID }, 500);
     }
 
     const shortToken = await tokenRes.json() as {
