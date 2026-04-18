@@ -551,7 +551,7 @@ const INSTAGRAM_CLIENT_SECRET = Deno.env.get("INSTAGRAM_CLIENT_SECRET");
 // The redirect URI must be registered in your Meta app and should point
 // directly to the Supabase edge function callback endpoint:
 // https://<project-ref>.supabase.co/functions/v1/server/instagram/callback
-const INSTAGRAM_REDIRECT_URI = Deno.env.get("INSTAGRAM_REDIRECT_URI") || "https://a-list-core-application.web.app";
+const INSTAGRAM_REDIRECT_URI = Deno.env.get("INSTAGRAM_REDIRECT_URI") || "https://a-list-core-application.web.app/";
 
 // Eventbrite configuration
 const EVENTBRITE_API_KEY = Deno.env.get("EVENTBRITE_API_KEY");
