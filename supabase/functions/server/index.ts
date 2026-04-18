@@ -2105,39 +2105,38 @@ app.get("/instagram/callback", async (c) => {
     };
 
     // Step 2: Exchange short-lived token for a long-lived token (60-day)
-    // NOTE: ig_exchange_token requires the Facebook App Secret, NOT the Instagram App Secret
-    const longTokenSecret = FACEBOOK_APP_SECRET || INSTAGRAM_CLIENT_SECRET;
+    // Uses the Instagram App Secret (not Facebook App Secret)
     const longRes = await fetch(
       `https://graph.instagram.com/access_token` +
       `?grant_type=ig_exchange_token` +
-      `&client_secret=${longTokenSecret}` +
+      `&client_secret=${INSTAGRAM_CLIENT_SECRET}` +
       `&access_token=${shortToken.access_token}`
     );
 
-    if (!longRes.ok) {
-      const body = await longRes.text();
-      console.error(`[Instagram] Long-lived token error ${longRes.status}: ${body}`);
-      return c.json({ error: "Failed to exchange for long-lived token", instagram_error: body }, 500);
-    }
+    let finalToken = shortToken.access_token;
+    let expiresIn = 3600; // 1 hour default for short-lived
 
-    const longToken = await longRes.json() as {
-      access_token: string;
-      token_type: string;
-      expires_in: number;
-    };
+    if (longRes.ok) {
+      const longToken = await longRes.json() as { access_token: string; token_type: string; expires_in: number };
+      finalToken = longToken.access_token;
+      expiresIn = longToken.expires_in;
+    } else {
+      const body = await longRes.text();
+      console.error(`[Instagram] Long-lived token error ${longRes.status}: ${body} — falling back to short-lived token`);
+    }
 
     // Step 3: Fetch the user's Instagram profile
     const profileRes = await fetch(
       `https://graph.instagram.com/v21.0/me` +
       `?fields=id,username,account_type,media_count` +
-      `&access_token=${longToken.access_token}`
+      `&access_token=${finalToken}`
     );
     const profile = profileRes.ok ? await profileRes.json() : {};
 
     // Persist in KV
     await kv.set(`instagram_token_${userId}`, {
-      access_token: longToken.access_token,
-      expires_at: Date.now() + longToken.expires_in * 1000,
+      access_token: finalToken,
+      expires_at: Date.now() + expiresIn * 1000,
       instagram_user_id: shortToken.user_id,
       username: (profile as { username?: string }).username || null,
     });
