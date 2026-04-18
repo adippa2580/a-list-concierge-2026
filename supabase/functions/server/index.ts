@@ -552,6 +552,7 @@ const INSTAGRAM_CLIENT_SECRET = Deno.env.get("INSTAGRAM_CLIENT_SECRET");
 // directly to the Supabase edge function callback endpoint:
 // https://<project-ref>.supabase.co/functions/v1/server/instagram/callback
 const INSTAGRAM_REDIRECT_URI = Deno.env.get("INSTAGRAM_REDIRECT_URI") || "https://a-list-core-application.web.app/";
+const FACEBOOK_APP_SECRET = Deno.env.get("FACEBOOK_APP_SECRET");
 
 // Eventbrite configuration
 const EVENTBRITE_API_KEY = Deno.env.get("EVENTBRITE_API_KEY");
@@ -2104,17 +2105,19 @@ app.get("/instagram/callback", async (c) => {
     };
 
     // Step 2: Exchange short-lived token for a long-lived token (60-day)
+    // NOTE: ig_exchange_token requires the Facebook App Secret, NOT the Instagram App Secret
+    const longTokenSecret = FACEBOOK_APP_SECRET || INSTAGRAM_CLIENT_SECRET;
     const longRes = await fetch(
       `https://graph.instagram.com/access_token` +
       `?grant_type=ig_exchange_token` +
-      `&client_secret=${INSTAGRAM_CLIENT_SECRET}` +
+      `&client_secret=${longTokenSecret}` +
       `&access_token=${shortToken.access_token}`
     );
 
     if (!longRes.ok) {
       const body = await longRes.text();
       console.error(`[Instagram] Long-lived token error ${longRes.status}: ${body}`);
-      return c.json({ error: "Failed to exchange for long-lived token" }, 500);
+      return c.json({ error: "Failed to exchange for long-lived token", instagram_error: body }, 500);
     }
 
     const longToken = await longRes.json() as {
