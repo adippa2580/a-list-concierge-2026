@@ -953,6 +953,28 @@ async function markSocialConnected(userId: string, provider: 'spotify' | 'instag
   }
 }
 
+// Helper: disconnect social account — clear KV token + set connected flag to false
+async function markSocialDisconnected(userId: string, provider: 'spotify' | 'instagram' | 'soundcloud') {
+  if (!SUPABASE_SERVICE_KEY) return;
+  try {
+    await kv.del(`${provider}_token_${userId}`);
+    const col = `${provider}_connected`;
+    await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({ [col]: false, updated_at: new Date().toISOString() }),
+    });
+    console.log(`[markSocialDisconnected] ${provider} disconnected for ${userId}`);
+  } catch (e) {
+    console.error(`[markSocialDisconnected] Failed for ${provider}/${userId}:`, e);
+  }
+}
+
 async function callGemini(messages: object[], jsonMode = true): Promise<string> {
   const body: Record<string, unknown> = { model: "gemini-2.5-flash", messages };
   if (jsonMode) body.response_format = { type: "json_object" };
@@ -1290,15 +1312,27 @@ app.get("/soundcloud/status", async (c) => {
   return c.json({ connected: true, username: stored.username });
 });
 
-/** DELETE /soundcloud/disconnect — remove stored token */
+/** DELETE /soundcloud/disconnect — remove stored token + update DB */
 app.delete("/soundcloud/disconnect", async (c) => {
   const userId = c.req.query("userId") || "default_user";
   try {
-    await kv.del(`soundcloud_token_${userId}`);
-    return c.json({ success: true });
+    await markSocialDisconnected(userId, 'soundcloud');
+    return c.json({ success: true, provider: 'soundcloud', message: 'SoundCloud account disconnected' });
   } catch (err) {
     console.error(`[SoundCloud] Disconnect error: ${err}`);
-    return c.json({ success: false, error: "Failed to disconnect" }, 500);
+    return c.json({ success: false, error: "Failed to disconnect SoundCloud" }, 500 as ContentfulStatusCode);
+  }
+});
+
+/** DELETE /spotify/disconnect — remove stored token + update DB */
+app.delete("/spotify/disconnect", async (c) => {
+  const userId = c.req.query("userId") || "default_user";
+  try {
+    await markSocialDisconnected(userId, 'spotify');
+    return c.json({ success: true, provider: 'spotify', message: 'Spotify account disconnected' });
+  } catch (err) {
+    console.error(`[Spotify] Disconnect error: ${err}`);
+    return c.json({ success: false, error: "Failed to disconnect Spotify" }, 500 as ContentfulStatusCode);
   }
 });
 
@@ -2298,15 +2332,15 @@ app.get("/instagram/status", async (c) => {
   return c.json({ connected: true, username: stored.username, token_expires_days: daysLeft });
 });
 
-/** DELETE /instagram/disconnect — revoke & remove token */
+/** DELETE /instagram/disconnect — revoke & remove token + update DB */
 app.delete("/instagram/disconnect", async (c) => {
   const userId = c.req.query("userId") || "default_user";
   try {
-    await kv.del(`instagram_token_${userId}`);
-    return c.json({ success: true });
+    await markSocialDisconnected(userId, 'instagram');
+    return c.json({ success: true, provider: 'instagram', message: 'Instagram account disconnected' });
   } catch (err) {
     console.error(`[Instagram] Disconnect error: ${err}`);
-    return c.json({ success: false, error: "Failed to disconnect" }, 500);
+    return c.json({ success: false, error: "Failed to disconnect Instagram" }, 500 as ContentfulStatusCode);
   }
 });
 
