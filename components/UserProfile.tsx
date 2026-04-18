@@ -413,6 +413,17 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     } catch { toast.error('Could not connect Spotify'); }
   };
 
+  const disconnectSpotify = async () => {
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/spotify/disconnect?userId=${userId}`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+      );
+      toast.success('Spotify disconnected');
+      fetchSocialProfile();
+    } catch { toast.error('Could not disconnect Spotify'); }
+  };
+
   const connectSoundCloud = async () => {
     try {
       const res = await fetch(
@@ -428,6 +439,17 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     } catch { toast.error('Could not connect SoundCloud'); }
   };
 
+  const disconnectSoundCloud = async () => {
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/soundcloud/disconnect?userId=${userId}`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+      );
+      toast.success('SoundCloud disconnected');
+      fetchSocialProfile();
+    } catch { toast.error('Could not disconnect SoundCloud'); }
+  };
+
   const connectInstagram = async () => {
     try {
       const res = await fetch(
@@ -441,6 +463,28 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
         toast.error('Could not connect Instagram', { description: data.error || 'Check that Instagram credentials are configured' });
       }
     } catch { toast.error('Could not connect Instagram'); }
+  };
+
+  const disconnectInstagram = async () => {
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/instagram/disconnect?userId=${userId}`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+      );
+      toast.success('Instagram disconnected');
+      fetchSocialProfile();
+    } catch { toast.error('Could not disconnect Instagram'); }
+  };
+
+  const disconnectAppleMusic = async () => {
+    try {
+      await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/apple-music/disconnect?userId=${userId}`,
+        { method: 'POST', headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+      );
+      toast.success('Apple Music disconnected');
+      fetchSocialProfile();
+    } catch { toast.error('Could not disconnect Apple Music'); }
   };
 
   // Apple Music uses MusicKit JS (in-page SDK) rather than a redirect OAuth flow.
@@ -795,6 +839,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
                 meta={social?.instagram.days_until_expiry ? `Token expires in ${social.instagram.days_until_expiry}d` : null}
                 avatar={null}
                 onConnect={connectInstagram}
+                onDisconnect={disconnectInstagram}
                 isSource={!customName && social?.instagram.connected === true}
               />
 
@@ -808,6 +853,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
                 meta={social?.spotify.followers != null ? `${social.spotify.followers.toLocaleString()} followers` : null}
                 avatar={social?.spotify.avatar_url || null}
                 onConnect={connectSpotify}
+                onDisconnect={disconnectSpotify}
                 isSource={!customName && !social?.instagram.connected && social?.spotify.connected === true}
               />
 
@@ -821,6 +867,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
                 meta={null}
                 avatar={social?.soundcloud.avatar_url || null}
                 onConnect={connectSoundCloud}
+                onDisconnect={disconnectSoundCloud}
                 isSource={!customName && !social?.instagram.connected && !social?.spotify.connected && social?.soundcloud.connected === true}
               />
 
@@ -834,6 +881,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
                 meta={social?.apple_music.days_until_expiry != null ? `Token expires in ${social.apple_music.days_until_expiry}d` : null}
                 avatar={null}
                 onConnect={connectAppleMusic}
+                onDisconnect={disconnectAppleMusic}
                 isSource={false}
               />
             </div>
@@ -1246,7 +1294,7 @@ function ConnectionsTab({ instagramConnected, instagramUsername, onConnectInstag
 
 // ── Social Row sub-component ───────────────────────────────────────────────────
 function SocialRow({
-  icon, name, connected, loading, handle, meta, avatar, onConnect, isSource,
+  icon, name, connected, loading, handle, meta, avatar, onConnect, onDisconnect, isSource,
 }: {
   icon: React.ReactNode;
   name: string;
@@ -1256,6 +1304,7 @@ function SocialRow({
   meta: string | null;
   avatar: string | null;
   onConnect: () => void;
+  onDisconnect: () => void;
   isSource: boolean;
 }) {
   return (
@@ -1292,10 +1341,17 @@ function SocialRow({
       {loading ? (
         <Loader2 size={12} className="text-white/20 animate-spin" />
       ) : connected ? (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <Badge className="bg-green-500/10 border border-green-500/20 text-green-500 text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-full font-bold">
             Synced
           </Badge>
+          <button
+            onClick={onDisconnect}
+            className="text-[8px] font-bold uppercase tracking-widest text-red-400/70 hover:text-red-400 transition-colors border-b border-red-400/30 hover:border-red-400 pb-0.5"
+            title="Disconnect this account"
+          >
+            Disconnect
+          </button>
         </div>
       ) : (
         <button
