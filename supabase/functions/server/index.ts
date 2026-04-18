@@ -673,6 +673,9 @@ app.get("/spotify/callback", async (c) => {
       scope: tokenData.scope
     });
 
+    // Persist connection status to profiles table
+    await markSocialConnected(userId, 'spotify');
+
     return c.json({
       success: true,
       message: "Spotify connected successfully",
@@ -930,6 +933,26 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? `https://ofjcnikfebfgopytsgbm.supabase.co`;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
+// Helper: persist social connection status to profiles table
+async function markSocialConnected(userId: string, provider: 'spotify' | 'instagram' | 'soundcloud') {
+  if (!SUPABASE_SERVICE_KEY) return;
+  try {
+    const col = `${provider}_connected`;
+    await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Prefer': 'return=minimal',
+      },
+      body: JSON.stringify({ [col]: true, updated_at: new Date().toISOString() }),
+    });
+  } catch (e) {
+    console.error(`[markSocialConnected] Failed for ${provider}/${userId}:`, e);
+  }
+}
+
 async function callGemini(messages: object[], jsonMode = true): Promise<string> {
   const body: Record<string, unknown> = { model: "gemini-2.5-flash", messages };
   if (jsonMode) body.response_format = { type: "json_object" };
@@ -1169,6 +1192,9 @@ app.get("/soundcloud/callback", async (c) => {
       avatar_url:    me?.avatar_url ?? null,
     });
 
+    // Persist connection status to profiles table
+    await markSocialConnected(userId, 'soundcloud');
+
     return c.json({ success: true, userId, username: me?.username, avatar_url: me?.avatar_url });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
@@ -1327,12 +1353,18 @@ app.put("/profile", async (c) => {
 app.get("/social/profile", async (c) => {
   const userId = c.req.query("userId") || "default_user";
 
-  const [spotifyRaw, soundcloudRaw, instagramRaw, appleMusicRaw] = await Promise.all([
+  // Fetch KV tokens and profiles table in parallel
+  const [spotifyRaw, soundcloudRaw, instagramRaw, appleMusicRaw, profileRes] = await Promise.all([
     kv.get(`spotify_token_${userId}`),
     kv.get(`soundcloud_token_${userId}`),
     kv.get(`instagram_token_${userId}`),
     kv.get(`apple_music_token_${userId}`),
+    SUPABASE_SERVICE_KEY ? fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${userId}&select=spotify_connected,soundcloud_connected,instagram_connected`, {
+      headers: { 'apikey': SUPABASE_SERVICE_KEY!, 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}` },
+    }).then(r => r.ok ? r.json() : []).catch(() => []) : Promise.resolve([]),
   ]);
+
+  const dbProfile = (profileRes as { spotify_connected?: boolean; soundcloud_connected?: boolean; instagram_connected?: boolean }[])?.[0] || {};
 
   const spotify = spotifyRaw as {
     access_token: string; refresh_token?: string;
@@ -1355,7 +1387,41 @@ app.get("/social/profile", async (c) => {
 
   // Spotify: fetch /me live if token is valid (we may not have cached profile data)
   let spotifyProfile: { display_name?: string; avatar_url?: string; followers?: number; id?: string } | null = null;
-  const spotifyConnected = !!spotify?.access_token && spotify.expires_at > Date.now();
+  // Spotify: token still valid OR has refresh token OR marked connected in DB
+  let spotifyConnected = !!spotify?.access_token && spotify.expires_at > Date.now();
+
+  // If token expired but refresh_token exists, try to refresh
+  if (!spotifyConnected && spotify?.refresh_token) {
+    try {
+      const refreshRes = await fetch('https://accounts.spotify.com/api/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: spotify.refresh_token,
+          client_id: SPOTIFY_CLIENT_ID,
+          client_secret: SPOTIFY_CLIENT_SECRET || '',
+        }),
+      });
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json() as { access_token: string; expires_in: number; refresh_token?: string };
+        // Update KV with new tokens
+        await kv.set(`spotify_token_${userId}`, {
+          ...spotify,
+          access_token: refreshData.access_token,
+          refresh_token: refreshData.refresh_token || spotify.refresh_token,
+          expires_at: Date.now() + refreshData.expires_in * 1000,
+        });
+        // Update the local reference for the profile fetch below
+        spotify!.access_token = refreshData.access_token;
+        spotify!.expires_at = Date.now() + refreshData.expires_in * 1000;
+        spotifyConnected = true;
+      }
+    } catch (_e) { /* silent — will fall back to DB status */ }
+  }
+
+  // Fall back to DB connected status if token is gone but was once connected
+  if (!spotifyConnected && dbProfile.spotify_connected) spotifyConnected = true;
   if (spotifyConnected) {
     try {
       const meRes = await fetch("https://api.spotify.com/v1/me", {
@@ -1382,9 +1448,9 @@ app.get("/social/profile", async (c) => {
     } catch (_e) { /* silent */ }
   }
 
-  const soundcloudConnected = !!soundcloud?.access_token &&
-    (soundcloud.expires_at === null || soundcloud.expires_at > Date.now());
-  const instagramConnected = !!instagram?.access_token && instagram.expires_at > Date.now();
+  const soundcloudConnected = (!!soundcloud?.access_token &&
+    (soundcloud.expires_at === null || soundcloud.expires_at > Date.now())) || !!dbProfile.soundcloud_connected;
+  const instagramConnected = (!!instagram?.access_token && instagram.expires_at > Date.now()) || !!dbProfile.instagram_connected;
 
   return c.json({
     spotify: {
@@ -2140,6 +2206,9 @@ app.get("/instagram/callback", async (c) => {
       instagram_user_id: shortToken.user_id,
       username: (profile as { username?: string }).username || null,
     });
+
+    // Persist connection status to profiles table
+    await markSocialConnected(userId, 'instagram');
 
     return c.json({ success: true, userId, profile });
   } catch (e: unknown) {
