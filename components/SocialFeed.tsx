@@ -10,60 +10,6 @@ import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 const filters = ['All', 'Friends', 'Clubs', 'Lounges'];
 
-const trendingVenues = [
-  {
-    id: 1,
-    name: 'LIV Miami',
-    location: 'South Beach, Miami',
-    attendees: 47,
-    price: '$$$$',
-    rank: 1,
-    image: 'https://images.unsplash.com/photo-1760865461468-d80681140a63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxuaWdodGNsdWIlMjBsdXh1cnklMjBpbnRlcmlvcnxlbnwxfHx8fDE3NjA5NzYzMzZ8MA&ixlib=rb-4.1.0&q=80&w=1080'
-  },
-  {
-    id: 2,
-    name: 'Story Miami',
-    location: 'South Beach, Miami',
-    attendees: 32,
-    price: '$$$',
-    rank: 2,
-    image: 'https://images.unsplash.com/photo-1578760427294-9871d8667bf3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxuaWdodGNsdWIlMjBWSVAlMjB0YWJsZXxlbnwxfHx8fDE3NjA5NzYzMzd8MA&ixlib=rb-4.1.0&q=80&w=1080'
-  }
-];
-
-const socialPosts = [
-  {
-    id: 1,
-    user: { name: 'Sarah Chen', tier: 'Platinum', avatar: 'SC' },
-    venue: {
-      name: 'LIV Miami',
-      location: 'South Beach, Miami',
-      time: 'Tonight, 10:30 PM',
-      image: 'https://images.unsplash.com/photo-1760865461468-d80681140a63?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxuaWdodGNsdWIlMjBpbnRlcmlvcnxlbnwxfHx8fDE3NjA5NzYzMzZ8MA&ixlib=rb-4.1.0&q=80&w=1080'
-    },
-    message: 'Booked a VIP table for Calvin Harris tonight! Looking for 3 more people to split costs.',
-    peopleGoing: 5,
-    totalCost: 2400,
-    visibility: 'PUBLIC',
-    postedTime: '2h ago'
-  },
-  {
-    id: 2,
-    user: { name: 'Marcus Liu', tier: 'Gold Elite', avatar: 'ML' },
-    venue: {
-      name: 'E11EVEN Miami',
-      location: 'Downtown, Miami',
-      time: 'Saturday, 11:00 PM',
-      image: 'https://images.unsplash.com/photo-1744314080490-ed41f6319475?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxuaWdodGNsdWIlMjBwYXJ0eSUyMGNyb3dkfGVufDF8fHx8MTc2MDk2NzgxOXww&ixlib=rb-4.1.0&q=80&w=1080'
-    },
-    message: 'Celebrating my birthday this Saturday! Table for 10, all spots filled',
-    peopleGoing: 10,
-    totalCost: 3500,
-    visibility: 'FRIENDS',
-    postedTime: '5h ago'
-  }
-];
-
 interface SocialFeedProps {
   onVenueClick: (venue: { name: string; location?: string; image?: string; time?: string }) => void;
 }
@@ -161,19 +107,8 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
     })();
   }, [userId]);
 
-  const filteredPosts = socialPosts.filter(post => {
-    if (activeFilter === 'All') return true;
-    if (activeFilter === 'Friends') return post.visibility === 'PUBLIC' || post.visibility === 'FRIENDS';
-    if (activeFilter === 'Clubs') {
-      const hasClubKeyword = post.venue.name.toLowerCase().includes('club') || post.venue.name === 'E11EVEN Miami';
-      return hasClubKeyword;
-    }
-    if (activeFilter === 'Lounges') {
-      const isLounge = !post.venue.name.toLowerCase().includes('club') && post.venue.name !== 'E11EVEN Miami';
-      return isLounge;
-    }
-    return true;
-  });
+  // Placeholder for real social posts data from API
+  const filteredPosts: any[] = [];
 
   return (
     <div className="min-h-screen bg-black text-white pb-32">
@@ -200,73 +135,8 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
 
       <div className="space-y-16 pt-10">
 
-        {/* Trending Venues */}
-        <div className="space-y-8">
-          <div className="px-6 flex items-center justify-between">
-            <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/40">Tonight's Gravity</h2>
-          </div>
-
-          <div className="px-6 space-y-8">
-            {trendingVenues.map((venue, index) => (
-              <motion.div
-                key={venue.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: index * 0.1 }}
-                onClick={() => onVenueClick(venue)}
-                className="w-full group cursor-pointer rounded-xl border border-white/10 overflow-hidden bg-[#0a0a0a] shadow-2xl"
-              >
-                {/* Featured Image */}
-                <div className="relative aspect-video overflow-hidden bg-zinc-900">
-                  <div
-                    className="absolute inset-0 bg-cover bg-center transition-transform duration-[2s] ease-out group-hover:scale-110 opacity-60 group-hover:opacity-100 grayscale group-hover:grayscale-0"
-                    style={{ backgroundImage: `url(${venue.image})` }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
-
-                  {/* Ranking Badge */}
-                  <div className="absolute top-4 right-4 flex items-center gap-2 bg-white text-black text-[10px] font-bold uppercase tracking-widest px-4 py-2 shadow-lg">
-                    <Trophy size={12} className="text-black" />
-                    #{venue.rank}
-                  </div>
-
-                  {/* Price Tag */}
-                  <div className="absolute top-4 left-4 bg-[#E5E4E2]/90 text-black text-[10px] font-bold uppercase tracking-[0.2em] px-3 py-1.5">
-                    {venue.price}
-                  </div>
-                </div>
-
-                {/* Card Content */}
-                <div className="p-8 space-y-5">
-                  {/* Venue Name */}
-                  <div>
-                    <h3 className="text-3xl font-serif font-light uppercase tracking-wider text-white group-hover:platinum-gradient transition-all mb-2">{venue.name}</h3>
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest text-white/50">
-                      <MapPin size={12} className="text-[#E5E4E2]/40" />
-                      {venue.location}
-                    </div>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent" />
-
-                  {/* Engagement Stats */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-3 h-3 rounded-full bg-green-500/60 animate-pulse" />
-                      <span className="text-[10px] uppercase tracking-widest text-white/60">{venue.attendees} In The Scene</span>
-                    </div>
-                    <div className="flex items-center gap-3 group-hover:gap-4 transition-all">
-                      <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#E5E4E2]/50">EXPLORE</span>
-                      <ArrowUpRight size={14} className="text-white/30 group-hover:text-[#E5E4E2] transition-colors" />
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
+        {/* Trending Venues - Placeholder */}
+        {/* Coming soon: Real social data will be fetched from the API */}
 
         {/* Instagram / Live Dispatch Section */}
         <div className="space-y-10">
