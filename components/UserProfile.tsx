@@ -417,7 +417,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     try {
       await fetch(
         `https://${projectId}.supabase.co/functions/v1/server/spotify/disconnect?userId=${userId}`,
-        { method: 'POST', headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+        { method: 'DELETE', headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
       toast.success('Spotify disconnected');
       fetchSocialProfile();
@@ -443,7 +443,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     try {
       await fetch(
         `https://${projectId}.supabase.co/functions/v1/server/soundcloud/disconnect?userId=${userId}`,
-        { method: 'POST', headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+        { method: 'DELETE', headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
       toast.success('SoundCloud disconnected');
       fetchSocialProfile();
@@ -469,7 +469,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     try {
       await fetch(
         `https://${projectId}.supabase.co/functions/v1/server/instagram/disconnect?userId=${userId}`,
-        { method: 'POST', headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
+        { method: 'DELETE', headers: { 'Authorization': `Bearer ${publicAnonKey}` } }
       );
       toast.success('Instagram disconnected');
       fetchSocialProfile();
