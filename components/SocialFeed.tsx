@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, Instagram, Loader2, ExternalLink, Trophy, ArrowUpRight, Users, Music, Check } from 'lucide-react';
+import { MapPin, Instagram, Loader2, ExternalLink, Trophy, ArrowUpRight, Users, Music, Check, Disc3, Headphones } from 'lucide-react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { motion } from 'motion/react';
 import { supabase } from '../utils/supabase/client';
@@ -76,6 +76,9 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
   const [spotifyConnected, setSpotifyConnected] = useState(false);
   const [spotifyConnecting, setSpotifyConnecting] = useState(false);
   const [instagramConnecting, setInstagramConnecting] = useState(false);
+  const [spotifyTopArtists, setSpotifyTopArtists] = useState<{ name: string; image: string | null; genres: string[]; popularity: number }[]>([]);
+  const [spotifyTopGenres, setSpotifyTopGenres] = useState<string[]>([]);
+  const [spotifyLoading, setSpotifyLoading] = useState(false);
 
   const { userId } = useAuth();
 
@@ -120,7 +123,25 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
   useEffect(() => {
     // Check Spotify via localStorage (set by SpotifyCallback on success)
     const spotifyUserId = localStorage.getItem('spotify_user_id');
-    if (spotifyUserId) setSpotifyConnected(true);
+    if (spotifyUserId) {
+      setSpotifyConnected(true);
+      // Fetch top artists when Spotify is connected
+      (async () => {
+        setSpotifyLoading(true);
+        try {
+          const res = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/server/spotify/top-artists?userId=${spotifyUserId}`,
+            { headers: { Authorization: `Bearer ${publicAnonKey}` } }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            setSpotifyTopArtists(data.topArtists || []);
+            setSpotifyTopGenres(data.topGenres || []);
+          }
+        } catch { /* silent */ }
+        setSpotifyLoading(false);
+      })();
+    }
 
     if (!userId) { setLoading(false); return; }
     (async () => {
@@ -371,6 +392,56 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
             )}
           </div>
         </div>
+
+        {/* Spotify Music Taste */}
+        {spotifyConnected && (spotifyTopArtists.length > 0 || spotifyLoading) && (
+          <div className="px-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <Disc3 size={14} className="text-[#1DB954]" />
+              <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/40">Your Music DNA</h2>
+            </div>
+
+            {spotifyLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 size={16} className="text-[#1DB954] animate-spin" />
+              </div>
+            ) : (
+              <>
+                {/* Top Genres */}
+                {spotifyTopGenres.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {spotifyTopGenres.slice(0, 8).map((genre) => (
+                      <span
+                        key={genre}
+                        className="text-[8px] font-bold uppercase tracking-widest px-2.5 py-1 border border-[#1DB954]/20 text-[#1DB954]/70 bg-[#1DB954]/5"
+                      >
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Top Artists */}
+                <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 scrollbar-hide">
+                  {spotifyTopArtists.slice(0, 6).map((artist) => (
+                    <div key={artist.name} className="flex-shrink-0 w-20 text-center">
+                      <div className="w-16 h-16 mx-auto rounded-full overflow-hidden border border-white/10 bg-[#0a0a0a] mb-1.5">
+                        {artist.image ? (
+                          <img src={artist.image} alt={artist.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Headphones size={20} className="text-white/20" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-[8px] font-bold uppercase tracking-wider text-white/60 truncate">{artist.name}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Connected Accounts */}
         <div className="space-y-6 px-6">
