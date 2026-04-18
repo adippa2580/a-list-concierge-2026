@@ -2942,6 +2942,138 @@ app.get("/admin/venues/:id/bookings", async (c) => {
   return c.json(await res.json());
 });
 
+// ── Scene Dispatch: Instagram feed aggregator ────────────────────────────────
+const APIFY_API_TOKEN = Deno.env.get("APIFY_API_TOKEN");
+
+interface ScenePost {
+  author: string;
+  authorAvatar: string;
+  caption: string;
+  imageUrl: string;
+  permalink: string;
+  likes: number;
+  comments: number;
+  timestamp: string;
+}
+
+const SCENE_CITIES: Record<string, { handles: string[]; hashtags: string[] }> = {
+  miami: {
+    handles: ["livmiami", "e11evenmiami", "storymiamibeach", "clubspace_miami", "miaminice"],
+    hashtags: ["#MiamiNightlife", "#SouthBeach", "#WynwoodNights", "#BrickellNights", "#MiamiClubs"]
+  },
+  nyc: {
+    handles: ["marqueeny", "avantgardner", "houseof_yes", "elsewhere.bk", "publicrecordsnyc"],
+    hashtags: ["#NYCNightlife", "#BrooklynNights", "#ManhattanClubs", "#NYCParty", "#EastVillage"]
+  },
+  la: {
+    handles: ["soundnightclub", "exchangela", "academyla", "avalonhollywood", "catchonela"],
+    hashtags: ["#LANightlife", "#HollywoodNights", "#DTLA", "#WeHoNights", "#LosAngelesClubs"]
+  },
+  chicago: {
+    handles: ["smartbarchicago", "spybarchi", "primesocialgr", "theviolethouse", "untitledchicago"],
+    hashtags: ["#ChicagoNightlife", "#ChiTownNights", "#WickerParkNights", "#LoopClubs", "#ChicagoHouse"]
+  },
+  london: {
+    handles: ["fabriclondon", "ministryofsound", "printworkslondon", "corsicastudios", "oval_space"],
+    hashtags: ["#LondonNightlife", "#ShoreditchNights", "#LDNClubs", "#LondonRaves", "#SohoNights"]
+  },
+  berlin: {
+    handles: ["berghain", "aboutblank_berlin", "sisyphos_berlin", "watergateclub", "tresorberlin"],
+    hashtags: ["#BerlinNightlife", "#BerlinTechno", "#Kreuzberg", "#Friedrichshain", "#BerlinClubs"]
+  },
+  ibiza: {
+    handles: ["amnesia_ibiza", "pachaclubofficialiga", "ushuaiaibiza", "hiibizaofficial", "dctenibiza"],
+    hashtags: ["#IbizaNightlife", "#IbizaClubs", "#PlayaDenBossa", "#IbizaParty", "#WhiteIsle"]
+  },
+  dallas: {
+    handles: ["thelittlewooddvllers", "itwilldo", "stereo_live_dallas", "thebombfactory", "deepellum"],
+    hashtags: ["#DallasNightlife", "#DeepEllum", "#UptownDallas", "#DFWClubs", "#DallasParty"]
+  },
+  houston: {
+    handles: ["spirehouston", "richshouston", "cletoro", "warhouselive", "undergroundmusicvenue"],
+    hashtags: ["#HoustonNightlife", "#HTXClubs", "#MidtownHouston", "#HoustonParty", "#DowntownHTX"]
+  }
+};
+
+app.get("/scene-dispatch", async (c) => {
+  const city = (c.req.query("city") || "miami").toLowerCase();
+  const config = SCENE_CITIES[city];
+
+  if (!config) {
+    return c.json({ error: "City not supported", posts: [] }, 400);
+  }
+
+  // Check cache first (6 hour TTL)
+  const cacheKey = `scene_dispatch:${city}`;
+  const cached = await kv.get(cacheKey) as { posts: ScenePost[]; cachedAt: number } | null;
+  if (cached && Date.now() - cached.cachedAt < 6 * 60 * 60 * 1000) {
+    return c.json({ posts: cached.posts, cached: true, city });
+  }
+
+  if (!APIFY_API_TOKEN) {
+    return c.json({ error: "APIFY_API_TOKEN not configured", posts: [] }, 503);
+  }
+
+  try {
+    // Run profile scraper (3 posts per handle) + hashtag scraper (5 posts per tag) in parallel
+    const profilePromises = config.handles.map(handle =>
+      fetch(`https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ usernames: [handle], resultsLimit: 3 })
+      }).then(r => r.ok ? r.json() : []).catch(() => [])
+    );
+
+    const hashtagPromises = config.hashtags.map(tag =>
+      fetch(`https://api.apify.com/v2/acts/apify~instagram-hashtag-scraper/run-sync-get-dataset-items?token=${APIFY_API_TOKEN}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hashtags: [tag.replace("#", "")], resultsLimit: 5 })
+      }).then(r => r.ok ? r.json() : []).catch(() => [])
+    );
+
+    const [profileResults, hashtagResults] = await Promise.all([
+      Promise.all(profilePromises),
+      Promise.all(hashtagPromises)
+    ]);
+
+    // Flatten and normalize
+    const allRawPosts = [...profileResults.flat(), ...hashtagResults.flat()];
+    const seen = new Set<string>();
+    const posts: ScenePost[] = [];
+
+    for (const raw of allRawPosts) {
+      const permalink = raw.url || raw.shortCode ? `https://instagram.com/p/${raw.shortCode}` : null;
+      if (!permalink || seen.has(permalink)) continue;
+      seen.add(permalink);
+
+      posts.push({
+        author: raw.ownerUsername || "unknown",
+        authorAvatar: raw.ownerAvatar || null,
+        caption: (raw.caption || "").slice(0, 200),
+        imageUrl: raw.displayUrl || raw.thumbnailUrl || null,
+        permalink,
+        likes: raw.likesCount || 0,
+        comments: raw.commentsCount || 0,
+        timestamp: raw.timestamp || new Date().toISOString()
+      });
+    }
+
+    // Sort by recency
+    posts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    const top50 = posts.slice(0, 50);
+
+    // Cache for 6 hours
+    await kv.set(cacheKey, { posts: top50, cachedAt: Date.now() });
+
+    return c.json({ posts: top50, cached: false, city });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[SceneDispatch] ${msg}`);
+    return c.json({ error: msg, posts: [] }, 500);
+  }
+});
+
 Deno.serve(app.fetch);
 
 
