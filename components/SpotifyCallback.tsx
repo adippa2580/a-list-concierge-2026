@@ -21,14 +21,15 @@ export function SpotifyCallback({ onSuccess, onError }: SpotifyCallbackProps) {
     didRun.current = true;
 
     const handleCallback = async () => {
-      // Clear URL params immediately to prevent re-fire on navigation
-      window.history.replaceState({}, document.title, window.location.pathname);
-
       try {
+        // Read params BEFORE clearing URL
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
         const state = urlParams.get('state');
         const error = urlParams.get('error');
+
+        // Clear URL params to prevent re-fire on navigation
+        window.history.replaceState({}, document.title, window.location.pathname);
 
         if (error) {
           setStatus('error');
