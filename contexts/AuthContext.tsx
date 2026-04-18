@@ -32,9 +32,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Stay in sync with auth state changes (login, logout, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // Create profile if user just signed up or logged in for the first time
+      if (session?.user) {
+        const userId = session.user.id;
+        const email = session.user.email;
+        
+        try {
+          // Check if profile exists
+          const { data: existingProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', userId)
+            .single();
+          
+          // If no profile exists, create one
+          if (!existingProfile) {
+            await supabase
+              .from('profiles')
+              .insert({
+                id: userId,
+                email: email || '',
+                display_name: email?.split('@')[0] || 'User',
+                tier: 'standard',
+                total_spend: 0,
+                visits: 0,
+                spotify_connected: false,
+                soundcloud_connected: false,
+                instagram_connected: false,
+                onboarding_complete: false,
+              });
+          }
+        } catch (err) {
+          console.error('Failed to create profile:', err);
+        }
+      }
+      
       setLoading(false);
     });
 
