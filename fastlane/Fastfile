@@ -2,62 +2,88 @@
 # A-List Fastlane Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 # Setup (one time):
-#   gem install fastlane
-#   cp fastlane/.env.fastlane.example fastlane/.env.fastlane
-#   # Fill in your credentials in .env.fastlane
+#   bundle install
+#   # Fill in fastlane/.env.fastlane
+#   fastlane match init       # only if alist-certs repo is fresh
+#   fastlane match appstore   # generate + store certs
 #
 # Deploy to TestFlight:
-#   fastlane beta
+#   bundle exec fastlane beta
 #
 # Deploy to App Store:
-#   fastlane release
+#   bundle exec fastlane release
 # ─────────────────────────────────────────────────────────────────────────────
 
 default_platform(:ios)
 
-# ── Constants ─────────────────────────────────────────────────────────────────
-WORKSPACE     = "ios/App/App.xcworkspace"
-SCHEME        = "App"
-APP_ID        = "com.alist.app"
-PROJECT_ROOT  = File.expand_path("..", __dir__)
+WORKSPACE    = "ios/App/App.xcworkspace"
+SCHEME       = "App"
+APP_ID       = "com.alist.app"
+PROJECT_ROOT = File.expand_path("..", __dir__)
 
 platform :ios do
 
-  # ── Before all lanes ───────────────────────────────────────────────────────
   before_all do
-    # Load .env.fastlane if present (local dev)
+    # Fix locale issues
+    ENV["LANG"]   = "en_US.UTF-8"
+    ENV["LC_ALL"] = "en_US.UTF-8"
+    # Load local .env.fastlane (ignored in CI)
     Dotenv.overload(File.join(PROJECT_ROOT, "fastlane", ".env.fastlane"))
   end
 
-  # ── bump_build: increment build number from App Store Connect ─────────────
-  private_lane :bump_build do
+  # ── API key auth (no 2FA prompts) ─────────────────────────────────────────
+  private_lane :api_key do
+    key_id      = ENV["APP_STORE_CONNECT_API_KEY_ID"]
+    issuer_id   = ENV["APP_STORE_CONNECT_ISSUER_ID"]
+    key_path    = ENV["APP_STORE_CONNECT_KEY_FILEPATH"]
+
+    if key_id && !key_id.empty? && issuer_id && !issuer_id.empty? && key_path && File.exist?(key_path.to_s)
+      app_store_connect_api_key(
+        key_id:        key_id,
+        issuer_id:     issuer_id,
+        key_filepath:  key_path,
+        duration:      1200,
+        in_house:      false
+      )
+    else
+      UI.message "No API key configured — falling back to Apple ID auth"
+      nil
+    end
+  end
+
+  # ── bump_build ────────────────────────────────────────────────────────────
+  private_lane :bump_build do |options|
+    key = api_key
     increment_build_number(
       build_number: app_store_build_number(
-        live: false,
-        app_identifier: APP_ID
+        live:           false,
+        app_identifier: APP_ID,
+        api_key:        key
       ) + 1,
       xcodeproj: "ios/App/App.xcodeproj"
     )
   end
 
-  # ── web_build: build the Vite frontend and sync to Capacitor ──────────────
+  # ── web_build ─────────────────────────────────────────────────────────────
   private_lane :web_build do
-    UI.message "Building web assets..."
+    UI.message "Building Vite web assets..."
     sh("cd #{PROJECT_ROOT} && npm run build")
-    UI.message "Syncing Capacitor..."
+    UI.message "Syncing Capacitor iOS..."
     sh("cd #{PROJECT_ROOT} && npx cap sync ios")
   end
 
-  # ── certs: fetch/create signing certs via match ───────────────────────────
+  # ── certs ─────────────────────────────────────────────────────────────────
   private_lane :certs do |options|
     type = options[:type] || "appstore"
+    key  = api_key
     match(
-      type: type,
-      app_identifier: APP_ID,
-      git_url: ENV["MATCH_GIT_URL"],          # private certs repo
-      readonly: ENV["CI"] ? true : false,      # readonly on CI
-      keychain_name: ENV["MATCH_KEYCHAIN_NAME"] || "login",
-      keychain_password: ENV["MATCH_KEYCHAIN_PASSWORD"] || ""
+      type:                  type,
+      app_identifier:        APP_ID,
+      git_url:               ENV["MATCH_GIT_URL"],
+      readonly:              ENV["CI"] ? true : false,
+      keychain_name:         ENV["MATCH_KEYCHAIN_NAME"] || "login",
+      keychain_password:     ENV["MATCH_KEYCHAIN_PASSWORD"] || "",
+      api_key:               key
     )
   end
 
@@ -69,13 +95,13 @@ platform :ios do
     certs(type: "appstore")
 
     build_app(
-      workspace: WORKSPACE,
-      scheme: SCHEME,
-      configuration: "Release",
-      export_method: "app-store",
-      output_directory: "#{PROJECT_ROOT}/build",
-      output_name: "AList.ipa",
-      clean: true,
+      workspace:          WORKSPACE,
+      scheme:             SCHEME,
+      configuration:      "Release",
+      export_method:      "app-store",
+      output_directory:   "#{PROJECT_ROOT}/build",
+      output_name:        "AList.ipa",
+      clean:              true,
       export_options: {
         provisioningProfiles: {
           APP_ID => "match AppStore #{APP_ID}"
@@ -84,18 +110,18 @@ platform :ios do
     )
 
     upload_to_testflight(
-      ipa: "#{PROJECT_ROOT}/build/AList.ipa",
+      ipa:                              "#{PROJECT_ROOT}/build/AList.ipa",
+      api_key:                          api_key,
       skip_waiting_for_build_processing: true,
-      distribute_external: false,
-      notify_external_testers: false,
-      changelog: changelog_entry
+      distribute_external:              false,
+      notify_external_testers:          false,
+      changelog:                        changelog_entry
     )
 
     UI.success "✅ TestFlight build uploaded!"
-    notify_slack("Beta uploaded to TestFlight") if ENV["SLACK_URL"]
   end
 
-  # ── release: build + submit to App Store ──────────────────────────────────
+  # ── release: submit to App Store ──────────────────────────────────────────
   desc "Build and submit to App Store for review"
   lane :release do
     web_build
@@ -103,13 +129,13 @@ platform :ios do
     certs(type: "appstore")
 
     build_app(
-      workspace: WORKSPACE,
-      scheme: SCHEME,
-      configuration: "Release",
-      export_method: "app-store",
-      output_directory: "#{PROJECT_ROOT}/build",
-      output_name: "AList.ipa",
-      clean: true,
+      workspace:          WORKSPACE,
+      scheme:             SCHEME,
+      configuration:      "Release",
+      export_method:      "app-store",
+      output_directory:   "#{PROJECT_ROOT}/build",
+      output_name:        "AList.ipa",
+      clean:              true,
       export_options: {
         provisioningProfiles: {
           APP_ID => "match AppStore #{APP_ID}"
@@ -118,60 +144,56 @@ platform :ios do
     )
 
     upload_to_app_store(
-      ipa: "#{PROJECT_ROOT}/build/AList.ipa",
+      ipa:              "#{PROJECT_ROOT}/build/AList.ipa",
+      api_key:          api_key,
       skip_screenshots: true,
-      skip_metadata: false,
-      submit_for_review: false,   # set true when ready to submit
+      skip_metadata:    false,
+      submit_for_review: false,
       automatic_release: false
     )
 
-    UI.success "✅ Uploaded to App Store — submit for review in App Store Connect."
+    UI.success "✅ Uploaded to App Store Connect."
   end
 
-  # ── screenshots: generate App Store screenshots ───────────────────────────
-  desc "Generate App Store screenshots"
-  lane :screenshots do
-    capture_screenshots(
-      workspace: WORKSPACE,
-      scheme: SCHEME
-    )
-    frame_screenshots(white: false)
-  end
-
-  # ── certs_renew: refresh Match certificates ────────────────────────────────
-  desc "Renew and sync certificates"
+  # ── certs_renew ───────────────────────────────────────────────────────────
+  desc "Renew and sync Match certificates"
   lane :certs_renew do
     match(
-      type: "appstore",
-      app_identifier: APP_ID,
-      git_url: ENV["MATCH_GIT_URL"],
-      force_for_new_devices: true
+      type:                   "appstore",
+      app_identifier:         APP_ID,
+      git_url:                ENV["MATCH_GIT_URL"],
+      force_for_new_devices:  true,
+      api_key:                api_key
     )
   end
 
-  # ── Helpers ────────────────────────────────────────────────────────────────
+  # ── register_device ───────────────────────────────────────────────────────
+  desc "Register a new test device"
+  lane :register_device do |options|
+    register_devices(
+      devices: {
+        options[:name] || "Test Device" => options[:udid]
+      },
+      api_key: api_key
+    )
+    match(
+      type:                   "development",
+      app_identifier:         APP_ID,
+      git_url:                ENV["MATCH_GIT_URL"],
+      force_for_new_devices:  true,
+      api_key:                api_key
+    )
+  end
+
+  # ── Helpers ───────────────────────────────────────────────────────────────
   def changelog_entry
-    # Pull last git commit message as changelog
     `git log -1 --pretty=%B`.strip.slice(0, 200)
   rescue
     "A-List beta build"
   end
 
-  def notify_slack(message)
-    slack(
-      message: message,
-      slack_url: ENV["SLACK_URL"],
-      success: true,
-      default_payloads: [:git_branch, :git_author, :last_git_commit]
-    )
-  rescue
-    UI.message "Slack notification skipped (no webhook configured)"
-  end
-
-  # ── Error handler ──────────────────────────────────────────────────────────
   error do |lane, exception|
     UI.error "Lane #{lane} failed: #{exception.message}"
-    notify_slack("❌ #{lane} failed: #{exception.message}") if ENV["SLACK_URL"]
   end
 
 end
