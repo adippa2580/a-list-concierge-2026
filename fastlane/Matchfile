@@ -1,5 +1,5 @@
-git_url(ENV["MATCH_GIT_URL"])
+git_url("https://github.com/adippa2580/alist-certs.git")
 storage_mode("git")
 type("appstore")
 app_identifier(["com.alist.app"])
-username(ENV["APPLE_ID"])
+username("adippa@dippa.com.au")
