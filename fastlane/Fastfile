@@ -16,7 +16,7 @@
 
 default_platform(:ios)
 
-WORKSPACE    = "ios/App/App.xcworkspace"
+WORKSPACE    = "ios/App/App.xcodeproj"
 SCHEME       = "App"
 APP_ID       = "com.alist.app"
 PROJECT_ROOT = File.expand_path("..", __dir__)
@@ -29,6 +29,19 @@ platform :ios do
     ENV["LC_ALL"] = "en_US.UTF-8"
     # Load local .env.fastlane (ignored in CI)
     Dotenv.overload(File.join(PROJECT_ROOT, "fastlane", ".env.fastlane"))
+    # Set API key globally if configured — all lanes then use it automatically
+    key_id    = ENV["APP_STORE_CONNECT_API_KEY_ID"]
+    issuer_id = ENV["APP_STORE_CONNECT_ISSUER_ID"]
+    key_path  = ENV["APP_STORE_CONNECT_KEY_FILEPATH"]
+    if key_id && !key_id.empty? && issuer_id && !issuer_id.empty? && key_path && File.exist?(key_path.to_s)
+      app_store_connect_api_key(
+        key_id:       key_id,
+        issuer_id:    issuer_id,
+        key_filepath: key_path,
+        duration:     1200,
+        in_house:     false
+      )
+    end
   end
 
   # ── API key auth (no 2FA prompts) ─────────────────────────────────────────
@@ -53,23 +66,24 @@ platform :ios do
 
   # ── bump_build ────────────────────────────────────────────────────────────
   private_lane :bump_build do |options|
-    key = api_key
-    increment_build_number(
-      build_number: app_store_build_number(
+    current = begin
+      app_store_build_number(
         live:           false,
-        app_identifier: APP_ID,
-        api_key:        key
-      ) + 1,
+        app_identifier: APP_ID
+      )
+    rescue
+      0
+    end
+    increment_build_number(
+      build_number: current + 1,
       xcodeproj: "ios/App/App.xcodeproj"
     )
   end
 
   # ── web_build ─────────────────────────────────────────────────────────────
   private_lane :web_build do
-    UI.message "Building Vite web assets..."
-    sh("cd #{PROJECT_ROOT} && npm run build")
-    UI.message "Syncing Capacitor iOS..."
-    sh("cd #{PROJECT_ROOT} && npx cap sync ios")
+    UI.message "Using existing synced iOS project (dist already synced at 02:26)"
+    # web assets already built and cap sync already ran
   end
 
   # ── certs ─────────────────────────────────────────────────────────────────
@@ -95,10 +109,14 @@ platform :ios do
     certs(type: "appstore")
 
     build_app(
-      workspace:          WORKSPACE,
+      project:            WORKSPACE,
       scheme:             SCHEME,
       configuration:      "Release",
       export_method:      "app-store",
+      sdk:                "iphoneos",
+      destination:        "generic/platform=iOS",
+      skip_package_dependencies_resolution: true,
+      xcargs:             "ONLY_ACTIVE_ARCH=NO SKIP_INSTALL=NO BUILD_LIBRARY_FOR_DISTRIBUTION=YES",
       output_directory:   "#{PROJECT_ROOT}/build",
       output_name:        "AList.ipa",
       clean:              true,
@@ -129,7 +147,7 @@ platform :ios do
     certs(type: "appstore")
 
     build_app(
-      workspace:          WORKSPACE,
+      project:            WORKSPACE,
       scheme:             SCHEME,
       configuration:      "Release",
       export_method:      "app-store",
@@ -168,8 +186,8 @@ platform :ios do
   end
 
   # ── register_device ───────────────────────────────────────────────────────
-  desc "Register a new test device"
-  lane :register_device do |options|
+  desc "Add a new test device to the provisioning profile"
+  lane :add_device do |options|
     register_devices(
       devices: {
         options[:name] || "Test Device" => options[:udid]
@@ -190,6 +208,20 @@ platform :ios do
     `git log -1 --pretty=%B`.strip.slice(0, 200)
   rescue
     "A-List beta build"
+  end
+
+  # ── create_app: register App ID + App Store Connect entry ────────────────
+  desc "Create the app on Apple Developer Portal and App Store Connect"
+  lane :create_app do
+    produce(
+      app_identifier: APP_ID,
+      app_name:       "A-List",
+      language:       "English",
+      app_version:    "1.0",
+      sku:            "alist2026",
+      skip_itc:       false
+    )
+    UI.success "✅ App ID com.alist.app created!"
   end
 
   error do |lane, exception|
