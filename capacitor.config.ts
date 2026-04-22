@@ -5,10 +5,12 @@ const config: CapacitorConfig = {
   appName: 'A-List',
   webDir: 'dist',
   ios: {
-    contentInset: 'always',       // respect safe areas (notch, home indicator)
-    backgroundColor: '#000504',   // match app background during launch
-    scrollEnabled: false,         // prevent elastic scrolling on the shell
+    contentInset: 'always',
+    backgroundColor: '#000504',
+    scrollEnabled: false,
     limitsNavigationsToAppBoundDomains: true,
+    allowsInlineMediaPlayback: true,
+    preferredContentMode: 'mobile',
   },
   plugins: {
     SplashScreen: {
