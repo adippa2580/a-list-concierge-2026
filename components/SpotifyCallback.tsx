@@ -59,6 +59,19 @@ export function SpotifyCallback({ onSuccess, onError }: SpotifyCallbackProps) {
 
         if (response.ok && data.success) {
           localStorage.setItem('spotify_user_id', data.userId);
+
+          // Fire-and-forget: warm the taste graph for this user.
+          // Don't await — the redirect is more important than waiting for ~2s of
+          // Spotify-top-artists fetching + graph upserts. The user will see results
+          // by the time they tap into the Scene tab.
+          fetch(
+            `https://${projectId}.supabase.co/functions/v1/tg3/ingest/spotify?userId=${data.userId}`,
+            {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${publicAnonKey}`, 'apikey': publicAnonKey },
+            }
+          ).catch(() => { /* silent — YourScene auto-ingest is the safety net */ });
+
           setStatus('success');
           setMessage('Spotify connected!');
           setTimeout(() => onSuccess(), 1500);
