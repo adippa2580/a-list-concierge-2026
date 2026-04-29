@@ -227,7 +227,7 @@ export function PreferencesScreen({ onClose }: PreferencesScreenProps) {
         {/* Apple Music Import */}
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <Music2 size={14} className="text-pink-400" />
+            <Music2 size={14} className="text-[#FA243C]" />
             <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/60">Import from Apple Music</h3>
           </div>
           {appleMusicArtists.length > 0 ? (
