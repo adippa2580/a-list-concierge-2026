@@ -1,4 +1,3 @@
-'use client';
 
 /**
  * JoinCrewScreen
@@ -157,11 +156,28 @@ export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreen
     if (submitting) return;
     setSubmitting(true);
     setErrorMsg(null);
-    try {
-      const finalCity = (showCustomCity && customCity.trim())
-        ? customCity.trim()
-        : city.trim();
 
+    const finalCity = (showCustomCity && customCity.trim())
+      ? customCity.trim()
+      : city.trim();
+
+    // Stash the join intent so it survives any auth round-trip (Spotify OAuth,
+    // signup, etc.). App.tsx can pick this up on next boot if the user lands
+    // back without an authed session and re-trigger the join with their new
+    // userId. Cleared on success.
+    try {
+      localStorage.setItem('alist_pending_crew_join', JSON.stringify({
+        token,
+        firstName: firstName.trim(),
+        phone: phone.trim() || undefined,
+        instagram: instagram.trim().replace(/^@/, '') || undefined,
+        city: finalCity || undefined,
+        vibes,
+        stashedAt: Date.now(),
+      }));
+    } catch { /* localStorage might be disabled — proceed anyway */ }
+
+    try {
       const res = await fetch(`${CREW2_BASE}/join`, {
         method: 'POST',
         headers: HEADERS,
@@ -199,20 +215,23 @@ export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreen
         } catch { /* fall through to done */ }
       }
 
-      // Fire-and-forget tg3 ingestion if joiner is logged in (no spotify).
-      // The seed-from-onboarding endpoint may not exist yet but it's wrapped
-      // server-side too so it's safe to call.
+      // Fire-and-forget tg3 onboarding-seed (live since tg3 v2 — Apr 29).
+      // Best-effort; failures are silently swallowed because the user-facing
+      // flow has already succeeded and a missed seed only delays personalization.
       if (userId) {
         fetch(`${TG3_BASE}/seed-from-onboarding`, {
           method: 'POST',
           headers: HEADERS,
           body: JSON.stringify({
             userId,
-            city: (showCustomCity && customCity.trim()) ? customCity.trim() : city.trim() || null,
+            city: finalCity || null,
             vibes,
           }),
         }).catch(() => { /* silent */ });
       }
+
+      // Successful join — clear the stash.
+      try { localStorage.removeItem('alist_pending_crew_join'); } catch { /* */ }
 
       setStep('done');
       // Auto-redirect after a beat
@@ -613,3 +632,4 @@ export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreen
 
   return null;
 }
+
