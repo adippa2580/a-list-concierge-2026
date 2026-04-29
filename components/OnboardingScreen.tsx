@@ -474,10 +474,10 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
                 type="button"
                 onClick={connectInstagramOAuth}
                 disabled={instagramConnecting}
-                className="w-full flex items-center justify-between px-5 py-4 border border-white/10 hover:border-pink-500/40 hover:bg-pink-500/5 transition-all group disabled:opacity-50"
+                className="w-full flex items-center justify-between px-5 py-4 border border-white/10 hover:border-[#E1306C]/40 hover:bg-[#E1306C]/5 transition-all group disabled:opacity-50"
               >
                 <div className="flex items-center gap-3">
-                  <Instagram size={16} className="text-pink-400/70 group-hover:text-pink-400" />
+                  <Instagram size={16} className="text-[#E1306C]/70 group-hover:text-[#E1306C]" />
                   <div className="text-left">
                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/70">Connect Instagram</p>
                     <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">Link your profile for social feed</p>
@@ -486,7 +486,7 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
                 {instagramConnecting ? (
                   <Loader2 size={14} className="text-white/30 animate-spin" />
                 ) : (
-                  <ChevronRight size={14} className="text-white/20 group-hover:text-pink-400/60 transition-colors" />
+                  <ChevronRight size={14} className="text-white/20 group-hover:text-[#E1306C]/60 transition-colors" />
                 )}
               </button>
 
