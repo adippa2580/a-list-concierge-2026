@@ -754,10 +754,10 @@ export default function App() {
                 onClick={() => navigateTo("social")}
               />
               <NavButton
-                icon={Building2}
-                label="Members"
-                isActive={currentView === "member-clubs"}
-                onClick={() => navigateTo("member-clubs")}
+                icon={Sparkles}
+                label="Scene"
+                isActive={currentView === "your-scene"}
+                onClick={() => navigateTo("your-scene")}
               />
             </div>
           </nav>
