@@ -262,14 +262,17 @@ function buildVirtualClubs(clubs: PrivateClub[]): VirtualClub[] {
 }
 
 // ── Type colours ──────────────────────────────────────────────────────────────
+// Category badges — all on-brand platinum with subtle opacity variations to differentiate.
+// Each tier (Cocktails default, Dining slightly brighter, Music more saturated, etc.)
+// gives quick scan-ability without breaking the platinum aesthetic.
 const TYPE_COLOURS: Record<string, string> = {
-  Dining:        'text-amber-400  border-amber-500/30  bg-amber-500/10',
+  Dining:        'text-[#E5E4E2]/80 border-[#E5E4E2]/30 bg-[#E5E4E2]/8',
   Cocktails:     'text-[#E5E4E2]/60 border-[#E5E4E2]/20 bg-[#E5E4E2]/5',
-  Music:         'text-blue-400   border-blue-500/30   bg-blue-500/10',
-  Culture:       'text-rose-400   border-rose-500/30   bg-rose-500/10',
-  Wellness:      'text-green-400  border-green-500/30  bg-green-500/10',
-  Entertainment: 'text-orange-400 border-orange-500/30 bg-orange-500/10',
-  Networking:    'text-cyan-400   border-cyan-500/30   bg-cyan-500/10',
+  Music:         'text-white/80     border-white/25     bg-white/10',
+  Culture:       'text-[#E5E4E2]/70 border-[#E5E4E2]/25 bg-[#E5E4E2]/6',
+  Wellness:      'text-white/60     border-white/15     bg-white/5',
+  Entertainment: 'text-white/75     border-white/20     bg-white/8',
+  Networking:    'text-[#E5E4E2]/65 border-[#E5E4E2]/22 bg-[#E5E4E2]/6',
 };
 
 // ── Park House location picker sub-component ──────────────────────────────────
