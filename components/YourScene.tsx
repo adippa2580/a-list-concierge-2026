@@ -33,7 +33,7 @@ interface CrewSuggestion {
   affinity_score?: number;
 }
 
-const TG_BASE = `https://${projectId}.supabase.co/functions/v1/tg2`;
+const TG_BASE = `https://${projectId}.supabase.co/functions/v1/tg3`;
 
 export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) => void } = {}) {
   const { userId } = useAuth();
@@ -55,19 +55,53 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
     }
   }, []);
 
-  const fetchAll = async () => {
+  // Try Spotify ingest if the user has Spotify connected but no taste graph signal yet.
+  // Best-effort, silent — failure here just leaves the scene sparse and the user can manually refresh.
+  const maybeAutoIngestSpotify = async (headers: Record<string, string>) => {
+    try {
+      const probe = await fetch(`${TG_BASE}/spotify-status?userId=${userId}`, { headers });
+      if (!probe.ok) return false;
+      const status = await probe.json() as { connected?: boolean; needs_ingest?: boolean; stale?: boolean };
+      if (!status.connected) return false;
+      if (!status.needs_ingest && !status.stale) return false;
+      const ingest = await fetch(`${TG_BASE}/ingest/spotify?userId=${userId}`, { method: 'POST', headers });
+      return ingest.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const fetchAll = async (opts?: { skipAutoIngest?: boolean }) => {
     if (!userId) return;
     setRefreshing(true);
     try {
       const headers = { Authorization: `Bearer ${publicAnonKey}`, apikey: publicAnonKey };
+
+      // Initial fetch
       const [sRes, rRes, cRes] = await Promise.all([
         fetch(`${TG_BASE}/your-scene?userId=${userId}`, { headers }),
         fetch(`${TG_BASE}/recommendations?userId=${userId}${city ? `&city=${encodeURIComponent(city)}` : ''}&limit=10`, { headers }),
         fetch(`${TG_BASE}/crew-suggestions?userId=${userId}&limit=8`, { headers }),
       ]);
-      if (sRes.ok) setScene(await sRes.json());
+      const sceneData = sRes.ok ? await sRes.json() : null;
+      if (sceneData) setScene(sceneData);
       if (rRes.ok) setRecs(await rRes.json());
       if (cRes.ok) setCrew(await cRes.json());
+
+      // If signal is sparse and we haven't tried this load yet, attempt Spotify ingest then refetch once
+      const sparse = !sceneData || ((sceneData.edge_count ?? 0) === 0);
+      if (sparse && !opts?.skipAutoIngest) {
+        const ingested = await maybeAutoIngestSpotify(headers);
+        if (ingested) {
+          // Refetch scene + recs after ingest
+          const [s2, r2] = await Promise.all([
+            fetch(`${TG_BASE}/your-scene?userId=${userId}`, { headers }),
+            fetch(`${TG_BASE}/recommendations?userId=${userId}${city ? `&city=${encodeURIComponent(city)}` : ''}&limit=10`, { headers }),
+          ]);
+          if (s2.ok) setScene(await s2.json());
+          if (r2.ok) setRecs(await r2.json());
+        }
+      }
     } catch (e) {
       console.error('YourScene fetch failed:', e);
     } finally {
