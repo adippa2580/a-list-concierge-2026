@@ -27,11 +27,11 @@ interface JoinCrewScreenProps {
 }
 
 const LEVEL_COLORS: Record<string, string> = {
-  Bronze:   'text-amber-500',
+  Bronze:   'text-[#CD7F32]',
   Silver:   'text-[#C0C0C0]',
   Gold:     'text-yellow-400',
   Platinum: 'text-[#E5E4E2]',
-  Diamond:  'text-cyan-300',
+  Diamond:  'text-[#B9F2FF]',
 };
 
 export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreenProps) {
@@ -97,7 +97,7 @@ export function JoinCrewScreen({ token, onAccepted, onDeclined }: JoinCrewScreen
           className="text-center space-y-6"
         >
           <div className="text-6xl mb-2">{preview.crewEmoji}</div>
-          <CheckCircle size={48} className="text-emerald-400 mx-auto" />
+          <CheckCircle size={48} className="text-green-400 mx-auto" />
           <div>
             <h2 className="text-2xl font-serif italic uppercase tracking-wider">You're In</h2>
             <p className="text-[10px] uppercase tracking-[0.3em] text-white/40 mt-2">
