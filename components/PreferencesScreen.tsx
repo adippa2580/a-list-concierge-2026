@@ -249,7 +249,7 @@ export function PreferencesScreen({ onClose }: PreferencesScreenProps) {
                   <p className="text-[8px] uppercase tracking-widest text-white/30 mb-2">Your top genres from Apple Music</p>
                   <div className="flex flex-wrap gap-1.5">
                     {appleMusicGenres.slice(0, 8).map((g, i) => (
-                      <span key={i} className="px-2.5 py-1 rounded-full bg-pink-500/10 border border-pink-500/20 text-[9px] text-pink-400 font-medium">{g}</span>
+                      <span key={i} className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[9px] text-white/70 font-medium">{g}</span>
                     ))}
                   </div>
                 </div>
@@ -259,7 +259,7 @@ export function PreferencesScreen({ onClose }: PreferencesScreenProps) {
             <button
               onClick={fetchAppleMusicTaste}
               disabled={loadingAppleMusic}
-              className="w-full py-3 rounded-full bg-pink-500/10 border border-pink-500/20 text-[10px] font-bold uppercase tracking-widest text-pink-400 hover:bg-pink-500/20 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 rounded-full bg-[#FA243C]/10 border border-[#FA243C]/20 text-[10px] font-bold uppercase tracking-widest text-[#FA243C] hover:bg-[#FA243C]/20 transition-all flex items-center justify-center gap-2"
             >
               {loadingAppleMusic ? <Loader2 size={12} className="animate-spin" /> : <Music2 size={12} />}
               {loadingAppleMusic ? 'Analyzing...' : 'Import My Apple Music Taste'}
@@ -270,7 +270,7 @@ export function PreferencesScreen({ onClose }: PreferencesScreenProps) {
         {/* Genre Selection */}
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <Sparkles size={14} className="text-purple-400" />
+            <Sparkles size={14} className="text-[#E5E4E2]/60" />
             <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/60">Preferred Genres</h3>
             <span className="text-[8px] text-white/20 ml-auto">{selectedGenres.size} selected</span>
           </div>
@@ -296,7 +296,7 @@ export function PreferencesScreen({ onClose }: PreferencesScreenProps) {
         {/* Event Type Selection */}
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <Sparkles size={14} className="text-amber-400" />
+            <Sparkles size={14} className="text-[#E5E4E2]/60" />
             <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/60">Event Types You Love</h3>
             <span className="text-[8px] text-white/20 ml-auto">{selectedTypes.size} selected</span>
           </div>
