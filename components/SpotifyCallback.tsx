@@ -93,13 +93,13 @@ export function SpotifyCallback({ onSuccess, onError }: SpotifyCallbackProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-950 via-black to-pink-950 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-[#060606] flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <AListLogo variant="splash" size="xl" />
         </div>
 
-        <div className="bg-zinc-900/50 backdrop-blur-sm border border-zinc-800 rounded-3xl p-8 space-y-6">
+        <div className="bg-zinc-900/60 backdrop-blur-sm border border-white/10 p-8 space-y-6">
           <div className="flex flex-col items-center gap-4">
             {status === 'loading' && (
               <>
