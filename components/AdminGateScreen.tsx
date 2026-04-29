@@ -44,8 +44,8 @@ export function AdminGateScreen({ onUnlock }: AdminGateScreenProps) {
 
         {/* Logo */}
         <div className="flex flex-col items-center mb-10">
-          <div className="w-16 h-16 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-4">
-            <Shield size={28} className="text-purple-400" />
+          <div className="w-16 h-16 rounded-2xl bg-[#E5E4E2]/5 border border-[#E5E4E2]/15 flex items-center justify-center mb-4">
+            <Shield size={28} className="text-[#E5E4E2]/70" />
           </div>
           <h1 className="text-[11px] font-bold uppercase tracking-[0.5em] text-white/40 mb-1">A-List</h1>
           <h2 className="text-2xl font-bold text-white tracking-tight">Admin Portal</h2>
@@ -65,7 +65,7 @@ export function AdminGateScreen({ onUnlock }: AdminGateScreenProps) {
               className={`w-full bg-white/5 border rounded-xl px-4 py-4 pr-12 text-white placeholder-white/20 text-[13px] outline-none transition-all ${
                 error
                   ? 'border-red-500/50 focus:border-red-500'
-                  : 'border-white/10 focus:border-purple-500/50'
+                  : 'border-white/10 focus:border-[#E5E4E2]/40'
               }`}
             />
             <button
