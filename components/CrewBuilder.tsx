@@ -1,20 +1,31 @@
 'use client';
 
-import { Users, Crown, ChevronRight, Plus, X, Loader2, UserPlus, Trash2, UserMinus, Share2, Copy } from 'lucide-react';
+import { Users, Crown, ChevronRight, Plus, X, Loader2, Trash2, UserMinus, Send, Clock, Phone, Instagram } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
-import { Input } from './ui/input';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { useAuth } from '../contexts/AuthContext';
+import { CrewInviteSheet } from './CrewInviteSheet';
 
 const API = `https://${projectId}.supabase.co/functions/v1/server`;
 const HEADERS = { 'Authorization': `Bearer ${publicAnonKey}`, 'Content-Type': 'application/json' };
 
-type Member = { name: string; avatar: string; role: string; spend: number };
+type Member = {
+  name: string;
+  avatar: string;
+  role: string;
+  spend: number;
+  // Pending-invite fields (optional; absent on confirmed members)
+  pending?: boolean;
+  phone?: string;
+  instagram?: string;
+  invitedAt?: number;
+  inviteToken?: string;
+};
 type NextLevel = { name: string; spend: number } | null;
 type Crew = {
   id: number;
@@ -47,11 +58,9 @@ export function CrewBuilder() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [generatingLink, setGeneratingLink] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [removingMemberIdx, setRemovingMemberIdx] = useState<number | null>(null);
-  const [addMemberName, setAddMemberName] = useState('');
-  const [addingMember, setAddingMember] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showInviteSheet, setShowInviteSheet] = useState(false);
 
   // Create crew form
   const [newCrewName, setNewCrewName] = useState('');
@@ -139,45 +148,6 @@ export function CrewBuilder() {
     }
   };
 
-  // ── Generate & Share Invite Link ───────────────────────────────────────────
-  const handleShareInvite = async () => {
-    if (!selectedCrew || generatingLink) return;
-    setGeneratingLink(true);
-    try {
-      const res = await fetch(`${API}/crews/${selectedCrew.id}/invite-link?userId=${USER_ID}`, {
-        method: 'POST',
-        headers: HEADERS,
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        toast.error(err.error || 'Failed to generate invite link');
-        return;
-      }
-      const { token } = await res.json();
-      const joinUrl = `${window.location.origin}${window.location.pathname}?joinCrew=${token}`;
-
-      // Use native share sheet if available (mobile), otherwise copy to clipboard
-      if (navigator.share) {
-        await navigator.share({
-          title: `Join Group — ${selectedCrew.name} on A-List`,
-          text: `You've been invited to join the ${selectedCrew.name} group ${selectedCrew.emoji} on A-List. Link expires in 24 hours.`,
-          url: joinUrl,
-        });
-        toast.success('Invite sent!');
-      } else {
-        await navigator.clipboard.writeText(joinUrl).catch(() => {});
-        toast.success('Invite link copied to clipboard!');
-      }
-    } catch (e: unknown) {
-      // User cancelled the share sheet — not an error
-      if (e instanceof Error && e.name !== 'AbortError') {
-        toast.error('Failed to share invite link');
-      }
-    } finally {
-      setGeneratingLink(false);
-    }
-  };
-
   // ── Remove Member ──────────────────────────────────────────────────────────
   const handleRemoveMember = async (memberIdx: number) => {
     if (!selectedCrew || memberIdx === 0 || removingMemberIdx !== null) return;
@@ -202,30 +172,8 @@ export function CrewBuilder() {
   };
 
   // ── Add Member by Name ────────────────────────────────────────────────────
-  const handleAddMember = async () => {
-    if (!selectedCrew || !addMemberName.trim() || addingMember) return;
-    setAddingMember(true);
-    try {
-      const res = await fetch(`${API}/crews/${selectedCrew.id}/invite?userId=${USER_ID}`, {
-        method: 'POST',
-        headers: HEADERS,
-        body: JSON.stringify({ name: addMemberName.trim() }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        syncSelected(data.crews);
-        setAddMemberName('');
-        toast.success(`${addMemberName.trim()} added to ${selectedCrew.name}`);
-      } else {
-        const err = await res.json();
-        toast.error(err.error || 'Failed to add member');
-      }
-    } catch (_e) {
-      toast.error('Failed to add member');
-    } finally {
-      setAddingMember(false);
-    }
-  };
+  // (Removed in favour of CrewInviteSheet — captains now invite via phone or
+  // Instagram and members appear as `pending` until the friend accepts.)
 
   // ── Loading screen ─────────────────────────────────────────────────────────
   if (loading) {
@@ -413,71 +361,108 @@ export function CrewBuilder() {
               <div className="flex items-center justify-between">
                 <h4 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Members</h4>
                 <button
-                  onClick={handleShareInvite}
-                  disabled={generatingLink}
-                  className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-[#E5E4E2]/40 hover:text-[#E5E4E2] transition-colors disabled:opacity-40"
+                  onClick={() => setShowInviteSheet(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-[#E5E4E2]/20 text-[9px] font-bold uppercase tracking-widest text-[#E5E4E2]/80 hover:text-[#E5E4E2] hover:border-[#E5E4E2]/40 transition-colors"
                 >
-                  {generatingLink ? <Loader2 size={12} className="animate-spin" /> : <Share2 size={12} />}
-                  {generatingLink ? 'Generating...' : 'Share Invite'}
-                </button>
-              </div>
-
-              {/* Inline Add Member */}
-              <div className="flex gap-2">
-                <Input
-                  value={addMemberName}
-                  onChange={(e) => setAddMemberName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddMember()}
-                  placeholder="Add member by name..."
-                  disabled={addingMember}
-                  className="flex-1 bg-transparent border-white/10 rounded-xl h-10 text-[10px] uppercase tracking-widest placeholder:text-white/20 focus:border-white/40 transition-all"
-                />
-                <button
-                  onClick={handleAddMember}
-                  disabled={!addMemberName.trim() || addingMember}
-                  className="w-10 h-10 border border-white/10 flex items-center justify-center hover:bg-white/10 hover:border-white/30 disabled:opacity-30 transition-all"
-                >
-                  {addingMember ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={14} />}
+                  <Send size={11} />
+                  Invite
                 </button>
               </div>
 
               <AnimatePresence initial={false}>
-                {(selectedCrew.members || []).map((member: Member, i: number) => (
-                  <motion.div
-                    key={`${member.name}-${i}`}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 10 }}
-                    transition={{ duration: 0.2 }}
-                    className="flex items-center justify-between p-4 border border-white/5 group"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-9 h-9 bg-white/5 border border-white/10 flex items-center justify-center">
-                        <span className="text-[9px] font-bold">{member.avatar}</span>
+                {(selectedCrew.members || []).map((member: Member, i: number) => {
+                  const isPending = member.pending === true;
+                  const invitedAgo = (() => {
+                    if (!member.invitedAt) return '';
+                    const mins = Math.floor((Date.now() - member.invitedAt) / 60000);
+                    if (mins < 1) return 'just now';
+                    if (mins < 60) return `${mins}m ago`;
+                    const hrs = Math.floor(mins / 60);
+                    if (hrs < 24) return `${hrs}h ago`;
+                    const days = Math.floor(hrs / 24);
+                    return `${days}d ago`;
+                  })();
+                  return (
+                    <motion.div
+                      key={`${member.name}-${i}`}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 10 }}
+                      transition={{ duration: 0.2 }}
+                      className={`flex items-center justify-between p-4 border group transition-all ${
+                        isPending
+                          ? 'border-dashed border-[#E5E4E2]/15 bg-white/[0.02]'
+                          : 'border-white/5'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-9 h-9 border flex items-center justify-center relative ${
+                          isPending
+                            ? 'bg-transparent border-[#E5E4E2]/15'
+                            : 'bg-white/5 border-white/10'
+                        }`}>
+                          <span className={`text-[9px] font-bold ${isPending ? 'text-white/30' : ''}`}>
+                            {member.avatar}
+                          </span>
+                          {isPending && (
+                            <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-[#060606] border border-[#E5E4E2]/30 flex items-center justify-center">
+                              <Clock size={6} className="text-[#E5E4E2]/60" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className={`text-[10px] font-bold uppercase tracking-widest ${isPending ? 'text-white/50' : ''}`}>
+                            {member.name}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            {isPending ? (
+                              <>
+                                <span className="text-[7px] uppercase tracking-widest text-[#E5E4E2]/60 font-bold">Pending</span>
+                                {invitedAgo && (
+                                  <span className="text-[7px] uppercase tracking-widest text-white/25">· Sent {invitedAgo}</span>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-[7px] uppercase tracking-widest text-white/30">{member.role}</span>
+                            )}
+                          </div>
+                          {isPending && (member.phone || member.instagram) && (
+                            <div className="flex items-center gap-2 mt-1">
+                              {member.phone && (
+                                <span className="flex items-center gap-1 text-[8px] text-white/30">
+                                  <Phone size={8} /> {member.phone}
+                                </span>
+                              )}
+                              {member.instagram && (
+                                <span className="flex items-center gap-1 text-[8px] text-[#E1306C]/70">
+                                  <Instagram size={8} /> @{member.instagram}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest">{member.name}</p>
-                        <p className="text-[7px] uppercase tracking-widest text-white/30 mt-0.5">{member.role}</p>
+                      <div className="flex items-center gap-3">
+                        {!isPending && (
+                          <p className="text-sm font-light font-serif italic">${((member.spend || 0) / 1000).toFixed(1)}K</p>
+                        )}
+                        {i !== 0 && (
+                          <button
+                            onClick={() => handleRemoveMember(i)}
+                            disabled={removingMemberIdx === i}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400/50 hover:text-red-400 disabled:opacity-30"
+                            title={isPending ? 'Cancel invite' : 'Remove member'}
+                          >
+                            {removingMemberIdx === i
+                              ? <Loader2 size={12} className="animate-spin" />
+                              : <UserMinus size={12} />
+                            }
+                          </button>
+                        )}
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <p className="text-sm font-light font-serif italic">${((member.spend || 0) / 1000).toFixed(1)}K</p>
-                      {i !== 0 && (
-                        <button
-                          onClick={() => handleRemoveMember(i)}
-                          disabled={removingMemberIdx === i}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400/50 hover:text-red-400 disabled:opacity-30"
-                          title="Remove member"
-                        >
-                          {removingMemberIdx === i
-                            ? <Loader2 size={12} className="animate-spin" />
-                            : <UserMinus size={12} />
-                          }
-                        </button>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
+                    </motion.div>
+                  );
+                })}
               </AnimatePresence>
             </div>
 
@@ -612,7 +597,18 @@ export function CrewBuilder() {
       )}
     </AnimatePresence>
 
-    {/* Invite flow is handled inline by handleShareInvite — no modal needed */}
+    {/* ── Invite Sheet ──────────────────────────────────────────────────── */}
+    {selectedCrew && (
+      <CrewInviteSheet
+        open={showInviteSheet}
+        onClose={() => setShowInviteSheet(false)}
+        onInviteSent={fetchCrews}
+        crewId={selectedCrew.id}
+        crewName={selectedCrew.name}
+        crewEmoji={selectedCrew.emoji}
+        userId={USER_ID || ''}
+      />
+    )}
 
     {/* ── Disband Confirm Modal ──────────────────────────────────────────── */}
     <AnimatePresence>
