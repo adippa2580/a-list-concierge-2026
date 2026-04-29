@@ -117,7 +117,7 @@ export function PasswordResetScreen({ onComplete }: PasswordResetScreenProps) {
                       key={i}
                       className={`h-0.5 flex-1 rounded-full transition-all ${
                         password.length >= [8, 10, 12, 16][i]
-                          ? i < 2 ? 'bg-amber-400' : i < 3 ? 'bg-green-400' : 'bg-emerald-400'
+                          ? i < 2 ? 'bg-[#E5E4E2]/50' : i < 3 ? 'bg-[#E5E4E2]/80' : 'bg-green-400'
                           : 'bg-white/10'
                       }`}
                     />
