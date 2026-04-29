@@ -1,4 +1,3 @@
-'use client';
 
 import { Users, Crown, ChevronRight, Plus, X, Loader2, Trash2, UserMinus, Send, Clock, Phone, Instagram } from 'lucide-react';
 import { Badge } from './ui/badge';
@@ -149,20 +148,38 @@ export function CrewBuilder() {
   };
 
   // ── Remove Member ──────────────────────────────────────────────────────────
+  // Branches on whether the slot is a pending invite (cancel via crew2 to also
+  // invalidate the bound token) or a confirmed member (legacy server endpoint).
   const handleRemoveMember = async (memberIdx: number) => {
     if (!selectedCrew || memberIdx === 0 || removingMemberIdx !== null) return;
+    const target = selectedCrew.members?.[memberIdx];
+    if (!target) return;
     setRemovingMemberIdx(memberIdx);
     try {
-      const res = await fetch(
-        `${API}/crews/${selectedCrew.id}/member/${memberIdx}?userId=${USER_ID}`,
-        { method: 'DELETE', headers: HEADERS }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        syncSelected(data.crews);
-        toast.success('Member removed');
+      const isPendingInvite = target.pending === true && !!target.inviteToken;
+      if (isPendingInvite) {
+        const res = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/crew2/${selectedCrew.id}/pending/${target.inviteToken}?userId=${USER_ID}`,
+          { method: 'DELETE', headers: { Authorization: `Bearer ${publicAnonKey}`, apikey: publicAnonKey } }
+        );
+        if (res.ok) {
+          await fetchCrews();
+          toast.success(`Invite to ${target.name} cancelled`);
+        } else {
+          toast.error('Failed to cancel invite');
+        }
       } else {
-        toast.error('Failed to remove member');
+        const res = await fetch(
+          `${API}/crews/${selectedCrew.id}/member/${memberIdx}?userId=${USER_ID}`,
+          { method: 'DELETE', headers: HEADERS }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          syncSelected(data.crews);
+          toast.success('Member removed');
+        } else {
+          toast.error('Failed to remove member');
+        }
       }
     } catch (_e) {
       toast.error('Failed to remove member');
@@ -657,3 +674,4 @@ export function CrewBuilder() {
     </>
   );
 }
+
