@@ -482,9 +482,9 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           animate={{ opacity: 1, y: 0 }}
           className={`bg-zinc-950/60 border overflow-hidden group hover:border-[#E5E4E2]/30 transition-all cursor-pointer relative flex flex-col h-full ${
             event.isVenueSource || isTmEnriched
-              ? 'border-amber-500/40'
+              ? 'border-[#E5E4E2]/40'
               : event.isTicketmaster
-              ? 'border-blue-500/20'
+              ? 'border-[#008CFF]/30'
               : 'border-white/5'
           }`}
           onClick={() => {
@@ -510,12 +510,12 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
                 </div>
               )}
               {event.isVenueSource && event.source !== 'ra' && (
-                <div className="absolute top-1 left-1 p-1 bg-amber-500">
+                <div className="absolute top-1 left-1 p-1 bg-[#E5E4E2]">
                   <Ticket size={8} className="text-black" />
                 </div>
               )}
               {event.isTicketmaster && (
-                <div className="absolute top-1 left-1 p-1 bg-blue-500">
+                <div className="absolute top-1 left-1 p-1 bg-[#008CFF]">
                   <Ticket size={8} className="text-white" />
                 </div>
               )}
@@ -563,9 +563,9 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           event.source === 'ra'
             ? 'border-l-2 border-l-green-500/70 border-t-white/5 border-r-white/5 border-b-white/5'
             : event.isVenueSource || isTmEnriched
-            ? 'border-l-2 border-l-amber-500/70 border-t-white/5 border-r-white/5 border-b-white/5'
+            ? 'border-l-2 border-l-[#E5E4E2]/70 border-t-white/5 border-r-white/5 border-b-white/5'
             : event.isTicketmaster
-            ? 'border-l-2 border-l-blue-500/40 border-t-white/5 border-r-white/5 border-b-white/5'
+            ? 'border-l-2 border-l-[#008CFF]/40 border-t-white/5 border-r-white/5 border-b-white/5'
             : 'border-white/5'
         }`}
         onClick={() => {
@@ -591,12 +591,12 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
               </div>
             )}
             {event.isVenueSource && event.source !== 'ra' && (
-              <div className="absolute top-0 left-0 p-0.5 bg-amber-500">
+              <div className="absolute top-0 left-0 p-0.5 bg-[#E5E4E2]">
                 <Ticket size={7} className="text-black" />
               </div>
             )}
             {event.isTicketmaster && (
-              <div className="absolute top-0 left-0 p-0.5 bg-blue-500">
+              <div className="absolute top-0 left-0 p-0.5 bg-[#008CFF]">
                 <Ticket size={7} className="text-white" />
               </div>
             )}
@@ -615,13 +615,13 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
                 </span>
               )}
               {event.isVenueSource && event.source !== 'ra' && (
-                <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border whitespace-nowrap flex items-center gap-1 bg-amber-500/20 text-amber-400 border-amber-500/30">
+                <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border whitespace-nowrap flex items-center gap-1 bg-[#E5E4E2]/15 text-[#E5E4E2] border-[#E5E4E2]/30">
                   <Ticket size={7} />
                   Venue
                 </span>
               )}
               {event.isTicketmaster && (
-                <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border whitespace-nowrap flex items-center gap-1 bg-blue-500/20 text-blue-400 border-blue-500/30">
+                <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border whitespace-nowrap flex items-center gap-1 bg-[#008CFF]/15 text-[#008CFF] border-[#008CFF]/35">
                   <Ticket size={7} />
                   Ticketmaster
                 </span>
