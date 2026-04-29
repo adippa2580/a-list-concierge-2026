@@ -135,8 +135,8 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-[22px] font-light tracking-tight text-white">Your Scene</h1>
-          <p className="text-[11px] text-white/50 mt-0.5">Built from your taste signals</p>
+          <h1 className="font-serif text-2xl font-light uppercase tracking-widest text-white">Your Scene</h1>
+          <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 mt-1">Built from your taste signals</p>
         </div>
         <button
           onClick={fetchAll}
@@ -152,25 +152,25 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-br from-white/[0.05] to-white/[0.02] border border-white/10 p-4 mb-6"
+        className="marble-bg border border-[#E5E4E2]/10 p-5 mb-6"
       >
         <div className="flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2 text-[11px] text-white/50 uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">
               <Sparkles className="w-3 h-3" />
               Signal density
             </div>
             <div className="text-[20px] font-light text-white mt-1">{densityLabel}</div>
           </div>
           <div className="text-right">
-            <div className="text-[11px] text-white/50">edges · sources</div>
+            <div className="text-[9px] uppercase tracking-[0.3em] text-white/30">edges · sources</div>
             <div className="text-[16px] font-light text-white tabular-nums">
               {scene?.edge_count ?? 0} · {scene?.source_count ?? 0}
             </div>
           </div>
         </div>
         {signalDensity === 0 && (
-          <p className="text-[11px] text-white/40 mt-3 leading-relaxed">
+          <p className="text-[10px] text-white/40 mt-3 leading-relaxed">
             Connect Spotify, book a table, or post about a night out to start building your scene.
           </p>
         )}
@@ -181,13 +181,13 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
         <section className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <MapPin className="w-3.5 h-3.5 text-white/60" />
-            <h2 className="text-[11px] uppercase tracking-wider text-white/60">Top venues</h2>
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">Top venues</h2>
           </div>
           <div className="space-y-2">
             {scene!.top_venues.slice(0, 5).map((v, i) => (
               <div
                 key={`${v.name}-${i}`}
-                className="flex items-center justify-between px-3 py-2.5 bg-white/[0.03] border border-white/5"
+                className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border border-[#E5E4E2]/8 hover:border-[#E5E4E2]/15 transition-colors"
               >
                 <div className="min-w-0">
                   <div className="text-[14px] text-white truncate">{v.name}</div>
@@ -207,7 +207,7 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
         <section className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Music className="w-3.5 h-3.5 text-white/60" />
-            <h2 className="text-[11px] uppercase tracking-wider text-white/60">Top artists</h2>
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">Top artists</h2>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {scene!.top_artists.slice(0, 12).map((a, i) => (
@@ -227,7 +227,7 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
         <section className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Disc3 className="w-3.5 h-3.5 text-white/60" />
-            <h2 className="text-[11px] uppercase tracking-wider text-white/60">Top genres</h2>
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">Top genres</h2>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {scene!.top_genres.slice(0, 10).map((g, i) => (
@@ -246,7 +246,7 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
       <section className="mb-6">
         <div className="flex items-center gap-2 mb-3">
           <TrendingUp className="w-3.5 h-3.5 text-white/60" />
-          <h2 className="text-[11px] uppercase tracking-wider text-white/60">
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">
             Recommended {city ? `in ${city}` : 'for you'}
           </h2>
         </div>
@@ -295,13 +295,13 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
         <section className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="w-3.5 h-3.5 text-white/60" />
-            <h2 className="text-[11px] uppercase tracking-wider text-white/60">People your speed</h2>
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">People your speed</h2>
           </div>
           <div className="space-y-2">
             {crew.slice(0, 5).map((p) => (
               <div
                 key={p.person_external_id}
-                className="flex items-center justify-between px-3 py-2.5 bg-white/[0.03] border border-white/5"
+                className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border border-[#E5E4E2]/8 hover:border-[#E5E4E2]/15 transition-colors"
               >
                 <div className="min-w-0">
                   <div className="text-[12px] text-white/80 font-mono truncate">
