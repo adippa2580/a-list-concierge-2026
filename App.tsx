@@ -28,6 +28,7 @@ import { PreferencesScreen } from "./components/PreferencesScreen";
 import { PasswordResetScreen } from "./components/PasswordResetScreen";
 import { AdminGateScreen } from "./components/AdminGateScreen";
 import { AListLogo } from "./components/AListLogo";
+import { YourScene } from "./components/YourScene";
 import { projectId, publicAnonKey } from './utils/supabase/info';
 import { supabase } from './utils/supabase/client';
 import { useAuth } from './contexts/AuthContext';
@@ -65,6 +66,7 @@ type ViewType =
   | "member-clubs"
   | "bookings"
   | "invite"
+  | "your-scene"
   | "admin";
 
 type AppState = "splash" | "welcome" | "login" | "onboarding" | "app" | "spotify-callback" | "soundcloud-callback" | "instagram-callback" | "join-crew" | "password-reset" | "admin-gate";
@@ -716,6 +718,12 @@ export default function App() {
                 {currentView === "bookings" && <BookingsSchedule />}
                 {currentView === "invite" && <InviteScreen userId={userId} />}
                 {currentView === "admin" && <AdminPortal />}
+                {currentView === "your-scene" && (
+                  <YourScene onEventClick={(eventId: string) => {
+                    // Best-effort: jump to event details if event lives in venues system; otherwise stay on scene
+                    console.log("scene event click", eventId);
+                  }} />
+                )}
                 {currentView === "member-clubs" && (
                   <MemberClubsFeed onManageClubs={() => navigateTo("profile")} />
                 )}
