@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MapPin, Instagram, Loader2, ExternalLink, Trophy, ArrowUpRight, Users, Music, Check, Disc3, Headphones, PenLine, X, Globe, Lock, UserCheck } from 'lucide-react';
+import { MapPin, Instagram, Loader2, ExternalLink, Trophy, ArrowUpRight, Users, Music, Check, Disc3, Headphones, PenLine, X, Globe, Lock, UserCheck, Heart, Trash2, MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { motion } from 'motion/react';
 import { supabase } from '../utils/supabase/client';
@@ -30,6 +30,8 @@ interface SocialPost {
   totalCost?: number;
   visibility: 'PUBLIC' | 'FRIENDS' | 'PRIVATE';
   createdAt: string;
+  likes: number;
+  likedByUser: boolean;
 }
 
 interface TrendingVenue {
@@ -61,6 +63,8 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
   const [postPeople, setPostPeople] = useState('');
   const [postVisibility, setPostVisibility] = useState<'PUBLIC' | 'FRIENDS' | 'PRIVATE'>('PUBLIC');
   const [posting, setPosting] = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const { userId } = useAuth();
 
@@ -152,7 +156,9 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
           peopleGoing: p.people_going,
           totalCost: p.total_cost,
           visibility: p.visibility || 'PUBLIC',
-          createdAt: p.created_at
+          createdAt: p.created_at,
+          likes: p.likes ?? 0,
+          likedByUser: p.liked_by_user ?? false
         }));
         setSocialPosts(posts);
       }
@@ -161,6 +167,94 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
     } finally {
       setPostsLoading(false);
     }
+  };
+
+  // Toggle like with optimistic update
+  const toggleLike = async (postId: string) => {
+    if (!userId) return;
+    // Optimistic update
+    setSocialPosts(prev => prev.map(p =>
+      p.id === postId
+        ? { ...p, likedByUser: !p.likedByUser, likes: p.likedByUser ? Math.max(0, p.likes - 1) : p.likes + 1 }
+        : p
+    ));
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/social/posts/${postId}/like?userId=${userId}`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${publicAnonKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId })
+        }
+      );
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      // Reconcile to authoritative server state
+      setSocialPosts(prev => prev.map(p =>
+        p.id === postId ? { ...p, likedByUser: !!data.liked, likes: data.likes ?? p.likes } : p
+      ));
+    } catch (e) {
+      // Roll back
+      setSocialPosts(prev => prev.map(p =>
+        p.id === postId
+          ? { ...p, likedByUser: !p.likedByUser, likes: p.likedByUser ? Math.max(0, p.likes - 1) : p.likes + 1 }
+          : p
+      ));
+      console.error('Toggle like failed:', e);
+    }
+  };
+
+  // Delete own post
+  const deletePost = async (postId: string) => {
+    if (!userId) return;
+    setMenuOpenId(null);
+    setDeletingId(postId);
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/social/posts/${postId}?userId=${userId}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${publicAnonKey}` }
+        }
+      );
+      if (res.ok) {
+        setSocialPosts(prev => prev.filter(p => p.id !== postId));
+      } else {
+        console.error('Delete failed:', await res.text());
+      }
+    } catch (e) {
+      console.error('Delete failed:', e);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // Long-press handler factory: triggers menu after 500ms touch/mouse hold
+  // (Not a real hook — no useState/useEffect — just a binding factory)
+  const getLongPressBindings = (postId: string, ownPost: boolean) => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const start = (e: React.TouchEvent | React.MouseEvent) => {
+      if (!ownPost) return;
+      timer = setTimeout(() => {
+        if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+          try { navigator.vibrate(15); } catch {}
+        }
+        setMenuOpenId(postId);
+        timer = null;
+      }, 500);
+    };
+    const cancel = () => {
+      if (timer) { clearTimeout(timer); timer = null; }
+    };
+    return {
+      onTouchStart: start,
+      onTouchEnd: cancel,
+      onTouchMove: cancel,
+      onTouchCancel: cancel,
+      onMouseDown: start,
+      onMouseUp: cancel,
+      onMouseLeave: cancel
+    };
   };
 
   // Filter posts based on active filter
@@ -350,15 +444,47 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                 <p className="text-[10px] uppercase tracking-widest text-white/30">No posts available</p>
               </div>
             ) : (
-              filteredPosts.map((post) => (
+              filteredPosts.map((post) => {
+                const isOwn = post.userId === userId;
+                const longPressBindings = getLongPressBindings(post.id, isOwn);
+                const isDeleting = deletingId === post.id;
+                const menuOpen = menuOpenId === post.id;
+                return (
                 <motion.div
                   key={post.id}
                   initial={{ opacity: 0, y: 20 }}
+                  animate={isDeleting ? { opacity: 0, y: -10 } : undefined}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6 }}
-                  className="px-4 py-4 rounded-xl border border-white/10 bg-gradient-to-br from-[#0a0a0a] to-[#060606] my-4 group"
+                  {...longPressBindings}
+                  className="relative px-4 py-4 rounded-xl border border-white/10 bg-gradient-to-br from-[#0a0a0a] to-[#060606] my-4 group select-none"
                 >
+                  {/* Long-press menu overlay (own posts only) */}
+                  {menuOpen && isOwn && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 z-20 rounded-xl bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center gap-3"
+                      onClick={() => setMenuOpenId(null)}
+                    >
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deletePost(post.id); }}
+                        className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-red-400 border border-red-400/40 px-4 py-2.5 hover:bg-red-500/10 active:scale-95 transition-all"
+                      >
+                        <Trash2 size={14} />
+                        Delete post
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(null); }}
+                        className="text-[10px] uppercase tracking-widest text-white/50 hover:text-white/80 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </motion.div>
+                  )}
+
                   {/* User Header with Tier Badge */}
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
@@ -379,8 +505,19 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                         <span className="text-[8px] text-white/40 uppercase tracking-widest">{new Date(post.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
-                    <div className="text-[8px] uppercase tracking-widest text-white/50 border border-[#E5E4E2]/20 px-2 py-1 bg-white/5">
-                      {post.visibility}
+                    <div className="flex items-center gap-2">
+                      {isOwn && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpen ? null : post.id); }}
+                          className="text-white/40 hover:text-white/80 active:scale-95 transition-all p-1"
+                          aria-label="Post options"
+                        >
+                          <MoreHorizontal size={14} />
+                        </button>
+                      )}
+                      <div className="text-[8px] uppercase tracking-widest text-white/50 border border-[#E5E4E2]/20 px-2 py-1 bg-white/5">
+                        {post.visibility}
+                      </div>
                     </div>
                   </div>
 
@@ -427,6 +564,18 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                   {/* Stats & CTA */}
                   <div className="flex items-center justify-between">
                     <div className="flex gap-4 text-[9px] uppercase tracking-widest text-white/60">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); toggleLike(post.id); }}
+                        className="flex items-center gap-1.5 hover:opacity-80 active:scale-95 transition-all"
+                        aria-label={post.likedByUser ? 'Unlike' : 'Like'}
+                      >
+                        <Heart
+                          size={12}
+                          className={post.likedByUser ? 'text-red-500' : 'text-[#E5E4E2]/40'}
+                          fill={post.likedByUser ? 'currentColor' : 'none'}
+                        />
+                        <span className={post.likedByUser ? 'text-red-400' : ''}>{post.likes}</span>
+                      </button>
                       {post.peopleGoing !== undefined && (
                         <div className="flex items-center gap-1.5">
                           <Users size={10} className="text-[#E5E4E2]/40" />
@@ -449,7 +598,8 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                     )}
                   </div>
                 </motion.div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -665,3 +815,4 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
     </div>
   );
 }
+
