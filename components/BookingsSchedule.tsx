@@ -102,9 +102,9 @@ export function BookingsSchedule() {
   const statusColor = (status: Booking['status']) => {
     switch (status) {
       case 'confirmed':
-        return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+        return 'bg-green-500/15 text-green-400 border-green-500/30';
       case 'pending':
-        return 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+        return 'bg-[#E5E4E2]/10 text-[#E5E4E2]/80 border-[#E5E4E2]/25';
       case 'cancelled':
         return 'bg-red-500/20 text-red-300 border-red-500/30';
     }
@@ -352,9 +352,9 @@ export function BookingsSchedule() {
                                 transition={{ delay: idx * 0.05 }}
                                 className={`text-[7px] font-bold uppercase tracking-[0.1em] px-1.5 py-0.5 truncate cursor-pointer hover:opacity-100 transition-opacity ${
                                   booking.status === 'confirmed'
-                                    ? 'bg-emerald-500/20 text-emerald-300'
+                                    ? 'bg-green-500/15 text-green-400'
                                     : booking.status === 'pending'
-                                    ? 'bg-amber-500/20 text-amber-300'
+                                    ? 'bg-[#E5E4E2]/10 text-[#E5E4E2]/80'
                                     : 'bg-red-500/20 text-red-300'
                                 }`}
                                 title={`${booking.venueName} - ${booking.time}`}
@@ -373,11 +373,11 @@ export function BookingsSchedule() {
               {/* Legend */}
               <div className="flex gap-6 text-[9px] uppercase tracking-widest border-t border-white/10 pt-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-emerald-500/30 border border-emerald-500/50" />
+                  <div className="w-3 h-3 bg-green-500/25 border border-green-500/40" />
                   <span className="text-white/60">Confirmed</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-amber-500/30 border border-amber-500/50" />
+                  <div className="w-3 h-3 bg-[#E5E4E2]/20 border border-[#E5E4E2]/35" />
                   <span className="text-white/60">Pending</span>
                 </div>
                 <div className="flex items-center gap-2">
