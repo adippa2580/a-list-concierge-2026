@@ -18,6 +18,10 @@ interface WebSearchResult {
   ticketUrl: string | null;
   venueWebsite: string | null;
   snippet: string | null;
+  // Optional provenance fields — set when an event was matched from a user's
+  // connected music service (Spotify / Apple Music) via artist name.
+  matchedArtist?: string;
+  matchedFrom?: ('spotify' | 'apple_music')[];
 }
 
 // Google Custom Search configuration (optional — set these env vars for best results)
@@ -531,6 +535,243 @@ async function searchTicketTailor(query: string, city: string): Promise<WebSearc
   return results;
 }
 
+// ── Bandsintown Public API ───────────────────────────────────────────────────
+// Public endpoint requires an `app_id` query param — it can be any string identifying
+// our app. No API key required for the v3.1 public artist-events endpoint.
+// Docs: https://app.swaggerhub.com/apis-docs/Bandsintown/PublicAPI/3.1.0
+const BANDSINTOWN_APP_ID = Deno.env.get("BANDSINTOWN_APP_ID") || "a-list-concierge";
+
+/**
+ * Fetch upcoming events for a single artist from Bandsintown.
+ * Returns events normalised to the shared WebSearchResult shape.
+ *
+ * The endpoint accepts the artist name directly in the URL path. Special
+ * characters (slash, ?, *) need to be replaced per Bandsintown's docs:
+ *   /  →  %252F
+ *   ?  →  %253F
+ *   *  →  %252A
+ */
+async function searchBandsintown(artist: string, city?: string): Promise<WebSearchResult[]> {
+  const results: WebSearchResult[] = [];
+  if (!artist) return results;
+
+  try {
+    // Bandsintown wants double-encoded special chars
+    const encoded = encodeURIComponent(artist)
+      .replace(/\//g, "%252F")
+      .replace(/\?/g, "%253F")
+      .replace(/\*/g, "%252A");
+    const url = `https://rest.bandsintown.com/artists/${encoded}/events?app_id=${encodeURIComponent(BANDSINTOWN_APP_ID)}&date=upcoming`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (!res.ok) return results;
+
+    // Bandsintown returns either an array of events, or {warn: "Not found"} for unknown artists.
+    const data: unknown = await res.json();
+    if (!Array.isArray(data)) return results;
+
+    const cityLc = city?.toLowerCase() ?? "";
+
+    for (const ev of data as Record<string, unknown>[]) {
+      const venue = (ev.venue as Record<string, unknown> | undefined) || {};
+      const venueCity = String(venue.city || "");
+      const venueName = String(venue.name || "Bandsintown");
+
+      // If a city was passed, only keep matches in that city (loose match).
+      if (cityLc && !venueCity.toLowerCase().includes(cityLc)) continue;
+
+      const offers = (ev.offers as Array<Record<string, unknown>> | undefined) || [];
+      const ticketOffer = offers.find(o => o.type === "Tickets") || offers[0];
+      const ticketUrl = (ticketOffer?.url as string) || (ev.url as string) || null;
+
+      const lineup = (ev.lineup as string[] | undefined) || [];
+      const country = String(venue.country || "");
+      const region = String(venue.region || "");
+
+      results.push({
+        id: `bit-${ev.id ?? Math.random().toString(36).slice(2)}`,
+        name: { text: `${artist} — Live` },
+        venue: { name: venueName },
+        start: { local: String(ev.datetime || new Date().toISOString()) },
+        logo: { url: (ev.artist as Record<string, unknown> | undefined)?.image_url as string ?? null },
+        source: "bandsintown",
+        ticketUrl,
+        venueWebsite: null,
+        snippet: [
+          venueCity ? `📍 ${venueCity}${region ? ", " + region : ""}${country ? ", " + country : ""}` : null,
+          lineup.length > 1 ? `🎵 ${lineup.slice(0, 4).join(", ")}` : null,
+        ].filter(Boolean).join("  •  ") || null,
+        matchedArtist: artist,
+      });
+    }
+  } catch { /* silent — graceful fallback */ }
+  return results;
+}
+
+// ── SeatGeek Partners API ────────────────────────────────────────────────────
+// Free tier requires only a client_id (no auth header). Docs: https://platform.seatgeek.com/
+const SEATGEEK_CLIENT_ID = Deno.env.get("SEATGEEK_CLIENT_ID");
+
+/**
+ * Search SeatGeek for events matching a performer (or keyword) in a city.
+ * Returns events normalised to the shared WebSearchResult shape.
+ */
+async function searchSeatGeek(query: string, city: string): Promise<WebSearchResult[]> {
+  const results: WebSearchResult[] = [];
+  if (!SEATGEEK_CLIENT_ID || !query) return results;
+
+  try {
+    const params = new URLSearchParams({
+      client_id: SEATGEEK_CLIENT_ID,
+      "performers.slug": "",  // omitted; we use keyword instead
+      q: query,
+      "venue.city": city,
+      per_page: "10",
+      "sort": "datetime_local.asc",
+    });
+    // remove empty perf slug
+    params.delete("performers.slug");
+    const url = `https://api.seatgeek.com/2/events?${params.toString()}`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (!res.ok) return results;
+
+    const data = await res.json();
+    const events = (data?.events as Array<Record<string, unknown>>) || [];
+
+    for (const ev of events) {
+      const venue = (ev.venue as Record<string, unknown> | undefined) || {};
+      const performers = (ev.performers as Array<Record<string, unknown>> | undefined) || [];
+      const headliner = performers.find(p => p.primary) || performers[0] || {};
+
+      const stats = (ev.stats as Record<string, unknown> | undefined) || {};
+      const lowest = stats.lowest_price as number | null;
+      const highest = stats.highest_price as number | null;
+
+      results.push({
+        id: `sg-${ev.id ?? Math.random().toString(36).slice(2)}`,
+        name: { text: String(ev.title || query) },
+        venue: { name: String(venue.name || city) },
+        start: { local: String(ev.datetime_local || ev.datetime_utc || new Date().toISOString()) },
+        logo: { url: (headliner.image as string) ?? null },
+        source: "seatgeek",
+        ticketUrl: (ev.url as string) || null,
+        venueWebsite: null,
+        snippet: [
+          venue.city ? `📍 ${venue.city}${venue.state ? ", " + venue.state : ""}` : null,
+          (lowest && highest) ? `💰 $${lowest} – $${highest}` : null,
+        ].filter(Boolean).join("  •  ") || null,
+        matchedArtist: query,
+      });
+    }
+  } catch { /* silent */ }
+  return results;
+}
+
+/**
+ * Run a per-artist Ticketmaster keyword search. Lighter than the city-browse
+ * mode in `searchTicketmaster` because it scopes by `keyword` instead of dumping
+ * the whole city. Used for cross-referencing user-taste artists.
+ */
+async function searchTicketmasterByArtist(artist: string, city: string): Promise<WebSearchResult[]> {
+  if (!TICKETMASTER_API_KEY || !artist) return [];
+
+  try {
+    const url = `https://app.ticketmaster.com/discovery/v2/events.json?apikey=${TICKETMASTER_API_KEY}` +
+      `&keyword=${encodeURIComponent(artist)}` +
+      `&city=${encodeURIComponent(city)}` +
+      `&size=10&sort=date,asc`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    if (!res.ok) return [];
+
+    const data = await res.json();
+    const events = data?._embedded?.events || [];
+    const results: WebSearchResult[] = [];
+
+    for (const event of events) {
+      const venue = event._embedded?.venues?.[0];
+      const image = event.images?.find((img: { ratio: string; width: number; url: string }) => img.ratio === "16_9" && img.width > 300)
+                  || event.images?.[0];
+      const startDate = event.dates?.start?.dateTime || event.dates?.start?.localDate || new Date().toISOString();
+
+      results.push({
+        id: `tm-art-${event.id}`,
+        name: { text: event.name || artist },
+        venue: { name: venue?.name || city },
+        start: { local: startDate },
+        logo: { url: image?.url || null },
+        source: "ticketmaster",
+        ticketUrl: event.url || null,
+        venueWebsite: venue?.url || null,
+        snippet: [
+          event.dates?.start?.localDate ? `📅 ${new Date(event.dates.start.localDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}` : null,
+          venue?.name ? `📍 ${venue.name}` : null,
+          event.priceRanges?.[0] ? `💰 $${event.priceRanges[0].min} – $${event.priceRanges[0].max}` : null,
+        ].filter(Boolean).join('  •  ') || null,
+        matchedArtist: artist,
+      });
+    }
+    return results;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Run a parallel multi-source artist event lookup: Ticketmaster (keyword),
+ * Bandsintown (per-artist), SeatGeek (keyword). Returns merged results with
+ * `matchedArtist` already set. Caller is responsible for setting `matchedFrom`.
+ */
+async function fetchEventsForArtist(artist: string, city: string): Promise<WebSearchResult[]> {
+  const [tm, bit, sg] = await Promise.all([
+    searchTicketmasterByArtist(artist, city).catch(() => [] as WebSearchResult[]),
+    searchBandsintown(artist, city).catch(() => [] as WebSearchResult[]),
+    searchSeatGeek(artist, city).catch(() => [] as WebSearchResult[]),
+  ]);
+  return [...tm, ...bit, ...sg];
+}
+
+/**
+ * Dedupe a list of artist events by (artist + venue + day). Merges matchedFrom
+ * arrays when the same event surfaces via multiple services.
+ */
+function dedupeArtistEvents(events: WebSearchResult[]): WebSearchResult[] {
+  const map = new Map<string, WebSearchResult>();
+  for (const ev of events) {
+    const day = new Date(ev.start.local).toDateString();
+    const key = `${(ev.matchedArtist || "").toLowerCase()}|${ev.venue.name.toLowerCase()}|${day}`;
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, ev);
+      continue;
+    }
+    // Prefer ticketmaster image / snippet when they exist, but keep the union of provenance.
+    const merged: WebSearchResult = {
+      ...existing,
+      logo: { url: existing.logo.url || ev.logo.url },
+      snippet: existing.snippet || ev.snippet,
+      ticketUrl: existing.ticketUrl || ev.ticketUrl,
+      matchedFrom: Array.from(new Set([...(existing.matchedFrom || []), ...(ev.matchedFrom || [])])) as ('spotify' | 'apple_music')[],
+    };
+    // If existing was ticketmaster but new one has bandsintown image and existing has none, take it.
+    map.set(key, merged);
+  }
+  return Array.from(map.values());
+}
+
 const app = new Hono().basePath("/server");
 
 // Spotify OAuth configuration
@@ -592,12 +833,19 @@ app.get("/spotify/login", (c) => {
     return c.json({ error: "Spotify client ID not configured" }, 500);
   }
 
+  // playlist-modify-* added so /spotify/blend-playlist can create a shared
+  // Blend playlist on the captain's account. Existing tokens won't have these
+  // scopes — users will need to disconnect + reconnect Spotify the first time
+  // they try Blend after this ships. The endpoint surfaces a clear toast in
+  // that case rather than failing silently.
   const scopes = [
     "user-read-private",
     "user-read-email",
     "user-top-read",
     "user-read-recently-played",
-    "playlist-read-private"
+    "playlist-read-private",
+    "playlist-modify-private",
+    "playlist-modify-public"
   ].join(" ");
 
   const state = `spotify:${userId}`; // provider:userId so App.tsx can route the callback correctly
@@ -847,6 +1095,9 @@ app.get("/eventbrite/events", async (c) => {
   const query = c.req.query("q");
   const categories = c.req.query("categories");
   const sortBy = c.req.query("sort_by");
+  // When userId is provided we additionally cross-reference the user's connected
+  // Spotify/Apple Music artists against Ticketmaster + Bandsintown + SeatGeek.
+  const userId = c.req.query("userId");
 
   const locationName = city || "Miami";
 
@@ -900,16 +1151,52 @@ app.get("/eventbrite/events", async (c) => {
     return [];
   })();
 
+  // 6. Personalised artist events (Ticketmaster + Bandsintown + SeatGeek per artist)
+  //    when a userId is provided and the user has connected at least one
+  //    music service.
+  const personalizedPromise: Promise<WebSearchResult[]> = (async () => {
+    if (!userId) return [];
+    try {
+      const [spotifyTaste, appleMusicTaste] = await Promise.all([
+        kv.get(`spotify_taste_${userId}`) as Promise<{ topArtists?: { name: string }[] } | null>,
+        kv.get(`apple_music_taste_${userId}`) as Promise<{ topArtists?: { name: string }[] } | null>,
+      ]);
+      const spotifyArtists = (spotifyTaste?.topArtists || []).map(a => a.name).filter(Boolean);
+      const appleMusicArtists = (appleMusicTaste?.topArtists || []).map(a => a.name).filter(Boolean);
+      if (!spotifyArtists.length && !appleMusicArtists.length) return [];
+
+      const spotifySet = new Set(spotifyArtists.map(n => n.toLowerCase()));
+      const appleMusicSet = new Set(appleMusicArtists.map(n => n.toLowerCase()));
+      const uniqueArtists = Array.from(new Set([...spotifyArtists, ...appleMusicArtists])).slice(0, 8);
+
+      const perArtist = await Promise.all(
+        uniqueArtists.map(async (name) => {
+          const found = await fetchEventsForArtist(name, locationName);
+          const lc = name.toLowerCase();
+          const matchedFrom: ('spotify' | 'apple_music')[] = [];
+          if (spotifySet.has(lc)) matchedFrom.push('spotify');
+          if (appleMusicSet.has(lc)) matchedFrom.push('apple_music');
+          return found.map(ev => ({ ...ev, matchedFrom }));
+        })
+      );
+      return dedupeArtistEvents(perArtist.flat());
+    } catch {
+      return [];
+    }
+  })();
+
   // ── Await all results ─────────────────────────────────────────────────────
-  const [webSearchResults, ticketmasterResults, ticketTailorResults, raResults, eventbriteEvents] =
-    await Promise.all([webSearchPromise, ticketmasterPromise, ticketTailorPromise, raPromise, eventbritePromise]);
+  const [webSearchResults, ticketmasterResults, ticketTailorResults, raResults, eventbriteEvents, personalizedResults] =
+    await Promise.all([webSearchPromise, ticketmasterPromise, ticketTailorPromise, raPromise, eventbritePromise, personalizedPromise]);
 
 
   // ── Merge results ─────────────────────────────────────────────────────────
-  // Priority order: RA Guide → Web Search (venue sites) → Ticketmaster → Ticket Tailor → Eventbrite
-  // RA is placed first because it has the most complete underground/electronic event data
-  // with real lineups, flyer art, and verified ticket links sourced directly from RA.co.
+  // Priority order:
+  //   personalized (artist matches from user's Spotify/Apple Music) → RA Guide
+  //     → Web Search (venue sites) → Ticketmaster → Ticket Tailor → Eventbrite
+  // Personalised artist matches go first so users see "their" events at the top.
   const mergedResults = [
+    ...personalizedResults,
     ...raResults,
     ...webSearchResults,
     ...ticketmasterResults,
@@ -1336,6 +1623,158 @@ app.delete("/spotify/disconnect", async (c) => {
   }
 });
 
+// ── Spotify Blend playlist ────────────────────────────────────────────────────
+// POST /spotify/blend-playlist?userIdA=&userIdB=
+//
+// Creates a real Spotify playlist on userA's account combining the top tracks
+// of both users. UserA must have re-authed Spotify with the
+// `playlist-modify-private` scope (added to /spotify/login this same release);
+// existing tokens lack the scope, so first attempt for legacy users surfaces
+// a 409 with action=reconnect_spotify and the UI prompts a re-auth.
+//
+// The merge is straightforward: pull each user's top 30 tracks (medium term),
+// dedupe by track URI, push up to 50 onto a new playlist named
+// "A-List Blend · {nameA} × {nameB}". Response includes the playlist URL so
+// the client can deep-link into Spotify.
+async function refreshSpotifyTokenForUser(userId: string): Promise<{ access_token: string; expires_at: number; refresh_token?: string; scope?: string } | null> {
+  const stored = await kv.get(`spotify_token_${userId}`) as { access_token: string; refresh_token?: string; expires_at: number; scope?: string } | null;
+  if (!stored?.access_token) return null;
+  if (stored.expires_at - Date.now() > 60_000) return stored;
+  if (!stored.refresh_token) return null;
+  const clientId = SPOTIFY_CLIENT_ID;
+  const clientSecret = SPOTIFY_CLIENT_SECRET || (await kv.get("config:spotify_client_secret") as string | null) || "";
+  if (!clientId || !clientSecret) return null;
+  try {
+    const r = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Authorization": `Basic ${btoa(`${clientId}:${clientSecret}`)}`,
+      },
+      body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: stored.refresh_token }),
+    });
+    if (!r.ok) return null;
+    const j = await r.json() as { access_token: string; expires_in: number; refresh_token?: string; scope?: string };
+    const updated = {
+      ...stored,
+      access_token: j.access_token,
+      expires_at: Date.now() + (j.expires_in * 1000),
+      refresh_token: j.refresh_token ?? stored.refresh_token,
+      scope: j.scope ?? stored.scope,
+    };
+    await kv.set(`spotify_token_${userId}`, updated);
+    return updated;
+  } catch { return null; }
+}
+
+app.post("/spotify/blend-playlist", async (c) => {
+  const userIdA = c.req.query("userIdA");
+  const userIdB = c.req.query("userIdB");
+  if (!userIdA || !userIdB) return c.json({ error: "userIdA and userIdB required" }, 400 as ContentfulStatusCode);
+  if (userIdA === userIdB) return c.json({ error: "userIdA and userIdB must differ" }, 400 as ContentfulStatusCode);
+
+  // Both users need a fresh, valid Spotify access token.
+  const [tokenA, tokenB] = await Promise.all([
+    refreshSpotifyTokenForUser(userIdA),
+    refreshSpotifyTokenForUser(userIdB),
+  ]);
+  if (!tokenA?.access_token) return c.json({ error: "Captain has no Spotify connection", action: "connect_spotify_a" }, 400 as ContentfulStatusCode);
+  if (!tokenB?.access_token) return c.json({ error: "Friend has no Spotify connection", action: "friend_needs_spotify" }, 400 as ContentfulStatusCode);
+
+  // Captain's token must include playlist-modify scope. Spotify returns the
+  // granted scope string on each refresh — check before attempting playlist
+  // creation so we can surface a clean reconnect prompt instead of a 403.
+  const captainScope = (tokenA.scope ?? "").split(/\s+/);
+  if (!captainScope.includes("playlist-modify-private") && !captainScope.includes("playlist-modify-public")) {
+    return c.json({
+      error: "Captain's Spotify token is missing the playlist-modify scope. Disconnect and reconnect Spotify to enable Blend playlists.",
+      action: "reconnect_spotify",
+    }, 409 as ContentfulStatusCode);
+  }
+
+  try {
+    // Pull each user's top tracks (medium-term, 30 each).
+    async function topTracks(token: string): Promise<{ name: string; uri: string; artists: string[] }[]> {
+      const res = await fetch("https://api.spotify.com/v1/me/top/tracks?limit=30&time_range=medium_term", {
+        headers: { "Authorization": `Bearer ${token}` },
+      });
+      if (!res.ok) return [];
+      const j = await res.json() as { items?: Array<{ name: string; uri: string; artists?: Array<{ name: string }> }> };
+      return (j.items ?? []).map(t => ({ name: t.name, uri: t.uri, artists: (t.artists ?? []).map(a => a.name) }));
+    }
+    async function meDisplay(token: string): Promise<{ id: string; name: string }> {
+      const res = await fetch("https://api.spotify.com/v1/me", { headers: { "Authorization": `Bearer ${token}` } });
+      if (!res.ok) throw new Error(`Spotify /me ${res.status}`);
+      const j = await res.json() as { id: string; display_name?: string };
+      return { id: j.id, name: j.display_name?.trim() || "A-List member" };
+    }
+
+    const [tracksA, tracksB, meA, meB] = await Promise.all([
+      topTracks(tokenA.access_token),
+      topTracks(tokenB.access_token),
+      meDisplay(tokenA.access_token),
+      meDisplay(tokenB.access_token),
+    ]);
+
+    // Dedupe by URI, interleave so both users' top picks are represented.
+    const seen = new Set<string>();
+    const interleaved: { name: string; uri: string; artists: string[] }[] = [];
+    const maxLen = Math.max(tracksA.length, tracksB.length);
+    for (let i = 0; i < maxLen; i++) {
+      const a = tracksA[i];
+      const b = tracksB[i];
+      if (a && !seen.has(a.uri)) { seen.add(a.uri); interleaved.push(a); }
+      if (b && !seen.has(b.uri)) { seen.add(b.uri); interleaved.push(b); }
+      if (interleaved.length >= 50) break;
+    }
+    if (interleaved.length === 0) {
+      return c.json({ error: "Neither user has top tracks on Spotify" }, 422 as ContentfulStatusCode);
+    }
+
+    // Create empty playlist on Captain's account.
+    const playlistName = `A-List Blend · ${meA.name} × ${meB.name}`.slice(0, 100);
+    const description = `A blend of ${meA.name} and ${meB.name}'s top tracks. Generated by A-List on ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`;
+    const createRes = await fetch(`https://api.spotify.com/v1/users/${encodeURIComponent(meA.id)}/playlists`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${tokenA.access_token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ name: playlistName, description, public: false }),
+    });
+    if (!createRes.ok) {
+      const t = await createRes.text();
+      return c.json({ error: "Could not create playlist", spotify_status: createRes.status, spotify_error: t.slice(0, 300) }, 500 as ContentfulStatusCode);
+    }
+    const created = await createRes.json() as { id: string; external_urls?: { spotify?: string }; uri?: string };
+
+    // Add tracks (Spotify caps at 100 per request; we have up to 50 so single call).
+    const addRes = await fetch(`https://api.spotify.com/v1/playlists/${created.id}/tracks`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${tokenA.access_token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ uris: interleaved.map(t => t.uri) }),
+    });
+    if (!addRes.ok) {
+      const t = await addRes.text();
+      return c.json({ error: "Created playlist but couldn't add tracks", playlist_url: created.external_urls?.spotify ?? null, spotify_status: addRes.status, spotify_error: t.slice(0, 300) }, 500 as ContentfulStatusCode);
+    }
+
+    return c.json({
+      success: true,
+      playlist: {
+        id: created.id,
+        name: playlistName,
+        url: created.external_urls?.spotify ?? null,
+        uri: created.uri ?? null,
+        track_count: interleaved.length,
+      },
+      members: { a: meA, b: meB },
+      from_a: tracksA.length,
+      from_b: tracksB.length,
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return c.json({ error: msg }, 500 as ContentfulStatusCode);
+  }
+});
+
 // ── Profile: GET + PUT (KV-backed) ───────────────────────────────────────────
 const DEFAULT_PROFILE = {
   name: 'Alex Rivera',
@@ -1433,7 +1872,7 @@ app.get("/social/profile", async (c) => {
         body: new URLSearchParams({
           grant_type: 'refresh_token',
           refresh_token: spotify.refresh_token,
-          client_id: SPOTIFY_CLIENT_ID,
+          client_id: SPOTIFY_CLIENT_ID || '',
           client_secret: SPOTIFY_CLIENT_SECRET || '',
         }),
       });
@@ -1717,9 +2156,20 @@ app.get("/spotify/top-artists", async (c) => {
 });
 
 // ── Personalized Event Feed ───────────────────────────────────────────────────
+//
+// Now does two things:
+//  1. Returns the user's taste payload (artist names, genres) — the original behaviour
+//     that ArtistDiscovery.tsx still relies on.
+//  2. ALSO cross-references each followed Spotify/Apple Music artist against
+//     Ticketmaster, Bandsintown and SeatGeek, and returns the merged event list
+//     tagged with `matchedArtist` + `matchedFrom: ['spotify' | 'apple_music']`.
+//
+// The frontend /events/personalized callers that only need artistNames + userGenres
+// keep working — those fields are still present at the top level.
 app.get("/events/personalized", async (c) => {
   const userId = c.req.query("userId") || "default_user";
   const city = c.req.query("city") || "Miami";
+  const includeEvents = c.req.query("includeEvents") !== "false"; // default ON
 
   // Fetch user preferences and Spotify + Apple Music taste in parallel
   const [prefs, spotifyTaste, appleMusicTaste] = await Promise.all([
@@ -1734,15 +2184,48 @@ app.get("/events/personalized", async (c) => {
     ...(appleMusicTaste?.topGenres || []),
   ].map(g => g.toLowerCase());
   const userEventTypes = (prefs?.eventTypes || []).map(t => t.toLowerCase());
+
+  const spotifyArtistNames = (spotifyTaste?.topArtists || []).map(a => a.name).filter(Boolean);
+  const appleMusicArtistNames = (appleMusicTaste?.topArtists || []).map(a => a.name).filter(Boolean);
   const artistNames = [
-    ...(spotifyTaste?.topArtists || []),
-    ...(appleMusicTaste?.topArtists || []),
-  ].map(a => a.name.toLowerCase());
+    ...spotifyArtistNames,
+    ...appleMusicArtistNames,
+  ].map(a => a.toLowerCase());
+
+  // Build a quick lookup so we can mark each event with its provenance.
+  const spotifySet = new Set(spotifyArtistNames.map(n => n.toLowerCase()));
+  const appleMusicSet = new Set(appleMusicArtistNames.map(n => n.toLowerCase()));
+
+  let events: WebSearchResult[] = [];
+  if (includeEvents && (spotifyArtistNames.length || appleMusicArtistNames.length)) {
+    // Cap to top 8 unique artists to keep this under ~24 parallel HTTP calls
+    const uniqueArtists = Array.from(new Set([
+      ...spotifyArtistNames,
+      ...appleMusicArtistNames,
+    ])).slice(0, 8);
+
+    const perArtist = await Promise.all(
+      uniqueArtists.map(async (name) => {
+        const found = await fetchEventsForArtist(name, city);
+        const lc = name.toLowerCase();
+        const matchedFrom: ('spotify' | 'apple_music')[] = [];
+        if (spotifySet.has(lc)) matchedFrom.push('spotify');
+        if (appleMusicSet.has(lc)) matchedFrom.push('apple_music');
+        return found.map(ev => ({ ...ev, matchedFrom }));
+      })
+    );
+    events = dedupeArtistEvents(perArtist.flat());
+    // Sort by date asc
+    events.sort((a, b) => new Date(a.start.local).getTime() - new Date(b.start.local).getTime());
+  }
 
   return c.json({
     userGenres,
     userEventTypes,
     artistNames,
+    spotifyArtistNames,
+    appleMusicArtistNames,
+    events,
     hasPreferences: userGenres.length > 0 || userEventTypes.length > 0,
   });
 });

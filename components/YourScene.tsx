@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, MapPin, Music, Disc3, Sparkles, TrendingUp, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { Loader2, MapPin, Music, Disc3, Sparkles, TrendingUp, RefreshCw, SlidersHorizontal, Heart } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { TasteEditor } from './TasteEditor';
+import { BlendView } from './BlendView';
 
 interface YourSceneData {
   edge_count: number;
@@ -49,6 +50,7 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
   const [refreshing, setRefreshing] = useState(false);
   const [city, setCity] = useState<string | null>(null);
   const [tasteEditorOpen, setTasteEditorOpen] = useState(false);
+  const [blendOpen, setBlendOpen] = useState(false);
 
   // Pull stored city from local storage (matches existing app pattern)
   useEffect(() => {
@@ -145,6 +147,14 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
           <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 mt-1">Built from your taste signals</p>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setBlendOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.25em] text-white/70 hover:text-white border border-[#E5E4E2]/20 hover:border-[#E5E4E2]/40 transition-colors"
+            aria-label="Blend with friend"
+          >
+            <Heart className="w-3 h-3" />
+            Blend
+          </button>
           <button
             onClick={() => setTasteEditorOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.25em] text-white/70 hover:text-white border border-[#E5E4E2]/20 hover:border-[#E5E4E2]/40 transition-colors"
@@ -359,6 +369,18 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
           onClose={() => setTasteEditorOpen(false)}
           onSaved={() => fetchAll({ skipAutoIngest: true })}
           userId={userId}
+        />
+      )}
+
+      {/* Blend with a friend — events ranked by combined taste, plus
+          optional Spotify playlist generation. */}
+      {userId && (
+        <BlendView
+          open={blendOpen}
+          onClose={() => setBlendOpen(false)}
+          userId={userId}
+          city={city}
+          onEventClick={onEventClick}
         />
       )}
     </div>
