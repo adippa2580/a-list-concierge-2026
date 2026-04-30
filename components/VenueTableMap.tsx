@@ -345,7 +345,7 @@ export function VenueTableMap({ tables, selectedTableId, onSelectTable, onBook, 
                     fill={isAvail ? '#ffffff' : '#ffffff35'}
                     fontFamily="system-ui" pointerEvents="none"
                   >
-                    {table.name.replace(/^(VIP|Skybox|Booth|Stage Front|Patio|Main Stage|Mezzanine Box|Chelsea Terrace|Side Booth|Cabaret Row|Main Room VIP|Patio Lounge|Main Stage VIP)\s*/i, '')}
+                    {(table.name ?? '').replace(/^(VIP|Skybox|Booth|Stage Front|Patio|Main Stage|Mezzanine Box|Chelsea Terrace|Side Booth|Cabaret Row|Main Room VIP|Patio Lounge|Main Stage VIP)\s*/i, '')}
                   </text>
 
                   {/* Min spend */}

@@ -264,8 +264,8 @@ export function VenueDetail({ venue, onBack, onBookTable }: VenueDetailProps) {
             {summary.length > 0 && (
               <div className="grid grid-cols-2 gap-2">
                 {summary.map((s: any) => (
-                  <div key={s.category} className="bg-zinc-950/60 border border-white/5 p-3 rounded-lg">
-                    <p className="text-[8px] uppercase tracking-widest text-white/30 font-bold mb-1 capitalize">{s.category.replace('_', ' ')}</p>
+                  <div key={s.category ?? 'uncategorized'} className="bg-zinc-950/60 border border-white/5 p-3 rounded-lg">
+                    <p className="text-[8px] uppercase tracking-widest text-white/30 font-bold mb-1 capitalize">{((s.category ?? '') as string).replace('_', ' ') || 'Other'}</p>
                     <div className="flex items-end justify-between">
                       <p className="text-xl font-light text-white">{s.available}</p>
                       <p className="text-[8px] text-white/30">/ {s.total} avail</p>
