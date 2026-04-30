@@ -3242,6 +3242,43 @@ app.post("/social/posts", async (c) => {
   }
 });
 
+/** DELETE /social/posts/:id — owner-only delete
+ *  Frontend (SocialFeed.tsx long-press menu) calls:
+ *    DELETE /server/social/posts/<id>?userId=<userId>
+ *  We enforce ownership by including user_id in the PostgREST filter so
+ *  a row only deletes when both id AND user_id match. Returns 404 if no
+ *  rows matched (either id missing or not owned by caller).
+ */
+app.delete("/social/posts/:id", async (c) => {
+  if (!SUPABASE_SERVICE_KEY) return c.json({ error: 'No service key' }, 500 as ContentfulStatusCode);
+  const id = c.req.param('id');
+  const userId = c.req.query('userId');
+  if (!id) return c.json({ error: 'id required' }, 400 as ContentfulStatusCode);
+  if (!userId) return c.json({ error: 'userId required' }, 400 as ContentfulStatusCode);
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/social_posts?id=eq.${encodeURIComponent(id)}&user_id=eq.${encodeURIComponent(userId)}`;
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Prefer': 'return=representation',
+      },
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      return c.json({ error: err }, 500 as ContentfulStatusCode);
+    }
+    const deleted = await res.json();
+    if (!Array.isArray(deleted) || deleted.length === 0) {
+      return c.json({ error: 'Not found or not owner' }, 404 as ContentfulStatusCode);
+    }
+    return c.json({ success: true, deleted: deleted.length });
+  } catch (e: unknown) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 500 as ContentfulStatusCode);
+  }
+});
+
 /** POST /social/posts/:id/like — increment like count */
 app.post("/social/posts/:id/like", async (c) => {
   if (!SUPABASE_SERVICE_KEY) return c.json({ error: 'No service key' }, 500 as ContentfulStatusCode);
