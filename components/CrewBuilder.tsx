@@ -2,6 +2,7 @@
 import { Users, Crown, ChevronRight, Plus, X, Loader2, Trash2, UserMinus, Send, Clock, Phone, Instagram } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
