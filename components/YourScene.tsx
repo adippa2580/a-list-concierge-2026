@@ -25,12 +25,16 @@ interface Recommendation {
   match_reasons?: string[];
 }
 
+// Matches what tg3 /crew-suggestions actually returns:
+//   { name, tier, score, person_id, avatar_url }
+// (Earlier shape — person_external_id / shared_venues / affinity_score —
+// would crash render with TypeError on the undefined fields.)
 interface CrewSuggestion {
-  person_external_id: string;
-  shared_venues?: number;
-  shared_artists?: number;
-  shared_genres?: number;
-  affinity_score?: number;
+  person_id: string;
+  name?: string;
+  tier?: string;
+  score?: number;
+  avatar_url?: string | null;
 }
 
 const TG_BASE = `https://${projectId}.supabase.co/functions/v1/tg3`;
@@ -290,7 +294,7 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
         )}
       </section>
 
-      {/* Crew suggestions */}
+      {/* Crew suggestions — matches tg3 /crew-suggestions response shape */}
       {crew.length > 0 && (
         <section className="mb-6">
           <div className="flex items-center gap-2 mb-3">
@@ -298,30 +302,39 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
             <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40">People your speed</h2>
           </div>
           <div className="space-y-2">
-            {crew.slice(0, 5).map((p) => (
-              <div
-                key={p.person_external_id}
-                className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border border-[#E5E4E2]/8 hover:border-[#E5E4E2]/15 transition-colors"
-              >
-                <div className="min-w-0">
-                  <div className="text-[12px] text-white/80 font-mono truncate">
-                    {p.person_external_id.slice(0, 8)}…
+            {crew.slice(0, 5).map((p, i) => {
+              const pid = p.person_id ?? `crew-${i}`;
+              const displayName = p.name?.trim() || (typeof pid === 'string' ? `${pid.slice(0, 8)}…` : 'Member');
+              const initials =
+                p.name?.trim().split(/\s+/).map(w => w[0]?.toUpperCase() ?? '').join('').slice(0, 2) || '??';
+              return (
+                <div
+                  key={pid}
+                  className="flex items-center justify-between px-4 py-3 bg-white/[0.03] border border-[#E5E4E2]/8 hover:border-[#E5E4E2]/15 transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {p.avatar_url ? (
+                        <img src={p.avatar_url} alt={displayName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[10px] font-bold text-white/60">{initials}</span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] text-white truncate">{displayName}</div>
+                      {p.tier && (
+                        <div className="text-[9px] uppercase tracking-[0.2em] text-white/40 mt-0.5">{p.tier}</div>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-[10px] text-white/40">
-                    {[
-                      p.shared_venues ? `${p.shared_venues} venues` : null,
-                      p.shared_artists ? `${p.shared_artists} artists` : null,
-                      p.shared_genres ? `${p.shared_genres} genres` : null,
-                    ].filter(Boolean).join(' · ') || 'shared signal'}
-                  </div>
+                  {typeof p.score === 'number' && (
+                    <div className="text-[11px] text-white/50 tabular-nums shrink-0">
+                      ×{p.score.toFixed(1)}
+                    </div>
+                  )}
                 </div>
-                {typeof p.affinity_score === 'number' && (
-                  <div className="text-[11px] text-white/50 tabular-nums">
-                    {(p.affinity_score * 100).toFixed(0)}%
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
