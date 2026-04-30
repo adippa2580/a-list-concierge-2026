@@ -1,0 +1,17 @@
+diff --git a/node_modules/@capacitor-community/contacts/Package.swift b/node_modules/@capacitor-community/contacts/Package.swift
+index 6be3b7d..b244e7f 100644
+--- a/node_modules/@capacitor-community/contacts/Package.swift
++++ b/node_modules/@capacitor-community/contacts/Package.swift
+@@ -10,7 +10,11 @@ let package = Package(
+             targets: ["ContactsPlugin"])
+     ],
+     dependencies: [
+-        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", from: "7.0.0")
++        // PATCHED: original `from: "7.0.0"` (which means 7.x only) blocked Cap 8
++        // resolve. Widened to 7.x..<9.x so the plugin can be consumed by this
++        // project's Capacitor 8.2 dep tree. The plugin's iOS source uses stable
++        // APIs (CAPPlugin, CAPPluginCall) that are source-compatible across 7→8.
++        .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", "7.0.0"..<"9.0.0")
+     ],
+     targets: [
+         .target(

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@capacitor-community/contacts": "^7.2.0",
@@ -40,6 +41,7 @@
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
+    "patch-package": "^8.0.1",
     "typescript": "^5.9.3",
     "vite": "^6.0.11"
   }

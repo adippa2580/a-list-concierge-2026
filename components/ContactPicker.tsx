@@ -14,10 +14,10 @@
  *    contacts with name + phones, renders a searchable list, and reports the
  *    chosen one back via `onSelect({ name, phone })`.
  *
- * Permission handling:
- *  - First-time call triggers the system prompt. After that the result is
- *    sticky; if the user denied, we surface the reason and a deep link to
- *    Settings rather than re-asking (re-asking does nothing on iOS).
+ * Native compat note: @capacitor-community/contacts@7.2.0 declares its iOS
+ * dep on capacitor-swift-pm in the 7.x range, which conflicts with the
+ * project's Capacitor 8.2 by default. We patch the plugin's Package.swift
+ * locally to allow 8.x (the runtime API surface we use is unchanged).
  */
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
