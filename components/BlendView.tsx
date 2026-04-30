@@ -106,7 +106,10 @@ export function BlendView({ open, onClose, userId, userName, city, onEventClick 
   const [loadingBlend, setLoadingBlend] = useState(false);
 
   const [creatingPlaylist, setCreatingPlaylist] = useState(false);
-  const [playlist, setPlaylist] = useState<{ url: string | null; name: string; track_count: number } | null>(null);
+  const [playlist, setPlaylist] = useState<{ url: string | null; name: string; track_count: number; provider: 'spotify' | 'soundcloud' } | null>(null);
+
+  // Which streaming platforms both users share — drives the CTA fallback chain.
+  const [shared, setShared] = useState<{ spotify: boolean; soundcloud: boolean } | null>(null);
 
   // Load picker data when sheet opens
   useEffect(() => {
@@ -130,18 +133,41 @@ export function BlendView({ open, onClose, userId, userName, city, onEventClick 
     return () => { cancelled = true; };
   }, [open, userId]);
 
-  // Run the blend once a friend is picked
+  // Run the blend once a friend is picked, alongside a probe of which
+  // streaming platforms BOTH users have connected. The probe drives which
+  // playlist-creation CTA we show (Spotify preferred for fidelity, SC fallback).
   useEffect(() => {
     if (!friend) return;
     let cancelled = false;
     setLoadingBlend(true);
     setPlaylist(null);
+    setShared(null);
+
     const cityParam = city ? `&city=${encodeURIComponent(city)}` : '';
-    fetch(`${TG3_BASE}/blend?userIdA=${userId}&userIdB=${encodeURIComponent(friend.id)}&limit=20${cityParam}`, { headers })
-      .then(r => r.ok ? r.json() : null)
-      .then((data: BlendResponse | null) => { if (!cancelled) setBlend(data); })
-      .catch(() => { if (!cancelled) setBlend(null); })
+    const blendP = fetch(`${TG3_BASE}/blend?userIdA=${userId}&userIdB=${encodeURIComponent(friend.id)}&limit=20${cityParam}`, { headers })
+      .then(r => r.ok ? r.json() : null);
+
+    // Status check: probe each platform for both users in parallel.
+    type Status = { connected?: boolean };
+    const probe = (provider: 'spotify' | 'soundcloud', uid: string) =>
+      fetch(`${TG3_BASE}/${provider}-status?userId=${encodeURIComponent(uid)}`, { headers })
+        .then(r => r.ok ? r.json() as Promise<Status> : { connected: false } as Status)
+        .catch(() => ({ connected: false } as Status));
+    const sharedP = Promise.all([
+      probe('spotify',    userId),
+      probe('spotify',    friend.id),
+      probe('soundcloud', userId),
+      probe('soundcloud', friend.id),
+    ]).then(([sa, sb, ca, cb]) => ({
+      spotify:    !!(sa.connected && sb.connected),
+      soundcloud: !!(ca.connected && cb.connected),
+    }));
+
+    Promise.all([blendP, sharedP])
+      .then(([data, sh]) => { if (!cancelled) { setBlend(data); setShared(sh); } })
+      .catch(() => { if (!cancelled) { setBlend(null); setShared({ spotify: false, soundcloud: false }); } })
       .finally(() => { if (!cancelled) setLoadingBlend(false); });
+
     return () => { cancelled = true; };
   }, [friend, userId, city]);
 
@@ -163,28 +189,45 @@ export function BlendView({ open, onClose, userId, userName, city, onEventClick 
     return count;
   }, [crews]);
 
-  const createPlaylist = async () => {
+  const createPlaylist = async (provider: 'spotify' | 'soundcloud') => {
     if (!friend || creatingPlaylist) return;
     setCreatingPlaylist(true);
     try {
-      const res = await fetch(`${SERVER_BASE}/spotify/blend-playlist?userIdA=${userId}&userIdB=${encodeURIComponent(friend.id)}`, {
+      const res = await fetch(`${SERVER_BASE}/${provider}/blend-playlist?userIdA=${userId}&userIdB=${encodeURIComponent(friend.id)}`, {
         method: 'POST', headers,
       });
       const data = await res.json().catch(() => ({}));
-      if (res.status === 409 && data?.action === 'reconnect_spotify') {
+
+      // Spotify-specific scope reconnect prompt
+      if (provider === 'spotify' && res.status === 409 && data?.action === 'reconnect_spotify') {
         toast.error('Reconnect Spotify to create Blend playlists', {
           description: 'Disconnect from Profile → Spotify, then connect again. New scope grants playlist creation.',
         });
         return;
       }
-      if (!res.ok) {
-        toast.error(data?.error || 'Could not create Spotify playlist');
+      // SoundCloud-specific app-review error — suggest Spotify if available
+      if (provider === 'soundcloud' && data?.action === 'soundcloud_app_review_required') {
+        toast.error('SoundCloud needs API approval for playlist creation', {
+          description: shared?.spotify
+            ? "Try the Spotify playlist option instead."
+            : 'This is on SoundCloud’s side — we’re working on it.',
+        });
         return;
       }
-      setPlaylist({ url: data?.playlist?.url ?? null, name: data?.playlist?.name ?? 'Blend playlist', track_count: data?.playlist?.track_count ?? 0 });
+      if (!res.ok) {
+        const label = provider === 'spotify' ? 'Spotify' : 'SoundCloud';
+        toast.error(data?.error || `Could not create ${label} playlist`);
+        return;
+      }
+      setPlaylist({
+        url: data?.playlist?.url ?? null,
+        name: data?.playlist?.name ?? 'Blend playlist',
+        track_count: data?.playlist?.track_count ?? 0,
+        provider,
+      });
       toast.success(`Playlist created — ${data?.playlist?.track_count ?? 0} tracks`);
     } catch {
-      toast.error('Could not create Spotify playlist');
+      toast.error(`Could not create ${provider === 'spotify' ? 'Spotify' : 'SoundCloud'} playlist`);
     } finally {
       setCreatingPlaylist(false);
     }
@@ -433,43 +476,89 @@ export function BlendView({ open, onClose, userId, userName, city, onEventClick 
                           </div>
                         )}
 
-                        {/* Spotify playlist CTA */}
-                        <div className="mt-6 border-t border-white/5 pt-5">
-                          <div className="flex items-start gap-3 mb-3">
-                            <Music size={16} className="text-[#1DB954] mt-0.5" />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[12px] text-white">Bonus: spawn a real Spotify playlist</p>
-                              <p className="text-[10px] text-white/40 leading-relaxed mt-0.5">
-                                We'll mix your top tracks with {friend.name}'s and drop a fresh playlist on your Spotify. Both need Spotify connected.
-                              </p>
-                            </div>
+                        {/* Playlist CTA — Spotify preferred, SoundCloud fallback.
+                            Spotify gives the cleanest cross-user playlist experience;
+                            SoundCloud playlist creation is gated behind app review
+                            so we surface it only when Spotify isn't available for
+                            both users. */}
+                        {(shared?.spotify || shared?.soundcloud) && (
+                          <div className="mt-6 border-t border-white/5 pt-5">
+                            {shared?.spotify ? (
+                              <>
+                                <div className="flex items-start gap-3 mb-3">
+                                  <Music size={16} className="text-[#1DB954] mt-0.5" />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[12px] text-white">Bonus: spawn a real Spotify playlist</p>
+                                    <p className="text-[10px] text-white/40 leading-relaxed mt-0.5">
+                                      We'll mix your top tracks with {friend.name}'s and drop a fresh playlist on your Spotify.
+                                    </p>
+                                  </div>
+                                </div>
+                                {playlist?.url && playlist.provider === 'spotify' ? (
+                                  <a
+                                    href={playlist.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#1DB954] text-black text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#1ed760] transition"
+                                  >
+                                    <Check size={14} />
+                                    Open "{playlist.name}" ({playlist.track_count} tracks)
+                                    <ExternalLink size={12} />
+                                  </a>
+                                ) : (
+                                  <button
+                                    onClick={() => createPlaylist('spotify')}
+                                    disabled={creatingPlaylist}
+                                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#1DB954] text-black text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#1ed760] disabled:opacity-30 disabled:cursor-not-allowed transition"
+                                  >
+                                    {creatingPlaylist ? (
+                                      <><Loader2 size={14} className="animate-spin" /> Creating playlist…</>
+                                    ) : (
+                                      <><Music size={13} /> Create Spotify playlist</>
+                                    )}
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              // SoundCloud-only path
+                              <>
+                                <div className="flex items-start gap-3 mb-3">
+                                  <Music size={16} className="text-[#FF5500] mt-0.5" />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-[12px] text-white">Bonus: spawn a SoundCloud playlist</p>
+                                    <p className="text-[10px] text-white/40 leading-relaxed mt-0.5">
+                                      We'll combine your liked tracks with {friend.name}'s on a new playlist on your SoundCloud. Note: SoundCloud's API gates playlist creation — first try may need approval on their side.
+                                    </p>
+                                  </div>
+                                </div>
+                                {playlist?.url && playlist.provider === 'soundcloud' ? (
+                                  <a
+                                    href={playlist.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF5500] text-white text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#FF6A1A] transition"
+                                  >
+                                    <Check size={14} />
+                                    Open "{playlist.name}" ({playlist.track_count} tracks)
+                                    <ExternalLink size={12} />
+                                  </a>
+                                ) : (
+                                  <button
+                                    onClick={() => createPlaylist('soundcloud')}
+                                    disabled={creatingPlaylist}
+                                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF5500] text-white text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#FF6A1A] disabled:opacity-30 disabled:cursor-not-allowed transition"
+                                  >
+                                    {creatingPlaylist ? (
+                                      <><Loader2 size={14} className="animate-spin" /> Creating playlist…</>
+                                    ) : (
+                                      <><Music size={13} /> Create SoundCloud playlist</>
+                                    )}
+                                  </button>
+                                )}
+                              </>
+                            )}
                           </div>
-
-                          {playlist?.url ? (
-                            <a
-                              href={playlist.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="w-full flex items-center justify-center gap-2 py-3 bg-[#1DB954] text-black text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#1ed760] transition"
-                            >
-                              <Check size={14} />
-                              Open "{playlist.name}" ({playlist.track_count} tracks)
-                              <ExternalLink size={12} />
-                            </a>
-                          ) : (
-                            <button
-                              onClick={createPlaylist}
-                              disabled={creatingPlaylist}
-                              className="w-full flex items-center justify-center gap-2 py-3 bg-[#1DB954] text-black text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#1ed760] disabled:opacity-30 disabled:cursor-not-allowed transition"
-                            >
-                              {creatingPlaylist ? (
-                                <><Loader2 size={14} className="animate-spin" /> Creating playlist…</>
-                              ) : (
-                                <><Music size={13} /> Create Spotify playlist</>
-                              )}
-                            </button>
-                          )}
-                        </div>
+                        )}
                       </>
                     )}
                   </>

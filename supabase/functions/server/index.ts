@@ -1611,6 +1611,179 @@ app.delete("/soundcloud/disconnect", async (c) => {
   }
 });
 
+// ── SoundCloud parity endpoints ──────────────────────────────────────────────
+// Mirrors of /spotify/top-artists and /spotify/blend-playlist so the frontend
+// can target either platform with the same patterns.
+//
+// Caveat: SoundCloud's API is more restricted than Spotify's. Playlist creation
+// in particular has historically required app review and may return 401/403
+// even with a valid OAuth token. The endpoint surfaces the SC error verbatim
+// so the UI can fall back to Spotify if available.
+
+/** GET /soundcloud/top-artists — derive top artists + genres from likes */
+app.get("/soundcloud/top-artists", async (c) => {
+  const userId = c.req.query("userId") || "default_user";
+  const stored = await kv.get(`soundcloud_token_${userId}`) as { access_token: string; expires_at: number | null } | null;
+  if (!stored?.access_token) return c.json({ error: "SoundCloud not connected" }, 401 as ContentfulStatusCode);
+  if (stored.expires_at !== null && stored.expires_at < Date.now()) return c.json({ error: "SoundCloud token expired" }, 401 as ContentfulStatusCode);
+
+  try {
+    // Pull liked tracks; aggregate artists by like-count, genres by track frequency
+    const likesRes = await fetch("https://api.soundcloud.com/me/likes/tracks?limit=50&linked_partitioning=true", {
+      headers: { "Authorization": `OAuth ${stored.access_token}`, "Accept": "application/json; charset=utf-8" },
+    });
+    if (!likesRes.ok) {
+      const body = await likesRes.text();
+      return c.json({ error: "SoundCloud likes fetch failed", soundcloud_status: likesRes.status, soundcloud_error: body.slice(0, 300) }, 500 as ContentfulStatusCode);
+    }
+    interface SCTrack {
+      id: number;
+      title?: string;
+      genre?: string;
+      tag_list?: string;
+      user?: { id: number; username?: string; avatar_url?: string };
+      publisher_metadata?: { artist?: string; publisher?: string };
+    }
+    const likesJson = await likesRes.json() as { collection?: SCTrack[] } | SCTrack[];
+    const tracks: SCTrack[] = Array.isArray(likesJson) ? likesJson : (likesJson.collection ?? []);
+
+    const artistMap = new Map<string, { name: string; image: string | null; count: number }>();
+    const genreCount: Record<string, number> = {};
+
+    for (const t of tracks) {
+      const artistName = (t.publisher_metadata?.artist?.trim()) || t.user?.username || t.publisher_metadata?.publisher;
+      if (artistName) {
+        const key = artistName.toLowerCase();
+        const existing = artistMap.get(key);
+        if (existing) existing.count += 1;
+        else artistMap.set(key, { name: artistName, image: t.user?.avatar_url ?? null, count: 1 });
+      }
+      if (t.genre) genreCount[t.genre] = (genreCount[t.genre] || 0) + 1;
+      // Also fold tag_list (lightly — single tokens only, skip quoted multi-word and geo tags)
+      if (t.tag_list) {
+        for (const tok of t.tag_list.split(/\s+/)) {
+          if (!tok || tok.length < 3 || tok.length > 30) continue;
+          if (tok.startsWith('"') || tok.startsWith("geo:")) continue;
+          genreCount[tok] = (genreCount[tok] || 0) + 1;
+        }
+      }
+    }
+
+    const topArtists = Array.from(artistMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10)
+      .map(a => ({ name: a.name, image: a.image }));
+
+    const topGenres = Object.entries(genreCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15)
+      .map(([g]) => g);
+
+    // Cache for downstream consumers (parity with Spotify cache)
+    await kv.set(`soundcloud_taste_${userId}`, { topGenres, topArtists, updatedAt: Date.now() });
+
+    return c.json({ topGenres, topArtists });
+  } catch (e: unknown) {
+    return c.json({ error: e instanceof Error ? e.message : String(e) }, 500 as ContentfulStatusCode);
+  }
+});
+
+/** POST /soundcloud/blend-playlist — best-effort playlist creation
+ *  Two SC users + their liked tracks → new SC playlist on userA.
+ *  SC API gates playlist creation behind app review; if rejected we surface
+ *  the SC status code so the UI can fall back to the Spotify path.
+ */
+app.post("/soundcloud/blend-playlist", async (c) => {
+  const userIdA = c.req.query("userIdA");
+  const userIdB = c.req.query("userIdB");
+  if (!userIdA || !userIdB) return c.json({ error: "userIdA and userIdB required" }, 400 as ContentfulStatusCode);
+  if (userIdA === userIdB) return c.json({ error: "userIdA and userIdB must differ" }, 400 as ContentfulStatusCode);
+
+  const [tokenA, tokenB] = await Promise.all([
+    kv.get(`soundcloud_token_${userIdA}`) as Promise<{ access_token: string; expires_at: number | null; username?: string } | null>,
+    kv.get(`soundcloud_token_${userIdB}`) as Promise<{ access_token: string; expires_at: number | null; username?: string } | null>,
+  ]);
+  const validA = tokenA?.access_token && (tokenA.expires_at === null || tokenA.expires_at > Date.now());
+  const validB = tokenB?.access_token && (tokenB.expires_at === null || tokenB.expires_at > Date.now());
+  if (!validA) return c.json({ error: "Captain has no valid SoundCloud connection", action: "connect_soundcloud_a" }, 400 as ContentfulStatusCode);
+  if (!validB) return c.json({ error: "Friend has no valid SoundCloud connection", action: "friend_needs_soundcloud" }, 400 as ContentfulStatusCode);
+
+  const authA = { "Authorization": `OAuth ${tokenA!.access_token}`, "Accept": "application/json; charset=utf-8" };
+  const authB = { "Authorization": `OAuth ${tokenB!.access_token}`, "Accept": "application/json; charset=utf-8" };
+
+  try {
+    interface SCTrack { id: number; title?: string }
+    async function topLikedTrackIds(auth: Record<string, string>): Promise<number[]> {
+      const r = await fetch("https://api.soundcloud.com/me/likes/tracks?limit=30", { headers: auth });
+      if (!r.ok) return [];
+      const j = await r.json() as { collection?: SCTrack[] } | SCTrack[];
+      const list = Array.isArray(j) ? j : (j.collection ?? []);
+      return list.map(t => t.id).filter((id): id is number => typeof id === "number");
+    }
+
+    const [idsA, idsB] = await Promise.all([topLikedTrackIds(authA), topLikedTrackIds(authB)]);
+
+    // Interleave + dedupe
+    const seen = new Set<number>();
+    const ordered: number[] = [];
+    const len = Math.max(idsA.length, idsB.length);
+    for (let i = 0; i < len; i++) {
+      if (idsA[i] != null && !seen.has(idsA[i])) { seen.add(idsA[i]); ordered.push(idsA[i]); }
+      if (idsB[i] != null && !seen.has(idsB[i])) { seen.add(idsB[i]); ordered.push(idsB[i]); }
+      if (ordered.length >= 50) break;
+    }
+    if (ordered.length === 0) {
+      return c.json({ error: "Neither user has liked tracks on SoundCloud" }, 422 as ContentfulStatusCode);
+    }
+
+    const titleA = tokenA!.username || "you";
+    const titleB = tokenB!.username || "friend";
+    const playlistTitle = `A-List Blend · ${titleA} × ${titleB}`.slice(0, 100);
+
+    // Create playlist on userA's account
+    const createRes = await fetch("https://api.soundcloud.com/playlists", {
+      method: "POST",
+      headers: { ...authA, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        playlist: {
+          title: playlistTitle,
+          sharing: "private",
+          tracks: ordered.map(id => ({ id })),
+        },
+      }),
+    });
+    if (!createRes.ok) {
+      const body = await createRes.text();
+      // 401/403 is the typical "app needs review" response for SC playlist create
+      const action = (createRes.status === 401 || createRes.status === 403) ? "soundcloud_app_review_required" : null;
+      return c.json({
+        error: `SoundCloud playlist create failed (${createRes.status})`,
+        soundcloud_status: createRes.status,
+        soundcloud_error: body.slice(0, 300),
+        action,
+        fallback: "Try the Spotify Blend playlist if available",
+      }, 502 as ContentfulStatusCode);
+    }
+    const created = await createRes.json() as { id: number; permalink_url?: string; uri?: string };
+
+    return c.json({
+      success: true,
+      playlist: {
+        id: created.id,
+        name: playlistTitle,
+        url: created.permalink_url ?? null,
+        uri: created.uri ?? null,
+        track_count: ordered.length,
+      },
+      from_a: idsA.length,
+      from_b: idsB.length,
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return c.json({ error: msg }, 500 as ContentfulStatusCode);
+  }
+});
+
 /** DELETE /spotify/disconnect — remove stored token + update DB */
 app.delete("/spotify/disconnect", async (c) => {
   const userId = c.req.query("userId") || "default_user";

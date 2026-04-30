@@ -63,16 +63,19 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
     }
   }, []);
 
-  // Try Spotify ingest if the user has Spotify connected but no taste graph signal yet.
+  // Try platform ingest if the user has it connected but no taste graph signal yet.
   // Best-effort, silent — failure here just leaves the scene sparse and the user can manually refresh.
-  const maybeAutoIngestSpotify = async (headers: Record<string, string>) => {
+  const maybeAutoIngest = async (
+    provider: 'spotify' | 'soundcloud',
+    headers: Record<string, string>,
+  ) => {
     try {
-      const probe = await fetch(`${TG_BASE}/spotify-status?userId=${userId}`, { headers });
+      const probe = await fetch(`${TG_BASE}/${provider}-status?userId=${userId}`, { headers });
       if (!probe.ok) return false;
       const status = await probe.json() as { connected?: boolean; needs_ingest?: boolean; stale?: boolean };
       if (!status.connected) return false;
       if (!status.needs_ingest && !status.stale) return false;
-      const ingest = await fetch(`${TG_BASE}/ingest/spotify?userId=${userId}`, { method: 'POST', headers });
+      const ingest = await fetch(`${TG_BASE}/ingest/${provider}?userId=${userId}`, { method: 'POST', headers });
       return ingest.ok;
     } catch {
       return false;
@@ -96,10 +99,14 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
       if (rRes.ok) setRecs(await rRes.json());
       if (cRes.ok) setCrew(await cRes.json());
 
-      // If signal is sparse and we haven't tried this load yet, attempt Spotify ingest then refetch once
+      // If signal is sparse and we haven't tried this load yet, attempt
+      // Spotify FIRST (richer artist/genre data), then SoundCloud as fallback.
+      // Either ingest succeeding triggers a single refetch.
       const sparse = !sceneData || ((sceneData.edge_count ?? 0) === 0);
       if (sparse && !opts?.skipAutoIngest) {
-        const ingested = await maybeAutoIngestSpotify(headers);
+        const ingested =
+          (await maybeAutoIngest('spotify', headers)) ||
+          (await maybeAutoIngest('soundcloud', headers));
         if (ingested) {
           // Refetch scene + recs after ingest
           const [s2, r2] = await Promise.all([
