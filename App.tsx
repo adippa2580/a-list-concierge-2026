@@ -260,6 +260,63 @@ export default function App() {
       .catch(() => {});
   }, [userId]);
 
+  // ── Auto-redeem pending crew join after auth round-trip ────────────────────
+  // JoinCrewScreen stashes the pending join intent in localStorage so it
+  // survives any auth round-trip (signup, magic-link, Spotify OAuth). When
+  // the user lands back here authed, we re-fire crew2 /join with their new
+  // userId so the join completes seamlessly without making them re-walk the
+  // 4-step flow. Stash is cleared on success; preserved on transient failure
+  // so the user can retry from JoinCrewScreen later.
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    try {
+      const raw = localStorage.getItem('alist_pending_crew_join');
+      if (!raw) return;
+      const pending = JSON.parse(raw) as {
+        token?: string;
+        firstName?: string;
+        phone?: string;
+        instagram?: string;
+        city?: string;
+        vibes?: string[];
+        stashedAt?: number;
+      };
+      // Stale-stash guard: anything older than 24h is presumed dead — drop it.
+      const FRESH_MS = 24 * 60 * 60 * 1000;
+      if (!pending.token || !pending.stashedAt || Date.now() - pending.stashedAt > FRESH_MS) {
+        localStorage.removeItem('alist_pending_crew_join');
+        return;
+      }
+      fetch(`https://${projectId}.supabase.co/functions/v1/crew2/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'apikey': publicAnonKey,
+        },
+        body: JSON.stringify({
+          token: pending.token,
+          joinerUserId: userId,
+          firstName: pending.firstName,
+          phone: pending.phone,
+          instagram: pending.instagram,
+          city: pending.city,
+          vibes: pending.vibes,
+        }),
+      })
+        .then(r => {
+          if (cancelled) return;
+          if (r.ok) {
+            try { localStorage.removeItem('alist_pending_crew_join'); } catch { /* */ }
+          }
+          // !ok → keep stash so JoinCrewScreen retry path still works
+        })
+        .catch(() => { /* network blip — keep stash for retry */ });
+    } catch { /* localStorage disabled or malformed JSON — silently no-op */ }
+    return () => { cancelled = true; };
+  }, [userId]);
+
   const fetchProfile = async () => {
     try {
       const res = await fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {

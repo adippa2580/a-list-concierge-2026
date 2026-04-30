@@ -1335,15 +1335,20 @@ function SocialRow({
       {loading ? (
         <Loader2 size={12} className="text-white/20 animate-spin" />
       ) : connected ? (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Badge className="bg-green-500/10 border border-green-500/20 text-green-500 text-[7px] uppercase tracking-widest px-2 py-0.5 rounded-full font-bold">
             Synced
           </Badge>
+          {/* Explicit, visible Disconnect affordance — matches Connect button's
+              text size + border weight so users always know they CAN disconnect.
+              Earlier text-[8px]/muted-red treatment was too subtle to read. */}
           <button
             onClick={onDisconnect}
-            className="text-[8px] font-bold uppercase tracking-widest text-red-400/70 hover:text-red-400 transition-colors border-b border-red-400/30 hover:border-red-400 pb-0.5"
+            className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300 transition-colors border-b border-red-400/60 hover:border-red-300 pb-0.5"
             title="Disconnect this account"
+            aria-label={`Disconnect ${name}`}
           >
+            <X size={10} aria-hidden="true" />
             Disconnect
           </button>
         </div>
