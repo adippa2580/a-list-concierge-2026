@@ -1,5 +1,5 @@
 
-import { User, Shield, Camera, Music, Music2, TrendingUp, Award, Star, Lock, CheckCircle2, Loader2, Edit2, Check, X, Instagram, Headphones, RefreshCw, ExternalLink, Zap, Building2, Plus, KeyRound, Trash2 } from 'lucide-react';
+import { User, Shield, Camera, Music, Music2, TrendingUp, Award, Star, Lock, CheckCircle2, Loader2, Edit2, Check, X, Instagram, Headphones, RefreshCw, ExternalLink, Zap, Building2, Plus, KeyRound, Trash2, SlidersHorizontal, ChevronRight } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { useAuth } from '../contexts/AuthContext';
+import { TasteEditor } from './TasteEditor';
 
 interface UserProfileProps {
   onProfileUpdate?: () => void;
@@ -86,6 +87,9 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
   // Social connections
   const [social, setSocial]         = useState<SocialProfile | null>(null);
   const [socialLoading, setSocialLoading] = useState(true);
+
+  // Taste-graph refine sheet (Genres → Artists, mute to push down recs)
+  const [tasteEditorOpen, setTasteEditorOpen] = useState(false);
 
   // Custom overrides (stored in localStorage so they survive refreshes)
   const [customName, setCustomName]         = useState('');
@@ -878,6 +882,30 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
                 onDisconnect={disconnectAppleMusic}
                 isSource={false}
               />
+
+              {/* Refine Music Taste — entry point to TasteEditor.
+                  Mute genres/artists to push matching events + crew suggestions
+                  to the bottom of recommendations (re-rank, never hidden). */}
+              <button
+                onClick={() => setTasteEditorOpen(true)}
+                className="w-full flex items-center justify-between p-4 border border-[#E5E4E2]/15 bg-zinc-950/40 hover:border-[#E5E4E2]/35 hover:bg-zinc-950/60 transition-colors text-left"
+                aria-label="Refine your music taste"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 border border-white/10 bg-white/5 flex items-center justify-center">
+                    <SlidersHorizontal size={16} className="text-[#E5E4E2]" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-widest">Music Taste</h4>
+                    <p className="text-[9px] text-white/50 uppercase tracking-widest mt-0.5">
+                      Genres &amp; artists used for recommendations
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-[#E5E4E2]">
+                  Refine <ChevronRight size={12} />
+                </div>
+              </button>
             </div>
 
             {/* ── Private Club Memberships ─────────────────────────── */}
@@ -1064,6 +1092,17 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
           />
         )}
       </div>
+
+      {/* Taste-graph refine sheet — saves muted prefs to /server/preferences;
+          tg3 v6 reads them and re-ranks /recommendations + /crew-suggestions. */}
+      {userId && (
+        <TasteEditor
+          open={tasteEditorOpen}
+          onClose={() => setTasteEditorOpen(false)}
+          onSaved={() => fetchSocialProfile()}
+          userId={userId}
+        />
+      )}
     </div>
   );
 }

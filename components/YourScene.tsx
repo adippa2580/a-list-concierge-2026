@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, MapPin, Music, Disc3, Sparkles, TrendingUp, RefreshCw } from 'lucide-react';
+import { Loader2, MapPin, Music, Disc3, Sparkles, TrendingUp, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { TasteEditor } from './TasteEditor';
 
 interface YourSceneData {
   edge_count: number;
@@ -47,6 +48,7 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [city, setCity] = useState<string | null>(null);
+  const [tasteEditorOpen, setTasteEditorOpen] = useState(false);
 
   // Pull stored city from local storage (matches existing app pattern)
   useEffect(() => {
@@ -142,14 +144,24 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
           <h1 className="font-serif text-2xl font-light uppercase tracking-widest text-white">Your Scene</h1>
           <p className="text-[9px] uppercase tracking-[0.3em] text-white/40 mt-1">Built from your taste signals</p>
         </div>
-        <button
-          onClick={fetchAll}
-          disabled={refreshing}
-          className="p-2 text-white/60 hover:text-white transition disabled:opacity-50"
-          aria-label="Refresh"
-        >
-          <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setTasteEditorOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.25em] text-white/70 hover:text-white border border-[#E5E4E2]/20 hover:border-[#E5E4E2]/40 transition-colors"
+            aria-label="Refine taste"
+          >
+            <SlidersHorizontal className="w-3 h-3" />
+            Refine
+          </button>
+          <button
+            onClick={fetchAll}
+            disabled={refreshing}
+            className="p-2 text-white/60 hover:text-white transition disabled:opacity-50"
+            aria-label="Refresh"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Signal density */}
@@ -337,6 +349,17 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
             })}
           </div>
         </section>
+      )}
+
+      {/* Refine-taste editor — saves to /preferences, then we refetch so the
+          re-rank applied by tg3 v6 takes effect immediately. */}
+      {userId && (
+        <TasteEditor
+          open={tasteEditorOpen}
+          onClose={() => setTasteEditorOpen(false)}
+          onSaved={() => fetchAll({ skipAutoIngest: true })}
+          userId={userId}
+        />
       )}
     </div>
   );
