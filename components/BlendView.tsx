@@ -476,86 +476,48 @@ export function BlendView({ open, onClose, userId, userName, city, onEventClick 
                           </div>
                         )}
 
-                        {/* Playlist CTA — Spotify preferred, SoundCloud fallback.
-                            Spotify gives the cleanest cross-user playlist experience;
-                            SoundCloud playlist creation is gated behind app review
-                            so we surface it only when Spotify isn't available for
-                            both users. */}
-                        {(shared?.spotify || shared?.soundcloud) && (
+                        {/* Playlist CTA — Spotify only.
+                            SoundCloud taste-graph signal is fully wired (see
+                            tg3 /ingest/soundcloud + /soundcloud-status) but
+                            SoundCloud's API gates playlist creation behind an
+                            app-review flow we haven't completed yet. The
+                            /soundcloud/blend-playlist server endpoint stays
+                            deployed for when that lands; we just don't expose
+                            it in the UI today. */}
+                        {shared?.spotify && (
                           <div className="mt-6 border-t border-white/5 pt-5">
-                            {shared?.spotify ? (
-                              <>
-                                <div className="flex items-start gap-3 mb-3">
-                                  <Music size={16} className="text-[#1DB954] mt-0.5" />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-[12px] text-white">Bonus: spawn a real Spotify playlist</p>
-                                    <p className="text-[10px] text-white/40 leading-relaxed mt-0.5">
-                                      We'll mix your top tracks with {friend.name}'s and drop a fresh playlist on your Spotify.
-                                    </p>
-                                  </div>
-                                </div>
-                                {playlist?.url && playlist.provider === 'spotify' ? (
-                                  <a
-                                    href={playlist.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#1DB954] text-black text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#1ed760] transition"
-                                  >
-                                    <Check size={14} />
-                                    Open "{playlist.name}" ({playlist.track_count} tracks)
-                                    <ExternalLink size={12} />
-                                  </a>
-                                ) : (
-                                  <button
-                                    onClick={() => createPlaylist('spotify')}
-                                    disabled={creatingPlaylist}
-                                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#1DB954] text-black text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#1ed760] disabled:opacity-30 disabled:cursor-not-allowed transition"
-                                  >
-                                    {creatingPlaylist ? (
-                                      <><Loader2 size={14} className="animate-spin" /> Creating playlist…</>
-                                    ) : (
-                                      <><Music size={13} /> Create Spotify playlist</>
-                                    )}
-                                  </button>
-                                )}
-                              </>
+                            <div className="flex items-start gap-3 mb-3">
+                              <Music size={16} className="text-[#1DB954] mt-0.5" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[12px] text-white">Bonus: spawn a real Spotify playlist</p>
+                                <p className="text-[10px] text-white/40 leading-relaxed mt-0.5">
+                                  We'll mix your top tracks with {friend.name}'s and drop a fresh playlist on your Spotify.
+                                </p>
+                              </div>
+                            </div>
+                            {playlist?.url && playlist.provider === 'spotify' ? (
+                              <a
+                                href={playlist.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full flex items-center justify-center gap-2 py-3 bg-[#1DB954] text-black text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#1ed760] transition"
+                              >
+                                <Check size={14} />
+                                Open "{playlist.name}" ({playlist.track_count} tracks)
+                                <ExternalLink size={12} />
+                              </a>
                             ) : (
-                              // SoundCloud-only path
-                              <>
-                                <div className="flex items-start gap-3 mb-3">
-                                  <Music size={16} className="text-[#FF5500] mt-0.5" />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="text-[12px] text-white">Bonus: spawn a SoundCloud playlist</p>
-                                    <p className="text-[10px] text-white/40 leading-relaxed mt-0.5">
-                                      We'll combine your liked tracks with {friend.name}'s on a new playlist on your SoundCloud. Note: SoundCloud's API gates playlist creation — first try may need approval on their side.
-                                    </p>
-                                  </div>
-                                </div>
-                                {playlist?.url && playlist.provider === 'soundcloud' ? (
-                                  <a
-                                    href={playlist.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF5500] text-white text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#FF6A1A] transition"
-                                  >
-                                    <Check size={14} />
-                                    Open "{playlist.name}" ({playlist.track_count} tracks)
-                                    <ExternalLink size={12} />
-                                  </a>
+                              <button
+                                onClick={() => createPlaylist('spotify')}
+                                disabled={creatingPlaylist}
+                                className="w-full flex items-center justify-center gap-2 py-3 bg-[#1DB954] text-black text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#1ed760] disabled:opacity-30 disabled:cursor-not-allowed transition"
+                              >
+                                {creatingPlaylist ? (
+                                  <><Loader2 size={14} className="animate-spin" /> Creating playlist…</>
                                 ) : (
-                                  <button
-                                    onClick={() => createPlaylist('soundcloud')}
-                                    disabled={creatingPlaylist}
-                                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#FF5500] text-white text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-[#FF6A1A] disabled:opacity-30 disabled:cursor-not-allowed transition"
-                                  >
-                                    {creatingPlaylist ? (
-                                      <><Loader2 size={14} className="animate-spin" /> Creating playlist…</>
-                                    ) : (
-                                      <><Music size={13} /> Create SoundCloud playlist</>
-                                    )}
-                                  </button>
+                                  <><Music size={13} /> Create Spotify playlist</>
                                 )}
-                              </>
+                              </button>
                             )}
                           </div>
                         )}
