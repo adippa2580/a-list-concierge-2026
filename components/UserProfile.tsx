@@ -1,4 +1,3 @@
-'use client';
 
 import { User, Shield, Camera, Music, Music2, TrendingUp, Award, Star, Lock, CheckCircle2, Loader2, Edit2, Check, X, Instagram, Headphones, RefreshCw, ExternalLink, Zap, Building2, Plus, KeyRound, Trash2 } from 'lucide-react';
 import { Badge } from './ui/badge';
@@ -355,13 +354,10 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
     if (!file) return;
     if (!file.type.startsWith('image/')) { toast.error('Please select an image file'); return; }
     if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5MB'); return; }
-
     setUploading(true);
-
-    // Compress image via canvas before storing (max 200x200, JPEG quality 0.7)
     const img = new Image();
     img.onload = async () => {
-      const MAX = 200;
+      const MAX = 400;
       let w = img.width, h = img.height;
       if (w > h) { if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; } }
       else       { if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; } }
@@ -370,27 +366,25 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
       const ctx = canvas.getContext('2d');
       if (!ctx) { setUploading(false); return; }
       ctx.drawImage(img, 0, 0, w, h);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-
-      try {
-        localStorage.setItem(AVATAR_STORAGE_KEY, dataUrl);
-        setAvatarUrl(dataUrl);
-        window.dispatchEvent(new Event('alist-avatar-updated'));
-        toast.success('Profile photo updated');
-        onProfileUpdate?.();
-
-        // Persist avatar to database
-        await fetch(
-          `https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`,
-          {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${publicAnonKey}` },
-            body: JSON.stringify({ avatarUrl: dataUrl }),
-          }
-        );
-      } catch (_err) {
-        toast.error('Could not save photo — try a smaller image');
-      } finally { setUploading(false); }
+      canvas.toBlob(async (blob) => {
+        if (!blob) { toast.error('Failed to compress image'); setUploading(false); return; }
+        try {
+          const path = userId + '-' + Date.now() + '.jpg';
+          const uploadRes = await fetch(
+            'https://' + projectId + '.supabase.co/storage/v1/object/avatars/' + path,
+            { method: 'POST', headers: { 'Authorization': 'Bearer ' + publicAnonKey, 'apikey': publicAnonKey, 'Content-Type': 'image/jpeg', 'x-upsert': 'true' }, body: blob }
+          );
+          if (!uploadRes.ok) { console.error('Avatar upload failed:', uploadRes.status); toast.error('Could not upload photo'); setUploading(false); return; }
+          const publicUrl = 'https://' + projectId + '.supabase.co/storage/v1/object/public/avatars/' + path;
+          localStorage.setItem(AVATAR_STORAGE_KEY, publicUrl);
+          setAvatarUrl(publicUrl);
+          window.dispatchEvent(new Event('alist-avatar-updated'));
+          toast.success('Profile photo updated');
+          onProfileUpdate?.();
+          await fetch('https://' + projectId + '.supabase.co/functions/v1/server/profile?userId=' + userId, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + publicAnonKey }, body: JSON.stringify({ avatarUrl: publicUrl }) });
+        } catch (err) { console.error('Avatar upload error:', err); toast.error('Could not save photo'); }
+        finally { setUploading(false); }
+      }, 'image/jpeg', 0.85);
     };
     img.onerror = () => { toast.error('Failed to read image'); setUploading(false); };
     img.src = URL.createObjectURL(file);
@@ -1364,3 +1358,4 @@ function SocialRow({
     </div>
   );
 }
+
