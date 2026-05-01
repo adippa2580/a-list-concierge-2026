@@ -291,11 +291,31 @@ export function ArtistDiscovery() {
       if (saved) city = saved.split(',')[0].trim() || 'Miami';
     } catch { /* SSR / unavailable */ }
 
+    // Pull real Spotify artist photos in parallel with the events fetch — needed
+    // because /events/personalized only returns artist names, not images. We
+    // then build a name→image map below and use it as the primary photo source
+    // for taste tiles, with the matched-event venue image as a fallback.
+    const spotifyArtistImages: Record<string, string> = {};
+    const spotifyImagesPromise = fetch(
+      `https://${projectId}.supabase.co/functions/v1/server/spotify/top-artists?userId=${userId}`,
+      { headers: { Authorization: `Bearer ${publicAnonKey}` } }
+    )
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        for (const a of (d?.topArtists || [])) {
+          if (a?.name && a?.image) spotifyArtistImages[String(a.name).toLowerCase()] = String(a.image);
+        }
+      })
+      .catch(() => { /* Spotify not connected — fine, fall back to venue image */ });
+
     // Load user taste (Spotify + Apple Music artists) AND their upcoming shows
     // (cross-referenced against Ticketmaster + Bandsintown + SeatGeek server-side).
-    fetch(`https://${projectId}.supabase.co/functions/v1/server/events/personalized?userId=${userId}&city=${encodeURIComponent(city)}`, {
-      headers: { Authorization: `Bearer ${publicAnonKey}` }
-    }).then(r => r.ok ? r.json() : null).then(data => {
+    Promise.all([
+      fetch(`https://${projectId}.supabase.co/functions/v1/server/events/personalized?userId=${userId}&city=${encodeURIComponent(city)}`, {
+        headers: { Authorization: `Bearer ${publicAnonKey}` }
+      }).then(r => r.ok ? r.json() : null),
+      spotifyImagesPromise,
+    ]).then(([data]) => {
       if (data) {
         setUserGenres(data.userGenres || []);
 
@@ -342,9 +362,11 @@ export function ArtistDiscovery() {
               name: name.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
               genre: data.userGenres?.[i % (data.userGenres.length || 1)] || 'Music',
               followers: '',
-              // Real image when we have one from the matched event; otherwise
-              // null → ArtistTile renders the platinum gradient fallback.
-              image: imageByArtist[lc] ?? null,
+              // Image priority: Spotify artist photo (real) → matched-event
+              // venue image (a relevant surrogate) → null (ArtistTile renders
+              // the platinum gradient fallback so a missing photo never shows
+              // a broken-image icon).
+              image: spotifyArtistImages[lc] ?? imageByArtist[lc] ?? null,
               spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(name)}/artists`,
               upcomingShows: eventsByArtist[lc] || [],
               following: true,

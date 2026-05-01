@@ -75,14 +75,30 @@ export function SocialFeed({ onVenueClick, onBack }: SocialFeedProps) {
       );
       if (res.ok) {
         const data = await res.json();
-        const venues = (Array.isArray(data) ? data : data.venues || []).map((v: any) => ({
-          id: v.id,
-          name: v.name,
-          location: v.location,
-          attendees: Math.floor(Math.random() * 100) + 20,
-          price: ['$', '$$', '$$$', '$$$$'][Math.floor(Math.random() * 4)],
-          image: v.image_url
-        }));
+        const venues = (Array.isArray(data) ? data : data.venues || []).map((v: any) => {
+          // DB stores images under cover_image / logo_image. The legacy mapping
+          // referenced a non-existent v.image_url, which silently null'd every
+          // tile. Try the real fields first, then fall back to a deterministic
+          // dark-club Unsplash photo per venue (hashed by id) so every tile
+          // always renders an image — never a placeholder gradient.
+          const FALLBACK_IMAGES = [
+            'https://images.unsplash.com/photo-1566737236500-c8ac43014a67?q=80&w=600&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1571266028243-d220c6582bb1?q=80&w=600&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1598653222000-6b7b7a552625?q=80&w=600&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=600&auto=format&fit=crop',
+            'https://images.unsplash.com/photo-1487180144351-b8472da7d491?q=80&w=600&auto=format&fit=crop',
+          ];
+          const idHash = String(v.id || v.slug || v.name || '').split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7);
+          const fallback = FALLBACK_IMAGES[Math.abs(idHash) % FALLBACK_IMAGES.length];
+          return {
+            id: v.id,
+            name: v.name,
+            location: v.location || v.city || '',
+            attendees: Math.floor(Math.random() * 100) + 20,
+            price: ['$', '$$', '$$$', '$$$$'][Math.floor(Math.random() * 4)],
+            image: v.cover_image || v.image_url || v.logo_image || fallback,
+          };
+        });
         setTrendingVenues(venues);
       }
     } catch (e) {
@@ -421,7 +437,7 @@ export function SocialFeed({ onVenueClick, onBack }: SocialFeedProps) {
                   viewport={{ once: true }}
                   transition={{ duration: 0.6 }}
                   {...longPressBindings}
-                  className="relative px-4 py-4 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm hover:border-white/20 mx-4 my-3 group select-none transition-colors"
+                  className="relative px-3 py-3 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm hover:border-white/20 mx-4 my-2 group select-none transition-colors"
                 >
                   {/* Long-press menu overlay (own posts only) */}
                   {menuOpen && isOwn && (
@@ -449,112 +465,104 @@ export function SocialFeed({ onVenueClick, onBack }: SocialFeedProps) {
                   )}
 
                   {/* User Header with Tier Badge */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800">
-                        <AvatarFallback className="bg-[#0a0a0a] text-[10px] font-bold text-[#E5E4E2]">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Avatar className="w-8 h-8 rounded-lg overflow-hidden bg-zinc-800">
+                        <AvatarFallback className="bg-[#0a0a0a] text-[9px] font-bold text-[#E5E4E2]">
                           {post.userName.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="text-sm font-bold uppercase tracking-wider text-white">{post.userName}</span>
+                        <div className="flex items-center gap-1.5 mb-0.5">
+                          <span className="text-[12px] font-bold uppercase tracking-wider text-white leading-tight">{post.userName}</span>
                           {post.userTier && (
-                            <span className="text-[8px] bg-[#E5E4E2]/10 text-[#E5E4E2] border border-[#E5E4E2]/30 px-1.5 py-0.5 uppercase tracking-widest font-bold">
+                            <span className="text-[7px] bg-[#E5E4E2]/10 text-[#E5E4E2] border border-[#E5E4E2]/30 px-1 py-0.5 uppercase tracking-widest font-bold rounded-full">
                               {post.userTier}
                             </span>
                           )}
                         </div>
-                        <span className="text-[8px] text-white/40 uppercase tracking-widest">{new Date(post.createdAt).toLocaleDateString()}</span>
+                        <span className="text-[7px] text-white/40 uppercase tracking-widest">{new Date(post.createdAt).toLocaleDateString()}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {isOwn && (
                         <button
                           onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpen ? null : post.id); }}
                           className="text-white/40 hover:text-white/80 active:scale-95 transition-all p-1"
                           aria-label="Post options"
                         >
-                          <MoreHorizontal size={14} />
+                          <MoreHorizontal size={12} />
                         </button>
                       )}
-                      <div className="text-[8px] uppercase tracking-widest text-white/50 border border-[#E5E4E2]/20 px-2 py-1 bg-white/5">
+                      <div className="text-[7px] uppercase tracking-widest text-white/50 border border-[#E5E4E2]/20 px-1.5 py-0.5 bg-white/5 rounded-full">
                         {post.visibility}
                       </div>
                     </div>
                   </div>
 
-                  {/* Divider */}
-                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent mb-3" />
-
                   {/* Message */}
-                  <p className="text-sm font-light leading-relaxed text-white mb-3 text-[#E5E4E2]/95">
+                  <p className="text-[12px] font-light leading-snug text-white mb-2 text-[#E5E4E2]/95">
                     {post.message}
                   </p>
 
-                  {/* Venue Card */}
+                  {/* Venue Card — compact */}
                   {post.venueName && (
                     <motion.div
                       whileHover={{ scale: 1.02 }}
                       transition={{ duration: 0.3 }}
-                      className="mb-3 group/venue cursor-pointer rounded-lg border border-white/10 overflow-hidden bg-[#060606]"
+                      className="mb-2 group/venue cursor-pointer rounded-lg border border-white/10 overflow-hidden bg-[#060606]"
                       onClick={() => onVenueClick({ name: post.venueName!, location: post.venueLocation, image: post.venueImage })}
                     >
-                      <div className="flex h-20 overflow-hidden">
+                      <div className="flex h-14 overflow-hidden">
                         {post.venueImage && (
                           <div
-                            className="w-24 h-full bg-cover bg-center flex-shrink-0 grayscale group-hover/venue:grayscale-0 transition-all duration-700 group-hover/venue:scale-110"
+                            className="w-16 h-full bg-cover bg-center flex-shrink-0 group-hover/venue:scale-110 transition-transform duration-700"
                             style={{ backgroundImage: `url(${post.venueImage})` }}
                           />
                         )}
-                        <div className="flex-1 p-3 flex flex-col justify-between">
+                        <div className="flex-1 px-2.5 py-1.5 flex flex-col justify-between">
                           <div>
-                            <h3 className="text-sm font-bold uppercase tracking-wider text-white group-hover/venue:text-amber-500 transition-all">{post.venueName}</h3>
-                            {post.venueTime && <p className="text-[9px] text-white/50 uppercase tracking-widest mt-0.5">{post.venueTime}</p>}
+                            <h3 className="text-[11px] font-bold uppercase tracking-wider text-white group-hover/venue:text-amber-500 transition-all leading-tight">{post.venueName}</h3>
+                            {post.venueTime && <p className="text-[8px] text-white/50 uppercase tracking-widest mt-0.5">{post.venueTime}</p>}
                           </div>
                           <div className="flex items-center justify-between">
-                            {post.venueLocation && <span className="text-[9px] text-white/40">{post.venueLocation}</span>}
-                            <ArrowUpRight size={12} className="text-white/30 group-hover/venue:text-amber-500 transition-colors" />
+                            {post.venueLocation && <span className="text-[8px] text-white/40 truncate">{post.venueLocation}</span>}
+                            <ArrowUpRight size={11} className="text-white/30 group-hover/venue:text-amber-500 transition-colors flex-shrink-0" />
                           </div>
                         </div>
                       </div>
                     </motion.div>
                   )}
 
-                  {/* Divider */}
-                  <div className="h-px bg-gradient-to-r from-white/10 to-transparent mb-3" />
-
-                  {/* Stats & CTA */}
+                  {/* Stats & CTA — single row, no extra divider */}
                   <div className="flex items-center justify-between">
-                    <div className="flex gap-4 text-[9px] uppercase tracking-widest text-white/60">
+                    <div className="flex gap-3 text-[8px] uppercase tracking-widest text-white/60">
                       <button
                         onClick={(e) => { e.stopPropagation(); toggleLike(post.id); }}
-                        className="flex items-center gap-1.5 hover:opacity-80 active:scale-95 transition-all"
+                        className="flex items-center gap-1 hover:opacity-80 active:scale-95 transition-all"
                         aria-label={post.likedByUser ? 'Unlike' : 'Like'}
                       >
                         <Heart
-                          size={12}
+                          size={11}
                           className={post.likedByUser ? 'text-red-500' : 'text-[#E5E4E2]/40'}
                           fill={post.likedByUser ? 'currentColor' : 'none'}
                         />
                         <span className={post.likedByUser ? 'text-red-400' : ''}>{post.likes}</span>
                       </button>
                       {post.peopleGoing !== undefined && (
-                        <div className="flex items-center gap-1.5">
-                          <Users size={10} className="text-[#E5E4E2]/40" />
+                        <div className="flex items-center gap-1">
+                          <Users size={9} className="text-[#E5E4E2]/40" />
                           <span>{post.peopleGoing} Going</span>
                         </div>
                       )}
                       {post.totalCost !== undefined && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[#E5E4E2]/60">${post.totalCost.toLocaleString()}</span>
-                        </div>
+                        <span className="text-[#E5E4E2]/60">${post.totalCost.toLocaleString()}</span>
                       )}
                     </div>
                     {post.venueName && (
                       <button
                         onClick={() => onVenueClick({ name: post.venueName!, location: post.venueLocation, image: post.venueImage })}
-                        className="text-[9px] font-bold uppercase tracking-widest text-[#E5E4E2] border border-[#E5E4E2]/40 px-3 py-1.5 hover:bg-white/5 hover:border-[#E5E4E2]/70 transition-all active:scale-95"
+                        className="text-[8px] font-bold uppercase tracking-widest text-[#E5E4E2] border border-[#E5E4E2]/40 px-2.5 py-1 rounded-full hover:bg-white/5 hover:border-[#E5E4E2]/70 transition-all active:scale-95"
                       >
                         Join
                       </button>

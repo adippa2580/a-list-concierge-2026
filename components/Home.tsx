@@ -243,6 +243,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
             const match = findTmMatch(ev.name, ev.venue, ev.rawDate);
             if (match) {
               usedTmIds.add(match.id);
+              match.wasUsedAsEnrichment = true;
               ev.tmImage = match.image;
               ev.tmSnippet = match.snippet;
               ev.tmTicketUrl = match.ticketUrl;
@@ -256,6 +257,65 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
             }
           });
 
+          // ── Cross-source dedupe ─────────────────────────────────────────
+          // The same event often appears across Eventbrite, Ticketmaster,
+          // Bandsintown, SeatGeek, RA Guide, and venue scrapes. Collapse them
+          // into a single tile per (normalised title + venue + day), keep the
+          // highest-priority source as the visible winner, and attach the
+          // losers' ticket URLs as alternateTickets[] so renderEventCard can
+          // show "Also on Bandsintown / SeatGeek" links beneath.
+          const norm2 = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 36);
+          const groupKey = (e: any) => `${norm2(e.name)}|${norm2(e.venue)}|${e.rawDate.toDateString()}`;
+          const sourcePriority: Record<string, number> = {
+            ra: 0,
+            web_search: 1, website: 1, tickettailor: 1,
+            eventbrite: 2,
+            ticketmaster: 3,
+            bandsintown: 4,
+            seatgeek: 5,
+            curated: 6,
+          };
+          const groups = new Map<string, any[]>();
+          for (const ev of formatted) {
+            const key = groupKey(ev);
+            const arr = groups.get(key);
+            if (arr) arr.push(ev);
+            else groups.set(key, [ev]);
+          }
+          const deduped: any[] = [];
+          groups.forEach((group) => {
+            // Pick the highest-priority source as the survivor. Personalized
+            // events always win their group regardless of source.
+            group.sort((a, b) => {
+              if (a.isPersonalized !== b.isPersonalized) return a.isPersonalized ? -1 : 1;
+              const pa = sourcePriority[a.source] ?? 99;
+              const pb = sourcePriority[b.source] ?? 99;
+              return pa - pb;
+            });
+            const winner = group[0];
+            const losers = group.slice(1);
+            // Attach losers' ticket URLs as alternates (deduped by source)
+            const seenSources = new Set([winner.source]);
+            const alts: { source: string; url: string }[] = [];
+            for (const l of losers) {
+              if (!l.ticketUrl) continue;
+              if (seenSources.has(l.source)) continue;
+              seenSources.add(l.source);
+              alts.push({ source: l.source, url: l.ticketUrl });
+            }
+            if (alts.length > 0) winner.alternateTickets = alts;
+            // If the winner doesn't have an image but a loser does, borrow it
+            if (!winner.image) {
+              const imgLoser = losers.find(l => l.image);
+              if (imgLoser) winner.image = imgLoser.image;
+            }
+            deduped.push(winner);
+          });
+
+          // Suppress TM/Bandsintown/SeatGeek events that were consumed as
+          // enrichment for a venue/RA result (their data already merged in).
+          const surviving = deduped.filter((e: any) => !e.wasUsedAsEnrichment);
+
           // Sort: personalized matches first, then RA, then venue-with-photo,
           // then TM/Bandsintown/SeatGeek, then venue-no-photo, then Eventbrite
           const sourceOrder = (e: any) => {
@@ -268,13 +328,13 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
             if (e.isVenueSource && !e.image) return 3;   // venue, no photo → demoted
             return 4;
           };
-          formatted.sort((a, b) => {
+          surviving.sort((a, b) => {
             const so = sourceOrder(a) - sourceOrder(b);
             if (so !== 0) return so;
             return a.rawDate.getTime() - b.rawDate.getTime();
           });
 
-          setEvents(formatted);
+          setEvents(surviving);
         }
       } catch (error) {
         console.error("Failed to fetch events:", error);
@@ -605,6 +665,23 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
                 <ExternalLink size={8} />
                 {event.isTicketmaster || isTmEnriched ? 'Get Tickets' : 'Open'}
               </button>
+            )}
+            {/* Alternate ticket sources (Bandsintown / SeatGeek / etc.) — nested
+                under the primary CTA so each event is a single tile. */}
+            {event.alternateTickets && event.alternateTickets.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-2">
+                {event.alternateTickets.map((alt: any) => (
+                  <button
+                    key={alt.source + alt.url}
+                    onClick={(e) => { e.stopPropagation(); window.open(alt.url, '_blank', 'noopener,noreferrer'); }}
+                    className="text-[7px] font-bold uppercase tracking-widest text-white/40 hover:text-white/80 active:scale-95 transition-all flex items-center gap-1"
+                    aria-label={`Get tickets on ${alt.source}`}
+                  >
+                    <ExternalLink size={7} />
+                    Also on {alt.source.replace(/_/g, ' ')}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </motion.div>
