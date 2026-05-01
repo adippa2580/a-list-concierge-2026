@@ -583,20 +583,13 @@ export function ArtistDiscovery() {
 
         {/* SONOVOS HQ FEED */}
         <div className="space-y-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Sonovos HQ</h2>
-              <p className="text-[8px] uppercase tracking-widest text-white/25 mt-0.5">Weekly drops · Event recaps · Artist revenue</p>
-            </div>
-            <span className="text-[7px] font-bold uppercase tracking-widest px-2 py-1 border border-[#E5E4E2]/20 text-[#E5E4E2]/40">Live</span>
-          </div>
 
           <div className="space-y-3">
             {[
               {
                 type: 'WEEKLY DROP',
                 title: 'This Week in Miami',
-                body: 'Calvin Harris closes out WMC. LIV tables at 3× baseline. Four artists hitting personal revenue highs on Sonovos.',
+                body: 'Calvin Harris closes out WMC. LIV tables at 3× baseline. Four artists hitting weekly streaming highs.',
                 date: 'Apr 14',
                 accent: true,
                 image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=400&auto=format&fit=crop',
