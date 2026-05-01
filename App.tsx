@@ -770,7 +770,13 @@ export default function App() {
                     onBack={() => setCurrentView("venue")}
                   />
                 )}
-                {currentView === "profile" && <UserProfile onProfileUpdate={fetchProfile} />}
+                {currentView === "profile" && (
+                  <UserProfile
+                    onProfileUpdate={fetchProfile}
+                    onOpenBookings={() => navigateTo("bookings")}
+                    onOpenYearReview={() => navigateTo("year-review")}
+                  />
+                )}
                 {currentView === "inbox" && <Inbox />}
                 {currentView === "crews" && <CrewBuilder />}
                 {currentView === "year-review" && <YearInReview />}

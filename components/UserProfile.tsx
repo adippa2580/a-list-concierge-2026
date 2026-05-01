@@ -12,6 +12,10 @@ import { TasteEditor } from './TasteEditor';
 
 interface UserProfileProps {
   onProfileUpdate?: () => void;
+  /** Open the BookingsSchedule route (was on its own currentView). Optional — when omitted, the row hides. */
+  onOpenBookings?: () => void;
+  /** Open the YearInReview route. Optional — when omitted, the row hides. */
+  onOpenYearReview?: () => void;
 }
 
 const AVATAR_STORAGE_KEY    = 'alist_avatar_url';
@@ -71,7 +75,7 @@ interface SocialProfile {
   };
 }
 
-export function UserProfile({ onProfileUpdate }: UserProfileProps) {
+export function UserProfile({ onProfileUpdate, onOpenBookings, onOpenYearReview }: UserProfileProps) {
   const { userId, user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('identity');
 
@@ -793,7 +797,7 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
       <div className="px-6 mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full bg-transparent border-b border-white/10 rounded-xl h-auto p-0 justify-start gap-6 overflow-x-auto scrollbar-hide">
-            {['Identity', 'Connections', 'History', 'Vault'].map(tab => (
+            {['Identity', 'Activity'].map(tab => (
               <TabsTrigger
                 key={tab}
                 value={tab.toLowerCase()}
@@ -1032,65 +1036,92 @@ export function UserProfile({ onProfileUpdate }: UserProfileProps) {
           </>
         )}
 
-        {/* HISTORY TAB */}
-        {activeTab === 'history' && (
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Achievements</h3>
-            {achievements.length === 0 ? (
-              <p className="text-[9px] uppercase tracking-widest text-white/20 text-center py-12">No achievements yet</p>
-            ) : achievements.map((achievement: any, index: number) => {
-              const Icon = ACHIEVEMENT_ICONS[achievement.name] || Award;
-              return (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="flex items-center gap-4 p-5 border border-white/10 bg-zinc-950/40"
-                >
-                  <div className="w-10 h-10 border border-[#E5E4E2]/20 bg-white/5 flex items-center justify-center">
-                    <Icon size={16} className="text-[#E5E4E2]" />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="text-xs font-bold uppercase tracking-widest">{achievement.name}</h4>
-                    <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{achievement.date}</p>
-                  </div>
-                  {achievement.earned && <CheckCircle2 size={14} className="text-green-500" />}
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
+        {/* ACTIVITY TAB (was 'History') — surfaces Bookings + Year-in-Review,
+            previously buried as their own routes outside Profile, plus the
+            existing Achievements list. */}
+        {activeTab === 'activity' && (
+          <div className="space-y-8">
+            {/* Quick links into the existing Bookings + Year-in-Review routes */}
+            {(onOpenBookings || onOpenYearReview) && (
+              <div className="space-y-3">
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">
+                  Your Activity
+                </h3>
+                <div className="space-y-1">
+                  {onOpenBookings && (
+                    <button
+                      onClick={onOpenBookings}
+                      className="w-full flex items-center justify-between p-4 border border-white/10 hover:border-[#E5E4E2]/40 hover:bg-zinc-950/60 transition-colors text-left group"
+                      aria-label="Open bookings"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 border border-white/10 bg-white/5 flex items-center justify-center">
+                          <KeyRound size={16} className="text-[#E5E4E2]" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-widest">Bookings</h4>
+                          <p className="text-[9px] text-white/50 uppercase tracking-widest mt-0.5">
+                            Past + upcoming reservations
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight size={12} className="text-white/30 group-hover:text-[#E5E4E2] transition-colors" />
+                    </button>
+                  )}
+                  {onOpenYearReview && (
+                    <button
+                      onClick={onOpenYearReview}
+                      className="w-full flex items-center justify-between p-4 border border-white/10 hover:border-[#E5E4E2]/40 hover:bg-zinc-950/60 transition-colors text-left group"
+                      aria-label="Open year in review"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 border border-white/10 bg-white/5 flex items-center justify-center">
+                          <Award size={16} className="text-[#E5E4E2]" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-widest">Year in Review</h4>
+                          <p className="text-[9px] text-white/50 uppercase tracking-widest mt-0.5">
+                            Annual highlights, top venues, top genres
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight size={12} className="text-white/30 group-hover:text-[#E5E4E2] transition-colors" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
-        {/* VAULT TAB */}
-        {activeTab === 'vault' && (
-          <div className="space-y-6">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Secure Vault</h3>
-            <div className="p-12 border border-dashed border-white/10 text-center space-y-4">
-              <div className="w-16 h-16 border border-white/10 bg-white/5 flex items-center justify-center mx-auto">
-                <Lock size={24} className="text-white/20" />
-              </div>
-              <div>
-                <p className="text-xs font-bold uppercase tracking-widest mb-2">Digital Vault</p>
-                <p className="text-[9px] text-white/30 uppercase tracking-widest leading-loose">
-                  Securely store payment methods, ID verification,<br />and exclusive membership documents.
-                </p>
-              </div>
-              <Button className="bg-white text-black hover:bg-[#E5E4E2] rounded-full font-bold text-[9px] uppercase tracking-[0.3em] !text-black px-8">
-                Set Up Vault
-              </Button>
+            {/* Achievements (existing list, unchanged) */}
+            <div className="space-y-3">
+              <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Achievements</h3>
+              {achievements.length === 0 ? (
+                <p className="text-[9px] uppercase tracking-widest text-white/20 text-center py-12">No achievements yet</p>
+              ) : achievements.map((achievement: any, index: number) => {
+                const Icon = ACHIEVEMENT_ICONS[achievement.name] || Award;
+                return (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex items-center gap-4 p-5 border border-white/10 bg-zinc-950/40"
+                  >
+                    <div className="w-10 h-10 border border-[#E5E4E2]/20 bg-white/5 flex items-center justify-center">
+                      <Icon size={16} className="text-[#E5E4E2]" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-xs font-bold uppercase tracking-widest">{achievement.name}</h4>
+                      <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{achievement.date}</p>
+                    </div>
+                    {achievement.earned && <CheckCircle2 size={14} className="text-green-500" />}
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* CONNECTIONS TAB */}
-        {activeTab === 'connections' && (
-          <ConnectionsTab
-            instagramConnected={social?.instagram.connected ?? false}
-            instagramUsername={social?.instagram.username ?? null}
-            onConnectInstagram={connectInstagram}
-          />
-        )}
       </div>
 
       {/* Taste-graph refine sheet — saves muted prefs to /server/preferences;
@@ -1144,183 +1175,6 @@ function DiscoverabilityToggle() {
           ✓ Your Instagram graph is active for crew matching. Switch off anytime.
         </motion.p>
       )}
-    </div>
-  );
-}
-
-// ── Connections Tab ────────────────────────────────────────────────────────────
-function ConnectionsTab({ instagramConnected, instagramUsername, onConnectInstagram }: {
-  instagramConnected: boolean;
-  instagramUsername: string | null;
-  onConnectInstagram: () => void;
-}) {
-  const [inviteSent, setInviteSent] = useState<Record<number, boolean>>({});
-
-  // Simulated vibe-matched connections derived from Instagram graph
-  const vibeMatches = [
-    {
-      id: 1,
-      name: 'Sofia R.',
-      handle: '@sofiaramos',
-      avatar: 'SR',
-      mutualVenues: ['LIV Miami', 'E11even'],
-      mutualCount: 3,
-      vibeScore: 94,
-      tags: ['House', 'Techno'],
-      status: 'mutual',
-    },
-    {
-      id: 2,
-      name: 'Marco D.',
-      handle: '@marcodeluca',
-      avatar: 'MD',
-      mutualVenues: ['Story', 'Treehouse'],
-      mutualCount: 2,
-      vibeScore: 87,
-      tags: ['Hip-Hop', 'Latin'],
-      status: 'mutual',
-    },
-    {
-      id: 3,
-      name: 'Jade K.',
-      handle: '@jadekwon',
-      avatar: 'JK',
-      mutualVenues: ['LIV Miami'],
-      mutualCount: 1,
-      vibeScore: 79,
-      tags: ['Afro House'],
-      status: 'following',
-    },
-    {
-      id: 4,
-      name: 'Alex V.',
-      handle: '@alexvera',
-      avatar: 'AV',
-      mutualVenues: ['Factory Town', 'E11even'],
-      mutualCount: 4,
-      vibeScore: 91,
-      tags: ['Techno', 'House'],
-      status: 'mutual',
-    },
-  ];
-
-  if (!instagramConnected) {
-    return (
-      <div className="space-y-6">
-        <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">
-          Connections
-        </h3>
-        <div className="border border-dashed border-white/10 p-10 text-center space-y-5">
-          <div className="w-12 h-12 border border-white/10 bg-white/5 flex items-center justify-center mx-auto">
-            <Instagram size={20} className="text-white/20" />
-          </div>
-          <div className="space-y-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest">Connect Instagram</p>
-            <p className="text-[8px] uppercase tracking-widest text-white/25 leading-relaxed">
-              Link Instagram to surface mutual connections and shared taste as crew suggestions.
-              Your graph is never shared publicly.
-            </p>
-          </div>
-          <button
-            onClick={onConnectInstagram}
-            className="px-6 py-3 bg-white text-black font-bold text-[9px] uppercase tracking-[0.3em] hover:bg-[#E5E4E2] transition-all !text-black"
-          >
-            Connect Instagram
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">
-          Vibe Matches
-        </h3>
-        {instagramUsername && (
-          <p className="text-[7px] uppercase tracking-widest text-white/20">@{instagramUsername}</p>
-        )}
-      </div>
-
-      <p className="text-[8px] uppercase tracking-widest text-white/25 leading-relaxed">
-        People from your Instagram network with overlapping venue history. Suggested as potential crew members — not shared without your invite.
-      </p>
-
-      <div className="space-y-3">
-        {vibeMatches.map((match, i) => (
-          <motion.div
-            key={match.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="border border-white/10 bg-zinc-950/40 p-4"
-          >
-            <div className="flex items-start gap-4">
-              {/* Avatar */}
-              <div className="w-10 h-10 border border-white/10 bg-white/5 flex items-center justify-center flex-shrink-0">
-                <span className="text-[9px] font-bold text-white/50">{match.avatar}</span>
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-widest truncate">{match.name}</p>
-                    <span className="text-[6px] font-bold uppercase tracking-widest px-1.5 py-0.5 border border-[#E5E4E2]/20 text-[#E5E4E2]/50 flex-shrink-0">
-                      {match.status === 'mutual' ? 'Mutual' : 'Following'}
-                    </span>
-                  </div>
-                  {/* Vibe score */}
-                  <div className="flex-shrink-0 text-right">
-                    <p className="text-[9px] font-bold text-[#E5E4E2]">{match.vibeScore}%</p>
-                    <p className="text-[6px] uppercase tracking-widest text-white/25">Vibe Match</p>
-                  </div>
-                </div>
-
-                <p className="text-[8px] uppercase tracking-widest text-white/30 mb-2">{match.handle}</p>
-
-                {/* Shared venues */}
-                <div className="flex items-center gap-2 mb-3 flex-wrap">
-                  <span className="text-[7px] uppercase tracking-widest text-white/20">Both been to:</span>
-                  {match.mutualVenues.map(v => (
-                    <span key={v} className="text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 border border-white/10 text-white/40">
-                      {v}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Tags */}
-                <div className="flex items-center gap-1.5 mb-3">
-                  {match.tags.map(tag => (
-                    <span key={tag} className="text-[6px] font-bold uppercase tracking-widest px-1.5 py-0.5 bg-[#E5E4E2]/5 border border-[#E5E4E2]/10 text-[#E5E4E2]/40">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Invite CTA */}
-                {inviteSent[match.id] ? (
-                  <div className="flex items-center gap-2 text-[8px] uppercase tracking-widest text-green-500">
-                    <Check size={11} />
-                    In-app invite sent
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setInviteSent(prev => ({ ...prev, [match.id]: true }))}
-                    className="text-[8px] font-bold uppercase tracking-widest text-[#E5E4E2] border-b border-[#E5E4E2]/40 pb-0.5 hover:border-[#E5E4E2] transition-all"
-                  >
-                    Invite to Crew →
-                  </button>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      <p className="text-[7px] uppercase tracking-widest text-white/15 text-center leading-relaxed">
-        Matches are derived from shared venues &amp; music taste. Turn off in Identity → Discoverability.
-      </p>
     </div>
   );
 }
