@@ -10,6 +10,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { toast } from 'sonner';
+import { useAuth } from '../contexts/AuthContext';
 
 const categories = [
   { key: 'all', label: 'All Events', icon: Star },
@@ -19,6 +20,7 @@ const categories = [
 ];
 
 export function EventCalendar() {
+  const { userId } = useAuth();
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [savedEvents, setSavedEvents] = useState<Set<string>>(new Set());
@@ -27,7 +29,8 @@ export function EventCalendar() {
 
   useEffect(() => {
     fetchEvents();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -35,6 +38,9 @@ export function EventCalendar() {
       const url = new URL(`https://${projectId}.supabase.co/functions/v1/server/eventbrite/events`);
       url.searchParams.append('sort_by', 'date');
       url.searchParams.append('city', 'Miami');
+      if (userId && userId !== 'default_user') {
+        url.searchParams.append('userId', userId);
+      }
 
       const res = await fetch(url.toString(), {
         headers: { 'Authorization': `Bearer ${publicAnonKey}` }
@@ -44,22 +50,36 @@ export function EventCalendar() {
         const data = await res.json();
         const eventList = Array.isArray(data) ? data : (data.events || []);
 
-        const formatted = eventList.map((e: any) => ({
-          id: e.id || Math.random().toString(),
-          name: e.name?.text || e.name || 'Event',
-          venue: e.venue?.name || 'Secret Venue',
-          date: new Date(e.start?.local || Date.now()),
-          dateStr: new Date(e.start?.local || Date.now()).toLocaleDateString('en-US', {
-            weekday: 'short', month: 'short', day: 'numeric'
-          }),
-          time: new Date(e.start?.local || Date.now()).toLocaleTimeString('en-US', {
-            hour: 'numeric', minute: '2-digit', hour12: true
-          }),
-          image: e.logo?.url || null,
-          category: 'tables',
-          source: e.source || 'eventbrite',
-          ticketUrl: e.ticketUrl || null,
-        })).slice(0, 20);
+        const formatted = eventList.map((e: any) => {
+          const matchedFrom: ('spotify' | 'apple_music')[] = Array.isArray(e.matchedFrom) ? e.matchedFrom : [];
+          return {
+            id: e.id || Math.random().toString(),
+            name: e.name?.text || e.name || 'Event',
+            venue: e.venue?.name || 'Secret Venue',
+            date: new Date(e.start?.local || Date.now()),
+            dateStr: new Date(e.start?.local || Date.now()).toLocaleDateString('en-US', {
+              weekday: 'short', month: 'short', day: 'numeric'
+            }),
+            time: new Date(e.start?.local || Date.now()).toLocaleTimeString('en-US', {
+              hour: 'numeric', minute: '2-digit', hour12: true
+            }),
+            image: e.logo?.url || null,
+            category: 'tables',
+            source: e.source || 'eventbrite',
+            ticketUrl: e.ticketUrl || null,
+            matchedArtist: e.matchedArtist || null,
+            matchedFrom,
+            fromSpotify: matchedFrom.includes('spotify'),
+            fromAppleMusic: matchedFrom.includes('apple_music'),
+            isPersonalized: matchedFrom.length > 0,
+          };
+        }).slice(0, 30);
+
+        // Sort: personalized first, then by date asc
+        formatted.sort((a: any, b: any) => {
+          if (a.isPersonalized !== b.isPersonalized) return a.isPersonalized ? -1 : 1;
+          return a.date.getTime() - b.date.getTime();
+        });
 
         setEvents(formatted);
       }
@@ -235,6 +255,28 @@ export function EventCalendar() {
                         )}
                       </button>
                     </div>
+
+                    {event.isPersonalized && (
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        {event.fromSpotify && (
+                          <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border whitespace-nowrap flex items-center gap-1 bg-[#1DB954]/15 text-[#1DB954] border-[#1DB954]/35">
+                            <Music size={7} />
+                            Spotify
+                          </span>
+                        )}
+                        {event.fromAppleMusic && (
+                          <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border whitespace-nowrap flex items-center gap-1 bg-[#FA243C]/15 text-[#FA243C] border-[#FA243C]/35">
+                            <Music size={7} />
+                            Apple Music
+                          </span>
+                        )}
+                        {event.matchedArtist && (
+                          <span className="text-[7px] uppercase tracking-widest text-white/40 truncate max-w-[160px]">
+                            · {event.matchedArtist}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-3 mt-1 text-[9px] uppercase tracking-widest text-white/40">
                       <div className="flex items-center gap-1">

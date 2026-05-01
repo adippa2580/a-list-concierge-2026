@@ -9,6 +9,7 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { toast } from 'sonner';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { useAuth } from '../contexts/AuthContext';
 
 const FAV_KEY = 'alist_favourite_venues';
 
@@ -91,6 +92,7 @@ const isGenericTitle = (t: string) =>
   t.length > 60;
 
 export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtists, onViewMemberClubs }: any) {
+  const { userId } = useAuth();
   const [currentLocation, setCurrentLocation] = useState(() => {
     try { return localStorage.getItem('alist_location') || 'Miami, FL'; } catch { return 'Miami, FL'; }
   });
@@ -127,6 +129,12 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
       const city = currentLocation.split(',')[0].trim();
       url.searchParams.append('city', city);
 
+      // Pass userId so the server can cross-reference this user's connected
+      // Spotify / Apple Music artists against Ticketmaster / Bandsintown / SeatGeek.
+      if (userId && userId !== 'default_user') {
+        url.searchParams.append('userId', userId);
+      }
+
       if (coords) {
         url.searchParams.append('lat', coords.lat.toString());
         url.searchParams.append('lon', coords.lng.toString());
@@ -139,10 +147,13 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           const eventList = Array.isArray(data) ? data : (data.events || []);
 
           const formatted: any[] = eventList.map((e: any) => {
-            const externalSources = ['ra', 'web_search', 'website', 'ticketmaster', 'tickettailor'];
+            const externalSources = ['ra', 'web_search', 'website', 'ticketmaster', 'tickettailor', 'bandsintown', 'seatgeek'];
             const isWebSource = externalSources.includes(e.source);
             const isTicketmaster = e.source === 'ticketmaster';
-            const isVenueSource = isWebSource && !isTicketmaster; // RA Guide, web search, venue sites
+            const isBandsintown = e.source === 'bandsintown';
+            const isSeatGeek = e.source === 'seatgeek';
+            const isVenueSource = isWebSource && !isTicketmaster && !isBandsintown && !isSeatGeek; // RA, web, venue
+            const matchedFrom: ('spotify' | 'apple_music')[] = Array.isArray(e.matchedFrom) ? e.matchedFrom : [];
             return {
               id: e.id,
               name: e.name?.text || e.name || 'Event',
@@ -156,7 +167,14 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
               snippet: e.snippet || null,
               isWebSource,
               isTicketmaster,
+              isBandsintown,
+              isSeatGeek,
               isVenueSource,
+              matchedArtist: e.matchedArtist || null,
+              matchedFrom,
+              fromSpotify: matchedFrom.includes('spotify'),
+              fromAppleMusic: matchedFrom.includes('apple_music'),
+              isPersonalized: matchedFrom.length > 0,
               // TM enrichment fields — filled in next pass
               tmImage: null as string | null,
               tmSnippet: null as string | null,
@@ -238,12 +256,16 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
             }
           });
 
-          // Sort: RA first, then venue-with-photo, then venue-no-photo, then TM, then Eventbrite
+          // Sort: personalized matches first, then RA, then venue-with-photo,
+          // then TM/Bandsintown/SeatGeek, then venue-no-photo, then Eventbrite
           const sourceOrder = (e: any) => {
+            if (e.isPersonalized) return -1;             // user's Spotify/Apple Music artists → ABSOLUTE TOP
             if (e.source === 'ra') return 0;
-            if (e.isVenueSource && e.image)  return 1;  // venue + has photo → TOP
-            if (e.isVenueSource && !e.image) return 3;  // venue, no photo → DEMOTED (after TM)
+            if (e.isVenueSource && e.image) return 1;    // venue + has photo
             if (e.isTicketmaster) return 2;
+            if (e.isBandsintown) return 2;
+            if (e.isSeatGeek) return 2;
+            if (e.isVenueSource && !e.image) return 3;   // venue, no photo → demoted
             return 4;
           };
           formatted.sort((a, b) => {
@@ -262,7 +284,7 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
     };
 
     fetchEvents();
-  }, [currentLocation, coords, debouncedQuery]);
+  }, [currentLocation, coords, debouncedQuery, userId]);
 
   const [editingLocation, setEditingLocation] = useState(false);
   const [locationInput, setLocationInput] = useState('');
@@ -327,30 +349,42 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
   };
 
   // ── Section buckets (mutually exclusive, render in this order) ──────────────
-  // 1. Venue Results: RA, web search, venue sites, Ticket Tailor — NOT Ticketmaster
+  // 0. Personalised — events matched from the user's Spotify / Apple Music artists.
+  //    Shown above everything else when the user has a connected music service.
+  const personalizedEvents = useMemo(() =>
+    events.filter(e => e.isPersonalized),
+  [events]);
+
+  // 1. Venue Results: RA, web search, venue sites, Ticket Tailor — NOT Ticketmaster / personalized
   // 1a. Venue Results WITH a photo — shown first (richest results)
   const venueWithPhoto = useMemo(() =>
-    events.filter(e => e.isVenueSource && e.image),
+    events.filter(e => e.isVenueSource && e.image && !e.isPersonalized),
   [events]);
 
   // 1b. Venue Results WITHOUT a photo — demoted after Ticketmaster
   const venueNoPhoto = useMemo(() =>
-    events.filter(e => e.isVenueSource && !e.image),
+    events.filter(e => e.isVenueSource && !e.image && !e.isPersonalized),
   [events]);
 
   // Combined for the section header count
   const webSourcedEvents = useMemo(() =>
-    events.filter(e => e.isVenueSource),
+    events.filter(e => e.isVenueSource && !e.isPersonalized),
   [events]);
 
   // 2. Ticketmaster: standalone TM listings (shown between venue photo/no-photo results)
   const tmOnlyEvents = useMemo(() =>
-    events.filter(e => e.isTicketmaster),
+    events.filter(e => e.isTicketmaster && !e.isPersonalized),
+  [events]);
+
+  // 2b. Bandsintown / SeatGeek non-personalized listings (rare — usually only when
+  //     a city-wide search bubbles them up).
+  const otherTicketingEvents = useMemo(() =>
+    events.filter(e => (e.isBandsintown || e.isSeatGeek) && !e.isPersonalized),
   [events]);
 
   // 3. Date-grouped Eventbrite / curated: everything that is NOT a web source at all
   const nonWebEvents = useMemo(() =>
-    events.filter(e => !e.isWebSource && !e.isTicketmaster),
+    events.filter(e => !e.isWebSource && !e.isTicketmaster && !e.isPersonalized),
   [events]);
 
   const groupedEvents = useMemo(() => {
@@ -481,10 +515,16 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className={`bg-zinc-950/60 border overflow-hidden group hover:border-[#E5E4E2]/30 transition-all cursor-pointer relative flex flex-col h-full ${
-            event.isVenueSource || isTmEnriched
+            event.isPersonalized
+              ? 'border-[#1DB954]/50'
+              : event.isVenueSource || isTmEnriched
               ? 'border-[#E5E4E2]/40'
               : event.isTicketmaster
               ? 'border-[#008CFF]/30'
+              : event.isBandsintown
+              ? 'border-[#00CEC8]/30'
+              : event.isSeatGeek
+              ? 'border-[#FF5B49]/30'
               : 'border-white/5'
           }`}
           onClick={() => {
@@ -517,6 +557,24 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
               {event.isTicketmaster && (
                 <div className="absolute top-1 left-1 p-1 bg-[#008CFF]">
                   <Ticket size={8} className="text-white" />
+                </div>
+              )}
+              {event.isBandsintown && (
+                <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-[#00CEC8]">
+                  <span className="text-[7px] font-black text-black uppercase tracking-widest">BIT</span>
+                </div>
+              )}
+              {event.isSeatGeek && (
+                <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-[#FF5B49]">
+                  <span className="text-[7px] font-black text-white uppercase tracking-widest">SG</span>
+                </div>
+              )}
+              {event.isPersonalized && (
+                <div className="absolute bottom-1 left-1 right-1 bg-black/85 px-1.5 py-1 flex items-center justify-center gap-1 border border-[#1DB954]/40">
+                  <Music size={8} className="text-[#1DB954]" />
+                  <span className="text-[7px] font-black text-white uppercase tracking-widest">
+                    {event.fromSpotify && event.fromAppleMusic ? 'Your Music' : event.fromSpotify ? 'Your Spotify' : 'Your Apple Music'}
+                  </span>
                 </div>
               )}
             </div>
@@ -560,12 +618,18 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className={`bg-zinc-950/60 border p-5 flex gap-5 overflow-hidden group hover:border-[#E5E4E2]/30 transition-all cursor-pointer relative ${
-          event.source === 'ra'
+          event.isPersonalized
+            ? 'border-l-2 border-l-[#1DB954]/80 border-t-white/5 border-r-white/5 border-b-white/5'
+            : event.source === 'ra'
             ? 'border-l-2 border-l-green-500/70 border-t-white/5 border-r-white/5 border-b-white/5'
             : event.isVenueSource || isTmEnriched
             ? 'border-l-2 border-l-[#E5E4E2]/70 border-t-white/5 border-r-white/5 border-b-white/5'
             : event.isTicketmaster
             ? 'border-l-2 border-l-[#008CFF]/40 border-t-white/5 border-r-white/5 border-b-white/5'
+            : event.isBandsintown
+            ? 'border-l-2 border-l-[#00CEC8]/50 border-t-white/5 border-r-white/5 border-b-white/5'
+            : event.isSeatGeek
+            ? 'border-l-2 border-l-[#FF5B49]/50 border-t-white/5 border-r-white/5 border-b-white/5'
             : 'border-white/5'
         }`}
         onClick={() => {
@@ -600,6 +664,23 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
                 <Ticket size={7} className="text-white" />
               </div>
             )}
+            {event.isBandsintown && (
+              <div className="absolute top-0 left-0 px-1 py-0.5 bg-[#00CEC8]">
+                <span className="text-[6px] font-black text-black uppercase tracking-widest">BIT</span>
+              </div>
+            )}
+            {event.isSeatGeek && (
+              <div className="absolute top-0 left-0 px-1 py-0.5 bg-[#FF5B49]">
+                <span className="text-[6px] font-black text-white uppercase tracking-widest">SG</span>
+              </div>
+            )}
+            {/* Personalized provenance overlay */}
+            {event.isPersonalized && (
+              <div className="absolute bottom-0 right-0 left-0 bg-gradient-to-t from-black/90 to-transparent px-1 pb-0.5 pt-2 flex items-center justify-center gap-0.5">
+                <Music size={7} className="text-[#1DB954]" />
+                <span className="text-[6px] font-black text-white uppercase tracking-widest">For You</span>
+              </div>
+            )}
           </div>
         )}
         <div className="flex-1 min-w-0">
@@ -626,7 +707,31 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
                   Ticketmaster
                 </span>
               )}
-              {!event.isWebSource && !event.isTicketmaster && (
+              {event.isBandsintown && (
+                <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border whitespace-nowrap flex items-center gap-1 bg-[#00CEC8]/15 text-[#00CEC8] border-[#00CEC8]/35">
+                  <Ticket size={7} />
+                  Bandsintown
+                </span>
+              )}
+              {event.isSeatGeek && (
+                <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border whitespace-nowrap flex items-center gap-1 bg-[#FF5B49]/15 text-[#FF5B49] border-[#FF5B49]/35">
+                  <Ticket size={7} />
+                  SeatGeek
+                </span>
+              )}
+              {event.fromSpotify && (
+                <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border whitespace-nowrap flex items-center gap-1 bg-[#1DB954]/15 text-[#1DB954] border-[#1DB954]/35">
+                  <Music size={7} />
+                  Spotify
+                </span>
+              )}
+              {event.fromAppleMusic && (
+                <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border whitespace-nowrap flex items-center gap-1 bg-[#FA243C]/15 text-[#FA243C] border-[#FA243C]/35">
+                  <Music size={7} />
+                  Apple Music
+                </span>
+              )}
+              {!event.isWebSource && !event.isTicketmaster && !event.isBandsintown && !event.isSeatGeek && (
                 <span className="text-[9px] font-bold text-white/40 uppercase tracking-widest whitespace-nowrap">{event.date}</span>
               )}
             </div>
@@ -978,6 +1083,22 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           </div>
         )}
 
+        {/* Personalised — events from the user's connected Spotify / Apple Music artists */}
+        {!dateFilter && personalizedEvents.length > 0 && (
+          <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
+            {viewMode === 'list' && (
+              <h3 className="text-[8px] font-bold text-[#1DB954] uppercase tracking-widest border-b border-[#1DB954]/30 pb-2 flex items-center gap-2 col-span-2">
+                <Music size={12} />
+                For You · Your Music
+                <span className="text-[8px] text-white/25 font-normal ml-auto tracking-wider">
+                  {personalizedEvents.length} {personalizedEvents.length === 1 ? 'match' : 'matches'}
+                </span>
+              </h3>
+            )}
+            {personalizedEvents.map(e => renderEventCard(e))}
+          </div>
+        )}
+
         {/* Venue Results WITH photo — hidden when date filter active */}
         {!dateFilter && venueWithPhoto.length > 0 && (
           <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
@@ -1030,6 +1151,22 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
               </h3>
             )}
             {venueNoPhoto.map(e => renderEventCard(e))}
+          </div>
+        )}
+
+        {/* Bandsintown / SeatGeek non-personalized listings */}
+        {!dateFilter && otherTicketingEvents.length > 0 && (
+          <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
+            {viewMode === 'list' && (
+              <h3 className="text-[8px] font-bold text-[#E5E4E2]/50 uppercase tracking-widest border-b border-[#E5E4E2]/10 pb-2 flex items-center gap-2 col-span-2">
+                <Ticket size={12} />
+                More Ticketing
+                <span className="text-[8px] text-white/25 font-normal ml-auto tracking-wider">
+                  {otherTicketingEvents.length} {otherTicketingEvents.length === 1 ? 'result' : 'results'}
+                </span>
+              </h3>
+            )}
+            {otherTicketingEvents.map(e => renderEventCard(e))}
           </div>
         )}
 
