@@ -1237,18 +1237,18 @@ function SocialRow({
               Earlier text-[8px]/muted-red treatment was too subtle to read. */}
           <button
             onClick={onDisconnect}
-            className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300 transition-colors border-b border-red-400/60 hover:border-red-300 pb-0.5"
+            className="flex items-center gap-1 text-[8px] font-bold uppercase tracking-widest text-red-400 hover:text-red-300 transition-colors border-b border-red-400/60 hover:border-red-300 pb-0.5"
             title="Disconnect this account"
             aria-label={`Disconnect ${name}`}
           >
-            <X size={10} aria-hidden="true" />
+            <X size={9} aria-hidden="true" />
             Disconnect
           </button>
         </div>
       ) : (
         <button
           onClick={onConnect}
-          className="text-[9px] font-bold uppercase tracking-widest text-[#E5E4E2] hover:text-white transition-colors border-b border-[#E5E4E2] pb-0.5"
+          className="text-[8px] font-bold uppercase tracking-widest text-[#E5E4E2] hover:text-white transition-colors border-b border-[#E5E4E2] pb-0.5"
         >
           Connect
         </button>

@@ -161,7 +161,12 @@ export function TasteEditor({ open, onClose, onSaved, userId }: TasteEditorProps
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 32, stiffness: 320 }}
-            className="fixed inset-x-0 bottom-0 z-[56] bg-[#060606] border-t border-[#E5E4E2]/20 max-h-[90vh] flex flex-col"
+            // Anchor ABOVE the bottom-nav so the Save button isn't hidden behind it.
+            // Nav height ≈ pt-4 + content + max(1.5rem, env(safe-area-inset-bottom)).
+            // Allowing 5rem + safe-area gives the sheet a clean lift over the nav
+            // strip on every device.
+            className="fixed inset-x-0 z-[56] bg-[#060606] border-t border-[#E5E4E2]/20 max-h-[85vh] flex flex-col"
+            style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}
           >
             <div className="max-w-2xl mx-auto w-full flex flex-col flex-1 min-h-0">
               <div className="flex justify-center pt-2 pb-3 flex-shrink-0">

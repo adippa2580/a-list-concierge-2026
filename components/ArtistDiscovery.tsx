@@ -301,8 +301,12 @@ export function ArtistDiscovery() {
 
         // Build a per-artist event map from data.events. Each event already
         // carries `matchedArtist` + `matchedFrom: ['spotify' | 'apple_music']`.
+        // Also keep the first non-null event image so we have a real photo to
+        // hang on the artist tile (the previous fake Unsplash-ID URL synthesis
+        // 404'd, leaving every taste tile broken).
         const eventsByArtist: Record<string, any[]> = {};
         const provenanceByArtist: Record<string, ('spotify' | 'apple_music')[]> = {};
+        const imageByArtist: Record<string, string> = {};
         for (const ev of (data.events || [])) {
           const key = String(ev.matchedArtist || '').toLowerCase();
           if (!key) continue;
@@ -320,6 +324,9 @@ export function ArtistDiscovery() {
               matchedFrom: Array.isArray(ev.matchedFrom) ? ev.matchedFrom : [],
             });
           }
+          // Prefer the venue image (cleaner artist surrogate) then event/logo image
+          const evImage = ev.venue?.image || ev.image || ev.logo?.url || ev.image_url || ev.tmImage || null;
+          if (evImage && !imageByArtist[key]) imageByArtist[key] = String(evImage);
           provenanceByArtist[key] = Array.from(new Set([
             ...(provenanceByArtist[key] || []),
             ...((ev.matchedFrom as string[]) || []),
@@ -335,7 +342,9 @@ export function ArtistDiscovery() {
               name: name.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
               genre: data.userGenres?.[i % (data.userGenres.length || 1)] || 'Music',
               followers: '',
-              image: `https://images.unsplash.com/photo-${1501386761578 + i * 111}?q=80&w=600&auto=format&fit=crop`,
+              // Real image when we have one from the matched event; otherwise
+              // null → ArtistTile renders the platinum gradient fallback.
+              image: imageByArtist[lc] ?? null,
               spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(name)}/artists`,
               upcomingShows: eventsByArtist[lc] || [],
               following: true,
