@@ -2,7 +2,7 @@
 import { User, Shield, Camera, Music, Music2, TrendingUp, Award, Star, Lock, CheckCircle2, Loader2, Edit2, Check, X, Instagram, Headphones, RefreshCw, ExternalLink, Zap, Building2, Plus, KeyRound, Trash2, SlidersHorizontal, ChevronRight } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+// Tabs/TabsList/TabsTrigger removed — V2 floating filter pill replaced them.
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
@@ -735,9 +735,9 @@ export function UserProfile({ onProfileUpdate, onOpenBookings, onOpenYearReview 
         <div className="flex items-start gap-5">
           {/* Avatar */}
           <div className="relative group flex-shrink-0">
-            <div className="w-20 h-20 platinum-border overflow-hidden bg-[#011410] flex items-center justify-center">
+            <div className="w-20 h-20 rounded-full platinum-border overflow-hidden bg-[#011410] flex items-center justify-center">
               {displayAvatar ? (
-                <img src={displayAvatar} alt="Profile" className="w-full h-full object-cover" loading="eager" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                <img src={displayAvatar} alt="Profile" className="w-full h-full object-cover rounded-full" loading="eager" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               ) : (
                 <User size={32} className="text-[#E5E4E2]/30" />
               )}
@@ -745,7 +745,7 @@ export function UserProfile({ onProfileUpdate, onOpenBookings, onOpenYearReview 
             <button
               onClick={() => !uploading && fileInputRef.current?.click()}
               disabled={uploading}
-              className="absolute -bottom-1 -right-1 w-7 h-7 bg-white text-black flex items-center justify-center border border-[#E5E4E2]/20 hover:bg-[#E5E4E2] transition-all"
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-white text-black flex items-center justify-center border border-[#E5E4E2]/20 hover:bg-[#E5E4E2] hover:scale-105 transition-all"
             >
               {uploading
                 ? <div className="w-3 h-3 border border-[#060606] border-t-transparent rounded-full animate-spin" />
@@ -793,21 +793,29 @@ export function UserProfile({ onProfileUpdate, onOpenBookings, onOpenYearReview 
         </div>
       </div>
 
-      {/* ── Tabs ─────────────────────────────────────────────────────── */}
-      <div className="px-6 mb-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-xl h-auto p-0 justify-start gap-6 overflow-x-auto scrollbar-hide">
-            {['Identity', 'Activity'].map(tab => (
-              <TabsTrigger
-                key={tab}
-                value={tab.toLowerCase()}
-                className="rounded-xl bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 data-[state=active]:text-white transition-all whitespace-nowrap flex-shrink-0"
-              >
-                {tab}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+      {/* ── V2 FLOATING TAB FILTER ──────────────────────────────────── */}
+      <div className="sticky top-0 z-40 px-4 pb-2 mb-4" style={{ paddingTop: 'calc(1rem + env(safe-area-inset-top, 0px))' }}>
+        <div className="flex items-center gap-2 bg-zinc-950/80 backdrop-blur-xl rounded-full px-4 py-2.5 border border-white/10 shadow-2xl">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-white/70 flex-shrink-0">Profile</span>
+          <div className="w-px h-4 bg-white/15 flex-shrink-0" />
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1">
+            {['Identity', 'Activity'].map(tab => {
+              const v = tab.toLowerCase();
+              const isActive = activeTab === v;
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(v)}
+                  className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${
+                    isActive ? 'bg-white text-black' : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  {tab}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* ── Tab Content ──────────────────────────────────────────────── */}
@@ -892,11 +900,11 @@ export function UserProfile({ onProfileUpdate, onOpenBookings, onOpenYearReview 
                   to the bottom of recommendations (re-rank, never hidden). */}
               <button
                 onClick={() => setTasteEditorOpen(true)}
-                className="w-full flex items-center justify-between p-4 border border-[#E5E4E2]/15 bg-zinc-950/40 hover:border-[#E5E4E2]/35 hover:bg-zinc-950/60 transition-colors text-left"
+                className="w-full flex items-center justify-between p-4 rounded-2xl border border-[#E5E4E2]/15 bg-zinc-950/60 backdrop-blur-sm hover:border-[#E5E4E2]/35 hover:bg-zinc-950/80 transition-colors text-left group"
                 aria-label="Refine your music taste"
               >
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 border border-white/10 bg-white/5 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full border border-white/10 bg-white/5 flex items-center justify-center">
                     <SlidersHorizontal size={16} className="text-[#E5E4E2]" />
                   </div>
                   <div>
@@ -906,7 +914,7 @@ export function UserProfile({ onProfileUpdate, onOpenBookings, onOpenYearReview 
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-widest text-[#E5E4E2]">
+                <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-[#E5E4E2] group-hover:gap-2 transition-all">
                   Refine <ChevronRight size={12} />
                 </div>
               </button>
@@ -974,15 +982,15 @@ export function UserProfile({ onProfileUpdate, onOpenBookings, onOpenYearReview 
 
               {/* Connected clubs list */}
               {clubs.length === 0 ? (
-                <div className="flex flex-col items-center gap-3 py-8 border border-dashed border-white/8">
+                <div className="flex flex-col items-center gap-3 py-8 rounded-2xl border border-dashed border-white/10">
                   <Building2 size={22} className="text-white/15" />
                   <p className="text-[8px] uppercase tracking-[0.2em] text-white/25">No clubs connected yet</p>
                 </div>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {clubs.map(club => (
-                    <div key={club.id} className="flex items-center gap-3 p-3.5 border-b border-white/5 group">
-                      <div className="w-7 h-7 border border-white/10 flex items-center justify-center flex-shrink-0">
+                    <div key={club.id} className="flex items-center gap-3 p-3.5 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm hover:border-white/20 transition-colors group">
+                      <div className="w-8 h-8 rounded-full border border-white/10 bg-white/5 flex items-center justify-center flex-shrink-0">
                         <KeyRound size={11} className="text-[#E5E4E2]/60" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -1012,21 +1020,23 @@ export function UserProfile({ onProfileUpdate, onOpenBookings, onOpenYearReview 
               <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">
                 Personal Details
               </h3>
-              {[
-                { label: 'Display Name', value: derivedName },
-                { label: 'Email',        value: customEmail || profile?.personalDetails?.email || '—' },
-                { label: 'Phone',        value: customPhone || profile?.personalDetails?.phone || '—' },
-                { label: 'Location',     value: derivedLoc },
-                { label: 'Member Since', value: customSince || profile?.memberSince || 'January 2025' },
-              ].map(field => (
-                <div key={field.label} className="flex items-center justify-between p-4 border-b border-white/5">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">{field.label}</span>
-                  <span className="text-[10px] uppercase tracking-widest">{field.value}</span>
-                </div>
-              ))}
+              <div className="rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm overflow-hidden">
+                {[
+                  { label: 'Display Name', value: derivedName },
+                  { label: 'Email',        value: customEmail || profile?.personalDetails?.email || '—' },
+                  { label: 'Phone',        value: customPhone || profile?.personalDetails?.phone || '—' },
+                  { label: 'Location',     value: derivedLoc },
+                  { label: 'Member Since', value: customSince || profile?.memberSince || 'January 2025' },
+                ].map((field, i, arr) => (
+                  <div key={field.label} className={`flex items-center justify-between px-4 py-3.5 ${i < arr.length - 1 ? 'border-b border-white/5' : ''}`}>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40">{field.label}</span>
+                    <span className="text-[10px] uppercase tracking-widest text-right truncate ml-3">{field.value}</span>
+                  </div>
+                ))}
+              </div>
               <button
                 onClick={startEdit}
-                className="w-full flex items-center justify-center gap-2 py-3 border border-white/10 hover:border-white/30 text-[9px] font-bold uppercase tracking-widest text-white/40 hover:text-white/70 transition-all"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-full border border-white/10 hover:border-white/30 hover:bg-white/5 text-[9px] font-bold uppercase tracking-widest text-white/40 hover:text-white/70 transition-all"
               >
                 <Edit2 size={10} /> Customise Profile
               </button>
@@ -1047,15 +1057,15 @@ export function UserProfile({ onProfileUpdate, onOpenBookings, onOpenYearReview 
                 <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">
                   Your Activity
                 </h3>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {onOpenBookings && (
                     <button
                       onClick={onOpenBookings}
-                      className="w-full flex items-center justify-between p-4 border border-white/10 hover:border-[#E5E4E2]/40 hover:bg-zinc-950/60 transition-colors text-left group"
+                      className="w-full flex items-center justify-between p-4 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm hover:border-[#E5E4E2]/40 hover:bg-zinc-950/80 transition-colors text-left group"
                       aria-label="Open bookings"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 border border-white/10 bg-white/5 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full border border-white/10 bg-white/5 flex items-center justify-center">
                           <KeyRound size={16} className="text-[#E5E4E2]" />
                         </div>
                         <div>
@@ -1065,17 +1075,17 @@ export function UserProfile({ onProfileUpdate, onOpenBookings, onOpenYearReview 
                           </p>
                         </div>
                       </div>
-                      <ChevronRight size={12} className="text-white/30 group-hover:text-[#E5E4E2] transition-colors" />
+                      <ChevronRight size={12} className="text-white/30 group-hover:text-[#E5E4E2] group-hover:translate-x-0.5 transition-all" />
                     </button>
                   )}
                   {onOpenYearReview && (
                     <button
                       onClick={onOpenYearReview}
-                      className="w-full flex items-center justify-between p-4 border border-white/10 hover:border-[#E5E4E2]/40 hover:bg-zinc-950/60 transition-colors text-left group"
+                      className="w-full flex items-center justify-between p-4 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm hover:border-[#E5E4E2]/40 hover:bg-zinc-950/80 transition-colors text-left group"
                       aria-label="Open year in review"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 border border-white/10 bg-white/5 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-full border border-white/10 bg-white/5 flex items-center justify-center">
                           <Award size={16} className="text-[#E5E4E2]" />
                         </div>
                         <div>
@@ -1085,7 +1095,7 @@ export function UserProfile({ onProfileUpdate, onOpenBookings, onOpenYearReview 
                           </p>
                         </div>
                       </div>
-                      <ChevronRight size={12} className="text-white/30 group-hover:text-[#E5E4E2] transition-colors" />
+                      <ChevronRight size={12} className="text-white/30 group-hover:text-[#E5E4E2] group-hover:translate-x-0.5 transition-all" />
                     </button>
                   )}
                 </div>
@@ -1097,27 +1107,31 @@ export function UserProfile({ onProfileUpdate, onOpenBookings, onOpenYearReview 
               <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">Achievements</h3>
               {achievements.length === 0 ? (
                 <p className="text-[9px] uppercase tracking-widest text-white/20 text-center py-12">No achievements yet</p>
-              ) : achievements.map((achievement: any, index: number) => {
-                const Icon = ACHIEVEMENT_ICONS[achievement.name] || Award;
-                return (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="flex items-center gap-4 p-5 border border-white/10 bg-zinc-950/40"
-                  >
-                    <div className="w-10 h-10 border border-[#E5E4E2]/20 bg-white/5 flex items-center justify-center">
-                      <Icon size={16} className="text-[#E5E4E2]" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="text-xs font-bold uppercase tracking-widest">{achievement.name}</h4>
-                      <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{achievement.date}</p>
-                    </div>
-                    {achievement.earned && <CheckCircle2 size={14} className="text-green-500" />}
-                  </motion.div>
-                );
-              })}
+              ) : (
+                <div className="space-y-2">
+                  {achievements.map((achievement: any, index: number) => {
+                    const Icon = ACHIEVEMENT_ICONS[achievement.name] || Award;
+                    return (
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.06 }}
+                        className="flex items-center gap-4 p-4 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm hover:border-white/20 transition-colors"
+                      >
+                        <div className="w-10 h-10 rounded-full border border-[#E5E4E2]/20 bg-white/5 flex items-center justify-center">
+                          <Icon size={16} className="text-[#E5E4E2]" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-xs font-bold uppercase tracking-widest">{achievement.name}</h4>
+                          <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{achievement.date}</p>
+                        </div>
+                        {achievement.earned && <CheckCircle2 size={14} className="text-green-500" />}
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1147,7 +1161,7 @@ function DiscoverabilityToggle() {
       <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/30 border-l-2 border-[#E5E4E2]/20 pl-4">
         Discoverability
       </h3>
-      <div className="flex items-start justify-between p-4 border border-white/10 bg-zinc-950/40 gap-4">
+      <div className="flex items-start justify-between p-4 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm gap-4">
         <div className="flex-1">
           <p className="text-[10px] font-bold uppercase tracking-widest text-white mb-1">Vibe Matching</p>
           <p className="text-[8px] uppercase tracking-widest text-white/30 leading-relaxed">
@@ -1156,12 +1170,12 @@ function DiscoverabilityToggle() {
         </div>
         <button
           onClick={() => setDiscoverable(d => !d)}
-          className={`flex-shrink-0 w-11 h-6 border transition-all relative ${
+          className={`flex-shrink-0 w-11 h-6 rounded-full border transition-all relative ${
             discoverable ? 'bg-white border-white' : 'bg-transparent border-white/20 hover:border-white/40'
           }`}
           aria-label="Toggle discoverability"
         >
-          <span className={`absolute top-0.5 w-5 h-5 transition-all ${
+          <span className={`absolute top-0.5 w-5 h-5 rounded-full transition-all ${
             discoverable ? 'left-5 bg-[#060606]' : 'left-0.5 bg-white/30'
           }`} />
         </button>
@@ -1195,7 +1209,7 @@ function SocialRow({
   isSource: boolean;
 }) {
   return (
-    <div className={`flex items-center justify-between p-4 border transition-all ${isSource ? 'border-[#E5E4E2]/30 bg-white/[0.03]' : 'border-white/10 bg-zinc-950/40'}`}>
+    <div className={`flex items-center justify-between p-4 rounded-2xl border backdrop-blur-sm transition-colors ${isSource ? 'border-[#E5E4E2]/30 bg-white/[0.04]' : 'border-white/10 bg-zinc-950/60 hover:border-white/20'}`}>
       <div className="flex items-center gap-4">
         {/* Avatar or icon */}
         <div className="w-10 h-10 border border-white/10 bg-white/5 flex items-center justify-center overflow-hidden flex-shrink-0">

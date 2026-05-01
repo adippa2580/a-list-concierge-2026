@@ -3,7 +3,7 @@ import { Users, Crown, ChevronRight, Plus, X, Loader2, Trash2, UserMinus, Send, 
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
+// Tabs/TabsList/TabsTrigger removed — V2 floating filter pill replaced them.
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
@@ -212,33 +212,34 @@ export function CrewBuilder() {
   return (
     <>
     <div className="min-h-screen bg-[#060606] text-white pb-40">
-      {/* Header */}
-      <div className="bg-[#060606]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-8 sticky top-0 z-20">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-3xl font-serif italic platinum-gradient leading-none tracking-tight">Crews &amp; Alliances</h2>
-          </div>
-          <div className="w-12 h-12 platinum-border flex items-center justify-center bg-[#011410]">
-            <Users size={20} className="text-[#E5E4E2]" strokeWidth={1.5} />
-          </div>
-        </div>
-
-        <Tabs value={activeTab} onValueChange={(v: string) => { setActiveTab(v); setSelectedCrew(null); }} className="w-full">
-          <TabsList className="w-full bg-transparent border-b border-white/10 rounded-xl h-auto p-0 justify-start gap-8">
+      {/* ── V2 FLOATING FILTER BAR ───────────────────────────────────────── */}
+      <div
+        className="sticky top-0 z-40 px-4 pb-2"
+        style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top, 0px))' }}
+      >
+        <div className="flex items-center gap-2 bg-zinc-950/80 backdrop-blur-xl rounded-full px-4 py-2.5 border border-white/10 shadow-2xl">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-white/70 flex-shrink-0">Crew</span>
+          <div className="w-px h-4 bg-white/15 flex-shrink-0" />
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1">
             {[
               { value: 'crews', label: 'My Crews' },
               { value: 'leaderboard', label: 'Leaderboard' }
-            ].map(tab => (
-              <TabsTrigger
-                key={tab.value}
-                value={tab.value}
-                className="rounded-xl bg-transparent border-b-2 border-transparent px-0 py-3 data-[state=active]:border-white data-[state=active]:bg-transparent data-[state=active]:shadow-none text-[10px] font-bold uppercase tracking-[0.3em] text-white/30 data-[state=active]:text-white transition-all"
-              >
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+            ].map(tab => {
+              const isActive = activeTab === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => { setActiveTab(tab.value); setSelectedCrew(null); }}
+                  className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${
+                    isActive ? 'bg-white text-black' : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <div className="px-6 py-8 space-y-8">
@@ -248,7 +249,7 @@ export function CrewBuilder() {
           <>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="w-full p-6 border border-dashed border-[#E5E4E2]/20 flex items-center justify-center gap-4 hover:border-[#E5E4E2]/40 hover:bg-white/5 transition-all group"
+              className="w-full p-6 rounded-2xl border border-dashed border-[#E5E4E2]/20 flex items-center justify-center gap-4 hover:border-[#E5E4E2]/40 hover:bg-white/5 transition-all group"
             >
               <Plus size={20} className="text-[#E5E4E2]/40 group-hover:text-[#E5E4E2]" />
               <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#E5E4E2]/40 group-hover:text-[#E5E4E2]">Create New Crew</span>
@@ -258,14 +259,14 @@ export function CrewBuilder() {
               <motion.div
                 key={crew.id}
                 onClick={() => setSelectedCrew(crew)}
-                className="bg-zinc-950 border border-white/10 p-6 cursor-pointer hover:border-[#E5E4E2]/30 transition-all relative overflow-hidden group"
+                className="rounded-2xl bg-zinc-950/60 backdrop-blur-sm border border-white/10 p-6 cursor-pointer hover:border-[#E5E4E2]/30 transition-colors relative overflow-hidden group"
                 whileHover={{ y: -2 }}
               >
                 <div className="absolute inset-0 opacity-10 pointer-events-none" />
                 <div className="relative z-10">
                   <div className="flex items-start justify-between mb-6">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-white/5 border border-white/10 flex items-center justify-center text-2xl">
+                      <div className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-2xl">
                         {crew.emoji}
                       </div>
                       <div>
