@@ -282,25 +282,60 @@ export function ArtistDiscovery() {
       if (data?.followedArtists?.length) setFollowedArtists(data.followedArtists);
     }).catch(() => {});
 
-    // Load user taste (Spotify + Apple Music artists)
+    // Load user taste (Spotify + Apple Music artists) AND their upcoming shows
+    // (cross-referenced against Ticketmaster + Bandsintown + SeatGeek server-side).
     fetch(`https://${projectId}.supabase.co/functions/v1/server/events/personalized?userId=${userId}&city=Miami`, {
       headers: { Authorization: `Bearer ${publicAnonKey}` }
     }).then(r => r.ok ? r.json() : null).then(data => {
       if (data) {
         setUserGenres(data.userGenres || []);
+
+        // Build a per-artist event map from data.events. Each event already
+        // carries `matchedArtist` + `matchedFrom: ['spotify' | 'apple_music']`.
+        const eventsByArtist: Record<string, any[]> = {};
+        const provenanceByArtist: Record<string, ('spotify' | 'apple_music')[]> = {};
+        for (const ev of (data.events || [])) {
+          const key = String(ev.matchedArtist || '').toLowerCase();
+          if (!key) continue;
+          if (!eventsByArtist[key]) eventsByArtist[key] = [];
+          if (eventsByArtist[key].length < 5) {
+            eventsByArtist[key].push({
+              venue: ev.venue?.name || 'Venue TBA',
+              location: ev.snippet || '',
+              date: new Date(ev.start?.local || Date.now()).toLocaleDateString('en-US', {
+                weekday: 'short', month: 'short', day: 'numeric',
+              }),
+              distance: '',
+              eventUrl: ev.ticketUrl || null,
+              source: ev.source || null,
+              matchedFrom: Array.isArray(ev.matchedFrom) ? ev.matchedFrom : [],
+            });
+          }
+          provenanceByArtist[key] = Array.from(new Set([
+            ...(provenanceByArtist[key] || []),
+            ...((ev.matchedFrom as string[]) || []),
+          ])) as ('spotify' | 'apple_music')[];
+        }
+
         if (data.artistNames?.length) {
-          const userArtistList = data.artistNames.slice(0, 6).map((name: string, i: number) => ({
-            id: 1000 + i,
-            name: name.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-            genre: data.userGenres?.[i % (data.userGenres.length || 1)] || 'Music',
-            followers: '',
-            image: `https://images.unsplash.com/photo-${1501386761578 + i * 111}?q=80&w=600&auto=format&fit=crop`,
-            spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(name)}/artists`,
-            upcomingShows: [],
-            following: true,
-            trending: false,
-            fromUserTaste: true,
-          }));
+          const userArtistList = data.artistNames.slice(0, 6).map((name: string, i: number) => {
+            const lc = name.toLowerCase();
+            const provenance = provenanceByArtist[lc] || [];
+            return {
+              id: 1000 + i,
+              name: name.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+              genre: data.userGenres?.[i % (data.userGenres.length || 1)] || 'Music',
+              followers: '',
+              image: `https://images.unsplash.com/photo-${1501386761578 + i * 111}?q=80&w=600&auto=format&fit=crop`,
+              spotifyUrl: `https://open.spotify.com/search/${encodeURIComponent(name)}/artists`,
+              upcomingShows: eventsByArtist[lc] || [],
+              following: true,
+              trending: false,
+              fromUserTaste: true,
+              fromSpotify: provenance.includes('spotify'),
+              fromAppleMusic: provenance.includes('apple_music'),
+            };
+          });
           setUserArtists(userArtistList);
         }
       }
@@ -349,42 +384,51 @@ export function ArtistDiscovery() {
   });
 
   return (
-    <div className="min-h-screen bg-black text-white pb-32">
-      {/* Header */}
-      <div className="bg-black/80 backdrop-blur-md sticky top-0 z-20 px-6 pt-8 pb-4 border-b border-white/10">
-        <h1 className="text-[11px] font-bold tracking-[0.2em] uppercase text-white/60 mb-6 gold-gradient">Talent & Events</h1>
-
-        {/* Minimal Search */}
-        <div className="relative mb-6 group">
-          <Search className="absolute left-0 top-1/2 -translate-y-1/2 text-white/40 group-hover:text-gold transition-all" size={14} />
-          <Input
-            type="text"
-            placeholder="SEARCH ARTISTS..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 bg-transparent border-0 border-b border-white/20 rounded-xl px-0 py-2 text-white placeholder:text-white/30 focus-visible:ring-0 focus-visible:border-gold transition-all tracking-[0.2em] text-[11px] font-bold uppercase h-10 w-full"
-          />
-        </div>
-
-        {/* Genre Filter */}
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {genres.map((genre, index) => (
-            <button
-              key={genre}
-              onClick={() => setSelectedGenre(genre)}
-              className={`px-4 py-2 border text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
-                selectedGenre === genre
-                  ? 'bg-white text-black border-white !text-black'
-                  : 'bg-transparent text-white/80 border-white/20 hover:border-gold hover:text-gold'
-              }`}
-            >
-              {genre}
-            </button>
-          ))}
+    <div className="min-h-screen bg-[#060606] text-white pb-32">
+      {/* ── V2 FLOATING FILTER BAR ─────────────────────────────────────────── */}
+      <div
+        className="sticky top-0 z-40 px-4 pb-2"
+        style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top, 0px))' }}
+      >
+        <div className="bg-zinc-950/80 backdrop-blur-xl rounded-3xl px-3 py-2 border border-white/10 shadow-2xl">
+          {/* Top row: title + search */}
+          <div className="flex items-center gap-2 px-1">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-white/70 flex-shrink-0">
+              Talent
+            </span>
+            <div className="w-px h-4 bg-white/15 flex-shrink-0" />
+            <div className="relative flex-1 min-w-0">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-white/40" size={12} />
+              <input
+                type="text"
+                placeholder="Search artists, tracks…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-transparent pl-7 pr-2 py-1.5 text-[11px] uppercase tracking-wider text-white placeholder:text-white/30 outline-none border-0"
+              />
+            </div>
+          </div>
+          {/* Bottom row: genre filter pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pt-1.5 px-1">
+            {genres.map((genre) => {
+              const isActive = selectedGenre === genre;
+              return (
+                <button
+                  key={genre}
+                  onClick={() => setSelectedGenre(genre)}
+                  className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${
+                    isActive ? 'bg-white text-black' : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  {genre}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 
-      <div className="px-6 py-8 space-y-10">
+      <div className="px-4 py-6 space-y-10">
 
         {/* SONOVOS HQ FEED */}
         <div className="space-y-5">
@@ -433,24 +477,24 @@ export function ArtistDiscovery() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.06 }}
-                className={`p-4 border transition-all cursor-pointer group ${
+                className={`p-4 rounded-2xl border backdrop-blur-sm transition-colors cursor-pointer group ${
                   item.accent
-                    ? 'border-[#E5E4E2]/25 bg-[#E5E4E2]/5 hover:bg-[#E5E4E2]/8'
-                    : 'border-white/8 bg-zinc-950/40 hover:border-[#E5E4E2]/20'
+                    ? 'border-white/20 bg-white/5 hover:border-white/30'
+                    : 'border-white/10 bg-zinc-950/60 hover:border-white/20'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3 mb-2">
-                  <span className={`text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 border ${
+                  <span className={`text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border ${
                     item.accent
-                      ? 'border-[#E5E4E2]/30 text-[#E5E4E2] bg-[#E5E4E2]/10'
-                      : 'border-white/15 text-white/40'
+                      ? 'border-white/25 text-white bg-white/10'
+                      : 'border-white/15 text-white/50'
                   }`}>{item.type}</span>
                   <span className="text-[7px] uppercase tracking-widest text-white/25 flex-shrink-0">{item.date}</span>
                 </div>
-                <h4 className="text-[11px] font-bold uppercase tracking-wide text-white group-hover:platinum-gradient transition-all mb-1">
+                <h4 className="text-[11px] font-bold uppercase tracking-wide text-white mb-1">
                   {item.title}
                 </h4>
-                <p className="text-[9px] text-white/45 leading-relaxed">{item.body}</p>
+                <p className="text-[9px] text-white/55 leading-relaxed">{item.body}</p>
               </motion.div>
             ))}
           </div>
@@ -468,39 +512,25 @@ export function ArtistDiscovery() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="flex-shrink-0 w-72 rounded-xl border border-white/10 overflow-hidden bg-gradient-to-br from-[#0a0a0a] to-[#060606] group cursor-pointer transition-all"
+                className="flex-shrink-0 w-72 rounded-2xl border border-white/10 overflow-hidden hover:border-white/30 group cursor-pointer transition-colors relative"
+                style={{ minHeight: 260 }}
               >
-                {/* Image Section */}
-                <div className="relative h-40 overflow-hidden bg-zinc-900">
-                  <img
-                    src={recap.image}
-                    alt={recap.artist}
-                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
-
-                  {/* Attendance Badge */}
-                  <div className="absolute top-4 right-4 bg-white/10 backdrop-blur-sm text-white text-[9px] font-bold uppercase tracking-widest px-3 py-2 border border-white/20">
-                    {recap.attendanceCount}
-                  </div>
+                <div className="absolute inset-0">
+                  <img src={recap.image} alt={recap.artist} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/20" />
                 </div>
 
-                {/* Content Section */}
-                <div className="p-4 space-y-3">
-                  <div>
-                    <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#E5E4E2] group-hover:platinum-gradient transition-all">
-                      {recap.artist}
-                    </h4>
-                    <p className="text-[9px] uppercase tracking-widest text-white/40 mt-1">{recap.venue}</p>
-                  </div>
+                <div className="absolute top-3 right-3 bg-black/50 backdrop-blur-sm text-white text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border border-white/20">
+                  {recap.attendanceCount}
+                </div>
 
-                  <div className="pt-2 border-t border-white/10">
-                    <p className="text-[10px] text-white/70 leading-relaxed">{recap.vibeDescription}</p>
-                  </div>
-
-                  <div className="pt-2">
-                    <p className="text-[9px] uppercase tracking-[0.15em] text-white/50">{recap.date}</p>
-                  </div>
+                <div className="relative z-10 p-4 flex flex-col justify-end h-full min-h-[260px]">
+                  <p className="text-[8px] uppercase tracking-[0.3em] text-white/50 mb-1">{recap.date}</p>
+                  <h4 className="text-[14px] font-bold uppercase tracking-wider text-white leading-tight">
+                    {recap.artist}
+                  </h4>
+                  <p className="text-[9px] uppercase tracking-[0.2em] text-white/60 mt-1">{recap.venue}</p>
+                  <p className="text-[10px] text-white/70 leading-relaxed mt-3 line-clamp-2">{recap.vibeDescription}</p>
                 </div>
               </motion.div>
             ))}
@@ -519,16 +549,16 @@ export function ArtistDiscovery() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: index * 0.05 }}
-                className="group rounded-xl border border-white/10 p-4 bg-gradient-to-br from-[#0a0a0a] to-[#060606] hover:bg-white/5 transition-all cursor-pointer flex items-center justify-between gap-4"
+                className="group rounded-2xl border border-white/10 p-4 bg-zinc-950/60 backdrop-blur-sm hover:border-white/25 transition-colors cursor-pointer flex items-center justify-between gap-4"
               >
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-[11px] font-bold uppercase tracking-wide text-white group-hover:platinum-gradient transition-all truncate">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wide text-white truncate">
                     {track.trackName}
                   </h4>
-                  <p className="text-[10px] uppercase tracking-widest text-white/50 mt-1">{track.artist}</p>
+                  <p className="text-[10px] uppercase tracking-widest text-white/50 mt-1 truncate">{track.artist}</p>
 
-                  <div className="flex gap-3 mt-2 flex-wrap">
-                    <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-2 py-1 bg-white/10 text-[#E5E4E2] border border-white/20">
+                  <div className="flex gap-2 mt-2 flex-wrap items-center">
+                    <span className="inline-block text-[8px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/80 border border-white/15">
                       {track.vibe}
                     </span>
                     <span className="inline-block text-[9px] uppercase tracking-widest text-white/40">
@@ -540,10 +570,10 @@ export function ArtistDiscovery() {
                 {/* Play Button — opens Spotify search */}
                 <button
                   onClick={() => window.open(`https://open.spotify.com/search/${encodeURIComponent(`${track.trackName} ${track.artist}`)}`, '_blank', 'noopener,noreferrer')}
-                  className="flex-shrink-0 w-12 h-12 rounded-full border border-[#E5E4E2]/40 text-[#E5E4E2] hover:bg-white/10 hover:border-[#E5E4E2] transition-all flex items-center justify-center group/play"
+                  className="flex-shrink-0 w-11 h-11 rounded-full bg-white text-black hover:scale-105 transition-transform flex items-center justify-center"
                   aria-label={`Play ${track.trackName} on Spotify`}
                 >
-                  <Play size={16} fill="currentColor" className="group-hover/play:scale-110 transition-transform" />
+                  <Play size={14} fill="currentColor" />
                 </button>
               </motion.div>
             ))}
@@ -605,23 +635,41 @@ function ArtistRow({ artist, isFollowing, onToggleFollow }: any) {
   return (
     <motion.div
       layout
-      className="group rounded-xl border border-white/10 overflow-hidden bg-gradient-to-br from-[#0a0a0a] to-[#060606] mb-6 transition-all duration-500"
+      className="group rounded-2xl border border-white/10 overflow-hidden bg-zinc-950/60 backdrop-blur-sm hover:border-white/25 mb-4 transition-colors"
     >
       {/* Card Header with Image */}
-      <div className="relative h-48 overflow-hidden bg-zinc-900 cursor-pointer" onClick={() => setExpanded(!expanded)}>
+      <div className="relative h-56 overflow-hidden bg-zinc-900 cursor-pointer" onClick={() => setExpanded(!expanded)}>
         {artist.image && (
           <img
             src={artist.image}
             alt={artist.name}
-            className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105"
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
           />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/10" />
 
         {/* Trending Badge */}
         {artist.trending && (
-          <div className="absolute top-4 right-4 bg-white text-black text-[10px] font-bold uppercase tracking-widest px-3 py-2">
+          <div className="absolute top-3 right-3 bg-white text-black text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">
             TRENDING
+          </div>
+        )}
+
+        {/* Provenance pill — when this artist came from the user's Spotify / Apple Music */}
+        {(artist.fromSpotify || artist.fromAppleMusic) && (
+          <div className="absolute top-3 left-3 flex gap-1.5">
+            {artist.fromSpotify && (
+              <span className="text-[8px] font-bold tracking-[0.2em] uppercase px-2 py-1 rounded-full bg-[#1DB954]/20 text-[#1DB954] border border-[#1DB954]/40 backdrop-blur-sm flex items-center gap-1">
+                <Music size={9} />
+                Spotify
+              </span>
+            )}
+            {artist.fromAppleMusic && (
+              <span className="text-[8px] font-bold tracking-[0.2em] uppercase px-2 py-1 rounded-full bg-[#FA243C]/20 text-[#FA243C] border border-[#FA243C]/40 backdrop-blur-sm flex items-center gap-1">
+                <Music size={9} />
+                Apple Music
+              </span>
+            )}
           </div>
         )}
 
@@ -652,9 +700,9 @@ function ArtistRow({ artist, isFollowing, onToggleFollow }: any) {
         {/* Follow Button */}
         <button
           onClick={onToggleFollow}
-          className={`w-full py-3 text-[10px] font-bold uppercase tracking-widest border transition-all ${
+          className={`w-full py-3 rounded-full text-[10px] font-bold uppercase tracking-widest border transition-colors ${
             isFollowing
-              ? 'border-[#E5E4E2]/40 text-[#E5E4E2] bg-white/5 hover:bg-white/10 hover:border-[#E5E4E2]'
+              ? 'border-white/20 text-white bg-white/5 hover:bg-white/10'
               : 'bg-white text-black border-white hover:bg-white/90'
           }`}
         >
@@ -684,7 +732,22 @@ function ArtistRow({ artist, isFollowing, onToggleFollow }: any) {
                   <div className="flex-1">
                     <h4 className="text-[11px] font-bold uppercase tracking-wide text-white group-hover/show:platinum-gradient transition-all">{show.venue}</h4>
                     <p className="text-[10px] uppercase tracking-widest text-white/50 mt-1">{show.date}</p>
-                    <p className="text-[9px] text-white/40 mt-2">{show.location}</p>
+                    {show.location && (
+                      <p className="text-[9px] text-white/40 mt-2 whitespace-pre-line">{show.location}</p>
+                    )}
+                    {show.source && (
+                      <div className="flex items-center gap-1.5 mt-2">
+                        {show.source === 'ticketmaster' && (
+                          <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border bg-[#008CFF]/15 text-[#008CFF] border-[#008CFF]/35">Ticketmaster</span>
+                        )}
+                        {show.source === 'bandsintown' && (
+                          <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border bg-[#00CEC8]/15 text-[#00CEC8] border-[#00CEC8]/35">Bandsintown</span>
+                        )}
+                        {show.source === 'seatgeek' && (
+                          <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 border bg-[#FF5B49]/15 text-[#FF5B49] border-[#FF5B49]/35">SeatGeek</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <ArrowUpRight size={14} className="text-white/30 group-hover/show:text-[#E5E4E2] transition-colors flex-shrink-0 mt-1" />
                 </motion.div>
