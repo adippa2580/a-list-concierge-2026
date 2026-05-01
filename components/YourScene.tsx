@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, MapPin, Music, Disc3, Sparkles, TrendingUp, RefreshCw, SlidersHorizontal, Heart, Ticket, Calendar, Users, ChevronRight } from 'lucide-react';
+import { Loader2, MapPin, Music, Disc3, Sparkles, TrendingUp, RefreshCw, SlidersHorizontal, Heart, Ticket, Calendar, Users, ChevronRight, MessageCircle, PenLine } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
@@ -42,13 +42,36 @@ interface CrewSuggestion {
   avatar_url?: string | null;
 }
 
-const TG_BASE = `https://${projectId}.supabase.co/functions/v1/tg3`;
+// Subset of SocialFeed's SocialPost type — just what the rail needs
+interface CommunityPost {
+  id: string;
+  userName: string;
+  userTier?: string;
+  userAvatar?: string;
+  message: string;
+  venueName?: string;
+  venueImage?: string;
+  peopleGoing?: number;
+  likes: number;
+  createdAt: string;
+}
 
-export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) => void } = {}) {
+const TG_BASE = `https://${projectId}.supabase.co/functions/v1/tg3`;
+const SERVER_BASE = `https://${projectId}.supabase.co/functions/v1/server`;
+
+export function YourScene({
+  onEventClick,
+  onOpenSocial,
+}: {
+  onEventClick?: (eventId: string) => void;
+  /** Opens the full Community page (formerly the Social tab). When undefined, the rail's CTAs are hidden. */
+  onOpenSocial?: () => void;
+} = {}) {
   const { userId } = useAuth();
   const [scene, setScene] = useState<YourSceneData | null>(null);
   const [recs, setRecs] = useState<Recommendation[]>([]);
   const [crew, setCrew] = useState<CrewSuggestion[]>([]);
+  const [community, setCommunity] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [city, setCity] = useState<string | null>(null);
@@ -92,15 +115,32 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
       const headers = { Authorization: `Bearer ${publicAnonKey}`, apikey: publicAnonKey };
 
       // Initial fetch
-      const [sRes, rRes, cRes] = await Promise.all([
+      const [sRes, rRes, cRes, comRes] = await Promise.all([
         fetch(`${TG_BASE}/your-scene?userId=${userId}`, { headers }),
         fetch(`${TG_BASE}/recommendations?userId=${userId}${city ? `&city=${encodeURIComponent(city)}` : ''}&limit=10`, { headers }),
         fetch(`${TG_BASE}/crew-suggestions?userId=${userId}&limit=8`, { headers }),
+        fetch(`${SERVER_BASE}/social/feed?userId=${userId}&limit=8`, { headers }),
       ]);
       const sceneData = sRes.ok ? await sRes.json() : null;
       if (sceneData) setScene(sceneData);
       if (rRes.ok) setRecs(await rRes.json());
       if (cRes.ok) setCrew(await cRes.json());
+      if (comRes.ok) {
+        const data = await comRes.json();
+        const posts = (Array.isArray(data) ? data : data.posts || []).map((p: any): CommunityPost => ({
+          id: p.id,
+          userName: p.user_name || 'Anonymous',
+          userTier: p.user_tier,
+          userAvatar: p.user_avatar,
+          message: p.message || '',
+          venueName: p.venue_name,
+          venueImage: p.venue_image,
+          peopleGoing: p.people_going,
+          likes: typeof p.likes === 'number' ? p.likes : 0,
+          createdAt: p.created_at || new Date().toISOString(),
+        }));
+        setCommunity(posts);
+      }
 
       // If signal is sparse and we haven't tried this load yet, attempt
       // Spotify FIRST (richer artist/genre data), then SoundCloud as fallback.
@@ -467,6 +507,92 @@ export function YourScene({ onEventClick }: { onEventClick?: (eventId: string) =
                     <div className="text-[10px] text-white/50 tabular-nums mt-1">×{p.score.toFixed(1)}</div>
                   )}
                 </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ── COMMUNITY — recent posts + crew activity ─────────────────────── */}
+      {community.length > 0 && (
+        <section className="mx-4 mt-6">
+          <div className="flex items-end justify-between mb-3 px-1">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="w-3.5 h-3.5 text-white/60" />
+              <h2 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50">Community</h2>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {onOpenSocial && (
+                <button
+                  onClick={onOpenSocial}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white hover:bg-white/5 transition-colors"
+                  aria-label="Compose post"
+                >
+                  <PenLine size={11} /> Post
+                </button>
+              )}
+              {onOpenSocial && (
+                <button
+                  onClick={onOpenSocial}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white hover:bg-white/5 transition-colors"
+                  aria-label="See all community posts"
+                >
+                  See all <ChevronRight size={11} />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-1 -mx-4 px-4">
+            {community.slice(0, 8).map((p) => {
+              const initials = p.userName.split(/\s+/).map(w => w[0]?.toUpperCase() ?? '').join('').slice(0, 2) || '??';
+              return (
+                <button
+                  key={p.id}
+                  onClick={onOpenSocial}
+                  className="flex-shrink-0 w-64 rounded-2xl border border-white/10 bg-white/[0.04] hover:border-white/25 hover:bg-white/[0.06] transition-colors text-left overflow-hidden"
+                >
+                  {/* Venue image header (if present) */}
+                  {p.venueImage && (
+                    <div className="relative h-24 overflow-hidden">
+                      <img src={p.venueImage} alt={p.venueName ?? ''} className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+                      {p.venueName && (
+                        <div className="absolute bottom-2 left-3 right-3 z-10">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-white truncate">{p.venueName}</p>
+                        </div>
+                      )}
+                      {typeof p.peopleGoing === 'number' && p.peopleGoing > 0 && (
+                        <div className="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm border border-white/15">
+                          <Users size={9} className="text-white/80" />
+                          <span className="text-[8px] font-bold uppercase tracking-widest text-white">{p.peopleGoing} Going</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-6 h-6 rounded-full bg-white/10 border border-white/15 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {p.userAvatar ? (
+                          <img src={p.userAvatar} alt={p.userName} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[8px] font-bold text-white/70">{initials}</span>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-white/80 truncate">{p.userName}</span>
+                      {p.userTier && (
+                        <span className="text-[7px] font-bold uppercase tracking-widest text-white/40 border border-white/15 px-1 py-0.5 rounded-full flex-shrink-0">
+                          {p.userTier}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-white/70 leading-snug line-clamp-2">{p.message || (p.venueName ? `is at ${p.venueName}` : '')}</p>
+                    {p.likes > 0 && (
+                      <div className="flex items-center gap-1 mt-2 text-[9px] text-white/40">
+                        <Heart size={9} /> {p.likes}
+                      </div>
+                    )}
+                  </div>
+                </button>
               );
             })}
           </div>

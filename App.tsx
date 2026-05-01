@@ -745,12 +745,16 @@ export default function App() {
                       onOpenCalendar={() => navigateTo("calendar")}
                       onViewAllArtists={() => navigateTo("artists")}
                       onViewMemberClubs={() => navigateTo("member-clubs")}
+                      onOpenScene={() => navigateTo("your-scene")}
                     />
                   )
                 )}
                 {currentView === "vip" && <VIPStatus />}
                 {currentView === "social" && (
-                  <SocialFeed onVenueClick={handleVenueClick} />
+                  <SocialFeed
+                    onVenueClick={handleVenueClick}
+                    onBack={() => navigateTo("your-scene")}
+                  />
                 )}
                 {currentView === "artists" && <ArtistDiscovery />}
                 {currentView === "venue" && selectedVenue && (
@@ -776,10 +780,13 @@ export default function App() {
                 {currentView === "invite" && <InviteScreen userId={userId} />}
                 {currentView === "admin" && <AdminPortal />}
                 {currentView === "your-scene" && (
-                  <YourScene onEventClick={(eventId: string) => {
-                    // Best-effort: jump to event details if event lives in venues system; otherwise stay on scene
-                    console.log("scene event click", eventId);
-                  }} />
+                  <YourScene
+                    onEventClick={(eventId: string) => {
+                      // Best-effort: jump to event details if event lives in venues system; otherwise stay on scene
+                      console.log("scene event click", eventId);
+                    }}
+                    onOpenSocial={() => navigateTo("social")}
+                  />
                 )}
                 {currentView === "member-clubs" && (
                   <MemberClubsFeed onManageClubs={() => navigateTo("profile")} />
@@ -803,12 +810,6 @@ export default function App() {
                 label="Artists"
                 isActive={currentView === "artists"}
                 onClick={() => navigateTo("artists")}
-              />
-              <NavButton
-                icon={Users}
-                label="Social"
-                isActive={currentView === "social"}
-                onClick={() => navigateTo("social")}
               />
               <NavButton
                 icon={Sparkles}
