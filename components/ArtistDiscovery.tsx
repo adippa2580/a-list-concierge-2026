@@ -283,9 +283,17 @@ export function ArtistDiscovery() {
       if (data?.followedArtists?.length) setFollowedArtists(data.followedArtists);
     }).catch(() => {});
 
+    // Resolve city from localStorage (matches Home + YourScene + Calendar). Falls
+    // back to Miami only when no location has ever been set.
+    let city = 'Miami';
+    try {
+      const saved = typeof window !== 'undefined' ? window.localStorage?.getItem('alist_location') : null;
+      if (saved) city = saved.split(',')[0].trim() || 'Miami';
+    } catch { /* SSR / unavailable */ }
+
     // Load user taste (Spotify + Apple Music artists) AND their upcoming shows
     // (cross-referenced against Ticketmaster + Bandsintown + SeatGeek server-side).
-    fetch(`https://${projectId}.supabase.co/functions/v1/server/events/personalized?userId=${userId}&city=Miami`, {
+    fetch(`https://${projectId}.supabase.co/functions/v1/server/events/personalized?userId=${userId}&city=${encodeURIComponent(city)}`, {
       headers: { Authorization: `Bearer ${publicAnonKey}` }
     }).then(r => r.ok ? r.json() : null).then(data => {
       if (data) {
