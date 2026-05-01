@@ -347,61 +347,78 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pb-32">
-      {/* Header */}
-      <div className="bg-black/80 backdrop-blur-md sticky top-0 z-20 px-6 pt-8 pb-4 border-b border-white/10">
-        <h1 className="text-sm font-bold tracking-[0.2em] uppercase text-white/60 mb-6">Social Activity</h1>
-
-        {/* Filter Pills */}
-        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-          {filters.map((filter) => (
-            <button
-              key={filter}
-              onClick={() => setActiveFilter(filter)}
-              className={`px-4 py-2 border text-[10px] font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeFilter === filter
-                  ? 'bg-white text-black border-white'
-                  : 'bg-transparent text-white/80 border-white/20 hover:border-white hover:text-white'
-                }`}
-            >
-              {filter}
-            </button>
-          ))}
+    <div className="min-h-screen bg-[#060606] text-white pb-32">
+      {/* ── V2 FLOATING FILTER BAR ─────────────────────────────────────────── */}
+      <div
+        className="sticky top-0 z-40 px-4 pb-2"
+        style={{ paddingTop: 'calc(5rem + env(safe-area-inset-top, 0px))' }}
+      >
+        <div className="flex items-center gap-2 bg-zinc-950/80 backdrop-blur-xl rounded-full px-4 py-2.5 border border-white/10 shadow-2xl">
+          <span className="text-[11px] font-bold uppercase tracking-widest text-white/70 flex-shrink-0">
+            Social
+          </span>
+          <div className="w-px h-4 bg-white/15 flex-shrink-0" />
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1">
+            {filters.map((filter) => {
+              const isActive = activeFilter === filter;
+              return (
+                <button
+                  key={filter}
+                  onClick={() => setActiveFilter(filter)}
+                  className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all ${
+                    isActive ? 'bg-white text-black' : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  {filter}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => setComposing(true)}
+            className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider text-white/60 hover:text-white hover:bg-white/5 transition-colors"
+            aria-label="Compose post"
+          >
+            <PenLine size={11} /> Post
+          </button>
         </div>
       </div>
 
-      <div className="space-y-16 pt-10">
+      <div className="space-y-12 pt-3">
 
-        {/* Trending Venues */}
+        {/* Trending Venues — V2 image-forward cards with gradient overlay */}
         {trendingVenues.length > 0 && (
-          <div className="space-y-6 px-6">
-            <div className="flex items-center gap-2">
+          <div className="space-y-3 px-4">
+            <div className="flex items-center gap-2 px-2">
               <Trophy size={14} className="text-amber-500" />
-              <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/40">Tonight's Top Venues</h2>
+              <h2 className="text-[10px] font-bold tracking-[0.3em] uppercase text-white/50">Tonight's Top Venues</h2>
             </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 scrollbar-hide">
+            <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
               {trendingVenues.map((venue) => (
-                <motion.div
+                <motion.button
                   key={venue.id}
-                  whileHover={{ scale: 1.05 }}
-                  transition={{ duration: 0.3 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => onVenueClick({ name: venue.name, location: venue.location, image: venue.image })}
-                  className="flex-shrink-0 w-48 group cursor-pointer rounded-xl border border-white/10 overflow-hidden bg-[#0a0a0a] hover:border-amber-500/40 transition-all"
+                  className="flex-shrink-0 w-56 relative rounded-2xl overflow-hidden border border-white/10 hover:border-white/30 transition-colors text-left"
+                  style={{ minHeight: 180 }}
                 >
-                  {venue.image && (
-                    <div
-                      className="h-32 bg-cover bg-center grayscale group-hover:grayscale-0 transition-all duration-500 group-hover:scale-110"
-                      style={{ backgroundImage: `url(${venue.image})` }}
-                    />
-                  )}
-                  <div className="p-3 space-y-2">
-                    <h3 className="text-sm font-bold uppercase tracking-wider text-white group-hover:text-amber-500">{venue.name}</h3>
-                    <p className="text-[9px] text-white/50 uppercase tracking-widest">{venue.location}</p>
-                    <div className="flex items-center justify-between pt-2 border-t border-white/5">
-                      <span className="text-[9px] font-bold text-amber-500">{venue.attendees} Going</span>
-                      <span className="text-[9px] text-white/40">{venue.price}</span>
+                  <div className="absolute inset-0">
+                    {venue.image ? (
+                      <div className="w-full h-full bg-cover bg-center" style={{ backgroundImage: `url(${venue.image})` }} />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-zinc-950" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
+                  </div>
+                  <div className="relative z-10 p-3 flex flex-col justify-end h-[180px]">
+                    <h3 className="text-[14px] font-bold uppercase tracking-wider text-white leading-tight">{venue.name}</h3>
+                    <p className="text-[9px] text-white/50 uppercase tracking-[0.2em] mt-1">{venue.location}</p>
+                    <div className="flex items-center justify-between mt-2 text-[9px] uppercase tracking-widest">
+                      <span className="text-amber-400 font-bold">{venue.attendees} Going</span>
+                      <span className="text-white/50">{venue.price}</span>
                     </div>
                   </div>
-                </motion.div>
+                </motion.button>
               ))}
             </div>
           </div>
@@ -458,7 +475,7 @@ export function SocialFeed({ onVenueClick }: SocialFeedProps) {
                   viewport={{ once: true }}
                   transition={{ duration: 0.6 }}
                   {...longPressBindings}
-                  className="relative px-4 py-4 rounded-xl border border-white/10 bg-gradient-to-br from-[#0a0a0a] to-[#060606] my-4 group select-none"
+                  className="relative px-4 py-4 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm hover:border-white/20 mx-4 my-3 group select-none transition-colors"
                 >
                   {/* Long-press menu overlay (own posts only) */}
                   {menuOpen && isOwn && (
