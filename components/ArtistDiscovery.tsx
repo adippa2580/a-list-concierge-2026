@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, Bell, BellOff, Music, MapPin, Calendar, Users, Play, ArrowUpRight } from 'lucide-react';
+import { Search, Bell, BellOff, Music, MapPin, Calendar, Users, Play, ArrowUpRight, ChevronRight } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -270,6 +270,7 @@ export function ArtistDiscovery() {
   const [selectedGenre, setSelectedGenre] = useState('All');
   const [userArtists, setUserArtists] = useState<typeof artists>([]);
   const [userGenres, setUserGenres] = useState<string[]>([]);
+  const [heroIndex, setHeroIndex] = useState(0);
 
   // Load followed artists and user taste from DB
   useEffect(() => {
@@ -383,6 +384,56 @@ export function ArtistDiscovery() {
     return genreMatch(a) - genreMatch(b);
   });
 
+  // ── Hero carousel: top 3 artists (user-taste / trending / first 3) ────────
+  const heroArtists = (() => {
+    const taste = userArtists.filter(a => (a as any).image).slice(0, 3);
+    if (taste.length >= 3) return taste;
+    const trending = artists.filter(a => a.trending && a.image).slice(0, 3 - taste.length);
+    const merged = [...taste, ...trending];
+    if (merged.length >= 3) return merged.slice(0, 3);
+    // Fallback: pad with first artists by image
+    return [...merged, ...artists.filter(a => a.image && !merged.includes(a))].slice(0, 3);
+  })();
+
+  // Auto-advance hero every 6s, pausing on user interaction (drag / dot click)
+  useEffect(() => {
+    if (heroArtists.length < 2) return;
+    const t = setInterval(() => {
+      setHeroIndex(i => (i + 1) % heroArtists.length);
+    }, 6000);
+    return () => clearInterval(t);
+  }, [heroArtists.length, heroIndex]);
+
+  const heroArtist = heroArtists[heroIndex] ?? heroArtists[0] ?? null;
+  const isHeroFollowing = heroArtist ? followedArtists.includes(heroArtist.id) : false;
+
+  // ── Genre rails: bucket filteredArtists into broad genre groups ──────────
+  type Bucket = { key: string; label: string; match: (g: string) => boolean };
+  const genreBuckets: Bucket[] = [
+    { key: 'house', label: 'House', match: (g) => /house|disco/i.test(g) && !/tech\s*house/i.test(g) },
+    { key: 'tech-house', label: 'Tech House', match: (g) => /tech\s*house/i.test(g) },
+    { key: 'techno', label: 'Techno', match: (g) => /\btechno\b/i.test(g) },
+    { key: 'electronic', label: 'Electronic & Dance', match: (g) => /electronic|edm|dance|progressive|trance|brazilian\s*bass/i.test(g) },
+    { key: 'hiphop', label: 'Hip-Hop & Latin', match: (g) => /hip[\s-]?hop|reggaeton|latin/i.test(g) },
+  ];
+
+  const forYouArtists = filteredArtists.filter(a =>
+    (a as any).fromUserTaste || followedArtists.includes(a.id)
+  );
+
+  // Each artist appears in the FIRST matching rail; otherwise lands in "More to Discover"
+  const seen = new Set<number>();
+  forYouArtists.forEach(a => seen.add(a.id));
+
+  const railRows: { key: string; label: string; artists: typeof filteredArtists }[] = [];
+  for (const bucket of genreBuckets) {
+    const list = filteredArtists.filter(a => !seen.has(a.id) && bucket.match(a.genre));
+    list.forEach(a => seen.add(a.id));
+    if (list.length > 0) railRows.push({ key: bucket.key, label: bucket.label, artists: list });
+  }
+  const leftover = filteredArtists.filter(a => !seen.has(a.id));
+  if (leftover.length > 0) railRows.push({ key: 'more', label: 'More to Discover', artists: leftover });
+
   return (
     <div className="min-h-screen bg-[#060606] text-white pb-32">
       {/* ── V2 FLOATING FILTER BAR ─────────────────────────────────────────── */}
@@ -428,6 +479,106 @@ export function ArtistDiscovery() {
         </div>
       </div>
 
+      {/* ── HERO CAROUSEL — 3 trending / taste artists ─────────────────────── */}
+      {heroArtist && (
+        <div className="px-4 pt-3">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`hero-${(heroArtist as any).id ?? heroIndex}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="relative rounded-3xl overflow-hidden border border-white/10 cursor-pointer group"
+              style={{ height: 280 }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(_, info) => {
+                if (info.offset.x < -50 && heroArtists.length > 1) {
+                  setHeroIndex(i => (i + 1) % heroArtists.length);
+                } else if (info.offset.x > 50 && heroArtists.length > 1) {
+                  setHeroIndex(i => (i - 1 + heroArtists.length) % heroArtists.length);
+                }
+              }}
+            >
+              {/* Image */}
+              <img
+                src={(heroArtist as any).image}
+                alt={(heroArtist as any).name}
+                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                draggable={false}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/20" />
+
+              {/* Top-right: trending / taste badges */}
+              <div className="absolute top-4 right-4 flex gap-1.5">
+                {(heroArtist as any).fromUserTaste && (
+                  <span className="text-[8px] font-bold tracking-[0.2em] uppercase px-2 py-1 rounded-full bg-white/15 text-white border border-white/30 backdrop-blur-sm">
+                    Your Taste
+                  </span>
+                )}
+                {(heroArtist as any).trending && (
+                  <span className="text-[8px] font-bold tracking-[0.2em] uppercase px-2 py-1 rounded-full bg-white text-black">
+                    Trending
+                  </span>
+                )}
+              </div>
+
+              {/* Content bottom */}
+              <div className="absolute inset-x-0 bottom-0 p-5 z-10">
+                <p className="text-[8px] uppercase tracking-[0.3em] text-white/50 mb-1">Featured Artist</p>
+                <h2 className="font-serif text-[34px] leading-[1.05] font-light text-white mb-1">
+                  {(heroArtist as any).name}
+                </h2>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-white/65 mb-4">
+                  {(heroArtist as any).genre}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleFollow((heroArtist as any).id); }}
+                    className={`flex-shrink-0 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest transition-colors ${
+                      isHeroFollowing
+                        ? 'bg-white/10 text-white border border-white/25 hover:bg-white/20'
+                        : 'bg-white text-black hover:bg-white/90'
+                    }`}
+                  >
+                    {isHeroFollowing ? '★ Following' : '+ Follow'}
+                  </button>
+                  {(heroArtist as any).spotifyUrl && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open((heroArtist as any).spotifyUrl, '_blank', 'noopener,noreferrer');
+                      }}
+                      className="flex-shrink-0 px-3 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest text-white/70 hover:text-white border border-white/15 hover:border-white/30 transition-colors flex items-center gap-1.5"
+                    >
+                      <Play size={11} fill="currentColor" /> Listen
+                    </button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Dots */}
+          {heroArtists.length > 1 && (
+            <div className="flex items-center justify-center gap-1.5 pt-3">
+              {heroArtists.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setHeroIndex(i)}
+                  aria-label={`Go to slide ${i + 1}`}
+                  className={`h-1 rounded-full transition-all ${
+                    i === heroIndex ? 'w-6 bg-white' : 'w-1.5 bg-white/30 hover:bg-white/50'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="px-4 py-6 space-y-10">
 
         {/* SONOVOS HQ FEED */}
@@ -448,6 +599,7 @@ export function ArtistDiscovery() {
                 body: 'Calvin Harris closes out WMC. LIV tables at 3× baseline. Four artists hitting personal revenue highs on Sonovos.',
                 date: 'Apr 14',
                 accent: true,
+                image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=400&auto=format&fit=crop',
               },
               {
                 type: 'ARTIST REVENUE',
@@ -455,6 +607,7 @@ export function ArtistDiscovery() {
                 body: 'Highest single-weekend revenue on the platform. Factory Town + Treehouse back-to-back drove 2.3K group bookings.',
                 date: 'Apr 13',
                 accent: false,
+                image: 'https://images.unsplash.com/photo-1574672280600-4accfa5b6f98?q=80&w=400&auto=format&fit=crop',
               },
               {
                 type: 'EVENT RECAP',
@@ -462,6 +615,7 @@ export function ArtistDiscovery() {
                 body: '680+ attended. 94% of VIP tables pre-booked via A-List. Average group size: 5.2. Repeat booking rate: 61%.',
                 date: 'Apr 10',
                 accent: false,
+                image: 'https://images.unsplash.com/photo-1625872778166-7b133d560b82?q=80&w=400&auto=format&fit=crop',
               },
               {
                 type: 'TRENDING',
@@ -469,6 +623,7 @@ export function ArtistDiscovery() {
                 body: 'Black Coffee, Themba, and Enoo Napa showing 3× streaming velocity this week. Venue demand up 40% YoY.',
                 date: 'Apr 9',
                 accent: false,
+                image: 'https://images.unsplash.com/photo-1629869343830-37a495211abf?q=80&w=400&auto=format&fit=crop',
               },
             ].map((item, i) => (
               <motion.div
@@ -477,24 +632,36 @@ export function ArtistDiscovery() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.06 }}
-                className={`p-4 rounded-2xl border backdrop-blur-sm transition-colors cursor-pointer group ${
+                className={`relative rounded-2xl border backdrop-blur-sm transition-colors cursor-pointer group overflow-hidden flex ${
                   item.accent
                     ? 'border-white/20 bg-white/5 hover:border-white/30'
                     : 'border-white/10 bg-zinc-950/60 hover:border-white/20'
                 }`}
               >
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <span className={`text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border ${
-                    item.accent
-                      ? 'border-white/25 text-white bg-white/10'
-                      : 'border-white/15 text-white/50'
-                  }`}>{item.type}</span>
-                  <span className="text-[7px] uppercase tracking-widest text-white/25 flex-shrink-0">{item.date}</span>
+                {/* Left: image */}
+                <div className="relative w-24 flex-shrink-0 overflow-hidden">
+                  <img
+                    src={item.image}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/40" />
                 </div>
-                <h4 className="text-[11px] font-bold uppercase tracking-wide text-white mb-1">
-                  {item.title}
-                </h4>
-                <p className="text-[9px] text-white/55 leading-relaxed">{item.body}</p>
+                {/* Right: content */}
+                <div className="flex-1 p-4 min-w-0">
+                  <div className="flex items-start justify-between gap-3 mb-1.5">
+                    <span className={`text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full border flex-shrink-0 ${
+                      item.accent
+                        ? 'border-white/25 text-white bg-white/10'
+                        : 'border-white/15 text-white/50'
+                    }`}>{item.type}</span>
+                    <span className="text-[7px] uppercase tracking-widest text-white/25 flex-shrink-0">{item.date}</span>
+                  </div>
+                  <h4 className="text-[11px] font-bold uppercase tracking-wide text-white mb-1 truncate">
+                    {item.title}
+                  </h4>
+                  <p className="text-[9px] text-white/55 leading-relaxed line-clamp-2">{item.body}</p>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -580,50 +747,39 @@ export function ArtistDiscovery() {
           </div>
         </div>
 
-        {/* Following Section */}
-        {followedArtists.length > 0 && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Following</h2>
-            </div>
-
-            <div className="space-y-1">
-              {filteredArtists
-                .filter(artist => followedArtists.includes(artist.id))
-                .map((artist) => (
-                  <ArtistRow
-                    key={artist.id}
-                    artist={artist}
-                    isFollowing={true}
-                    onToggleFollow={() => toggleFollow(artist.id)}
-                  />
-                ))}
-            </div>
-          </div>
+        {/* ── FOR YOU rail (followed + user taste) ─────────────────────── */}
+        {forYouArtists.length > 0 && (
+          <ArtistRail
+            label="For You"
+            sublabel="Your follows + music-taste matches"
+            artists={forYouArtists}
+            followedArtists={followedArtists}
+            onToggleFollow={toggleFollow}
+          />
         )}
 
-        {/* All Artists */}
-        <div className="space-y-6">
-          <h2 className="text-[10px] font-bold tracking-[0.2em] uppercase text-white/60">Discover</h2>
+        {/* ── GENRE RAILS — one rail per matched bucket ─────────────────── */}
+        {railRows.map((row, idx) => (
+          <ArtistRail
+            key={row.key}
+            label={row.label}
+            sublabel={`${row.artists.length} artist${row.artists.length === 1 ? '' : 's'}`}
+            artists={row.artists}
+            followedArtists={followedArtists}
+            onToggleFollow={toggleFollow}
+            delay={idx * 0.04}
+          />
+        ))}
 
-          <div className="space-y-1">
-            {filteredArtists.map((artist, index) => (
-              <motion.div
-                key={artist.id}
-                initial={{ opacity: 0, x: -10 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.05 }}
-              >
-                <ArtistRow
-                  artist={artist}
-                  isFollowing={followedArtists.includes(artist.id)}
-                  onToggleFollow={() => toggleFollow(artist.id)}
-                />
-              </motion.div>
-            ))}
+        {/* Empty state when search/filter returns nothing */}
+        {forYouArtists.length === 0 && railRows.length === 0 && (
+          <div className="rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm p-10 text-center">
+            <p className="text-[11px] uppercase tracking-widest text-white/50">No artists match your filter</p>
+            <p className="text-[9px] uppercase tracking-widest text-white/30 mt-2">
+              Try a different genre or clear the search
+            </p>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -763,6 +919,140 @@ function ArtistRow({ artist, isFollowing, onToggleFollow }: any) {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── ArtistRail: horizontal scroll of ArtistTile ────────────────────────────
+function ArtistRail({
+  label,
+  sublabel,
+  artists,
+  followedArtists,
+  onToggleFollow,
+  delay = 0,
+}: {
+  label: string;
+  sublabel?: string;
+  artists: any[];
+  followedArtists: number[];
+  onToggleFollow: (id: number) => void;
+  delay?: number;
+}) {
+  if (!artists || artists.length === 0) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.5, delay }}
+      className="space-y-3"
+    >
+      <div className="flex items-end justify-between px-1">
+        <div>
+          <h2 className="text-[11px] font-bold tracking-[0.2em] uppercase text-white">{label}</h2>
+          {sublabel && (
+            <p className="text-[8px] uppercase tracking-widest text-white/30 mt-0.5">{sublabel}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-2">
+        {artists.map((artist, i) => (
+          <ArtistTile
+            key={artist.id ?? `${label}-${i}`}
+            artist={artist}
+            isFollowing={followedArtists.includes(artist.id)}
+            onToggleFollow={() => onToggleFollow(artist.id)}
+            index={i}
+          />
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// ── ArtistTile: image-forward 3:4 tile, follow heart overlay ──────────────
+function ArtistTile({
+  artist,
+  isFollowing,
+  onToggleFollow,
+  index = 0,
+}: {
+  artist: any;
+  isFollowing: boolean;
+  onToggleFollow: () => void;
+  index?: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 12 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      viewport={{ once: true }}
+      transition={{ duration: 0.4, delay: Math.min(index * 0.04, 0.4) }}
+      className="relative flex-shrink-0 w-40 rounded-2xl overflow-hidden border border-white/10 hover:border-white/30 transition-colors group cursor-pointer"
+      style={{ aspectRatio: '3 / 4' }}
+      onClick={() => artist.spotifyUrl && window.open(artist.spotifyUrl, '_blank', 'noopener,noreferrer')}
+    >
+      {/* Image */}
+      {artist.image ? (
+        <img
+          src={artist.image}
+          alt={artist.name}
+          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+          draggable={false}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 to-zinc-950" />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+
+      {/* Top-left: provenance pill */}
+      {(artist.fromSpotify || artist.fromAppleMusic) && (
+        <div className="absolute top-2 left-2 flex gap-1">
+          {artist.fromSpotify && (
+            <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 rounded-full bg-[#1DB954]/25 text-[#1DB954] border border-[#1DB954]/40 backdrop-blur-sm">
+              Spotify
+            </span>
+          )}
+          {artist.fromAppleMusic && (
+            <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 rounded-full bg-[#FA243C]/25 text-[#FA243C] border border-[#FA243C]/40 backdrop-blur-sm">
+              Apple
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Top-right: trending pill */}
+      {artist.trending && (
+        <div className="absolute top-2 right-2">
+          <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 rounded-full bg-white text-black">
+            Hot
+          </span>
+        </div>
+      )}
+
+      {/* Heart toggle bottom-right */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleFollow(); }}
+        aria-label={isFollowing ? `Unfollow ${artist.name}` : `Follow ${artist.name}`}
+        className={`absolute bottom-2 right-2 z-10 h-8 w-8 rounded-full flex items-center justify-center transition-all backdrop-blur-sm ${
+          isFollowing
+            ? 'bg-white text-black hover:scale-105'
+            : 'bg-black/40 text-white border border-white/30 hover:bg-white/15 hover:border-white/60'
+        }`}
+      >
+        <span className="text-[12px] leading-none">{isFollowing ? '★' : '+'}</span>
+      </button>
+
+      {/* Name + genre bottom-left */}
+      <div className="absolute inset-x-0 bottom-0 p-3 pr-10">
+        <h3 className="text-[12px] font-bold uppercase tracking-wide text-white leading-tight truncate">
+          {artist.name}
+        </h3>
+        <p className="text-[9px] uppercase tracking-widest text-white/55 mt-0.5 truncate">
+          {artist.genre}
+        </p>
       </div>
     </motion.div>
   );
