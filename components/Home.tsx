@@ -1,6 +1,6 @@
 'use client';
 
-import { MapPin, Star, ChevronRight, Search, Music, Wine, Mic2, Navigation, Play, X, Check, ExternalLink, Globe, Ticket, Users, LayoutGrid, List, Heart, Building2, ShieldCheck } from 'lucide-react';
+import { MapPin, Star, ChevronRight, Search, Music, Wine, Mic2, Navigation, Play, X, Check, ExternalLink, Globe, Ticket, Users, LayoutGrid, List, Heart, Building2, ShieldCheck, Calendar } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -985,6 +985,17 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
       {/* Date Filter Pills */}
       <div className="px-6 pb-4">
         <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+          {/* Open Calendar — full month grid + Save to Plan in dedicated route */}
+          {onOpenCalendar && (
+            <button
+              onClick={onOpenCalendar}
+              className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 border text-[8px] font-bold uppercase tracking-widest transition-all active:scale-95 border-[#E5E4E2]/25 text-[#E5E4E2] hover:bg-white/5 hover:border-[#E5E4E2]/50"
+              aria-label="Open events calendar"
+            >
+              <Calendar size={10} />
+              Calendar
+            </button>
+          )}
           {DATE_FILTERS.map(({ key, label }) => {
             const count = groupedEvents[key].length;
             if (count === 0) return null;

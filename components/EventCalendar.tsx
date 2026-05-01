@@ -1,6 +1,6 @@
 'use client';
 
-import { Calendar, Clock, MapPin, Search, Star, Bookmark, BookmarkCheck, Filter, Music, Ticket, Users, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, MapPin, Search, Star, Bookmark, BookmarkCheck, Music, Ticket, Users, ChevronLeft, ChevronRight, LayoutGrid, List } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -26,18 +26,52 @@ export function EventCalendar() {
   const [savedEvents, setSavedEvents] = useState<Set<string>>(new Set());
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'list' | 'month'>('list');
+  const [monthCursor, setMonthCursor] = useState<Date>(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const [selectedDay, setSelectedDay] = useState<string | null>(null); // toDateString() of cell tapped in month view
+
+  // Pull stored city from localStorage (matches Home + YourScene patterns).
+  // Defaults to Miami only when no location has ever been set.
+  const [city] = useState<string>(() => {
+    try {
+      const saved = localStorage.getItem('alist_location');
+      if (saved) return saved.split(',')[0].trim();
+    } catch { /* SSR / unavailable */ }
+    return 'Miami';
+  });
 
   useEffect(() => {
     fetchEvents();
+    fetchSavedEvents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [userId, city]);
+
+  // Load persisted savedEvents from /server/profile
+  const fetchSavedEvents = async () => {
+    if (!userId || userId === 'default_user') return;
+    try {
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`,
+        { headers: { Authorization: `Bearer ${publicAnonKey}` } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data?.savedEvents)) {
+          setSavedEvents(new Set(data.savedEvents.map(String)));
+        }
+      }
+    } catch { /* silent — fall back to empty set */ }
+  };
 
   const fetchEvents = async () => {
     setLoading(true);
     try {
       const url = new URL(`https://${projectId}.supabase.co/functions/v1/server/eventbrite/events`);
       url.searchParams.append('sort_by', 'date');
-      url.searchParams.append('city', 'Miami');
+      url.searchParams.append('city', city);
       if (userId && userId !== 'default_user') {
         url.searchParams.append('userId', userId);
       }
@@ -100,6 +134,14 @@ export function EventCalendar() {
         next.add(eventId);
         toast.success('Saved to Plan');
       }
+      // Persist to /server/profile (best-effort; UI state already updated optimistically)
+      if (userId && userId !== 'default_user') {
+        fetch(`https://${projectId}.supabase.co/functions/v1/server/profile?userId=${userId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${publicAnonKey}` },
+          body: JSON.stringify({ savedEvents: [...next] }),
+        }).catch(() => { /* silent — local state remains correct */ });
+      }
       return next;
     });
   };
@@ -150,12 +192,27 @@ export function EventCalendar() {
     <div className="min-h-screen bg-[#060606] text-white pb-40">
       {/* Header */}
       <div className="bg-[#060606]/90 backdrop-blur-xl border-b border-[#E5E4E2]/10 px-6 pt-16 pb-4 sticky top-0 z-20">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-2">
           <div>
             <h2 className="text-3xl font-serif italic platinum-gradient leading-none tracking-tight">Event Calendar</h2>
+            <p className="text-[8px] uppercase tracking-[0.3em] text-white/30 mt-2 font-bold">{city}</p>
           </div>
-          <div className="w-12 h-12 platinum-border flex items-center justify-center bg-[#011410]">
-            <Calendar size={20} className="text-[#E5E4E2]" strokeWidth={1.5} />
+          <div className="flex items-center gap-2">
+            {/* View toggle: List / Month */}
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 border transition-all active:scale-95 ${viewMode === 'list' ? 'border-white/30 bg-white/5' : 'border-white/5 text-white/30 hover:border-white/15'}`}
+              aria-label="List view"
+            >
+              <List size={14} />
+            </button>
+            <button
+              onClick={() => setViewMode('month')}
+              className={`p-2 border transition-all active:scale-95 ${viewMode === 'month' ? 'border-white/30 bg-white/5' : 'border-white/5 text-white/30 hover:border-white/15'}`}
+              aria-label="Month view"
+            >
+              <LayoutGrid size={14} />
+            </button>
           </div>
         </div>
 
@@ -204,7 +261,20 @@ export function EventCalendar() {
           </div>
         )}
 
-        {Object.entries(groupedEvents).map(([dateKey, dateEvents]) => (
+        {/* ── MONTH VIEW ──────────────────────────────────────────────────── */}
+        {!loading && viewMode === 'month' && Object.keys(groupedEvents).length > 0 && (
+          <MonthGrid
+            cursor={monthCursor}
+            onPrev={() => setMonthCursor(d => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
+            onNext={() => setMonthCursor(d => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
+            events={filteredEvents}
+            selectedDay={selectedDay}
+            onSelectDay={(dayKey) => setSelectedDay(prev => (prev === dayKey ? null : dayKey))}
+          />
+        )}
+
+        {/* ── LIST VIEW (per-day grouping) ────────────────────────────────── */}
+        {viewMode === 'list' && Object.entries(groupedEvents).map(([dateKey, dateEvents]) => (
           <div key={dateKey} className="space-y-4">
             {/* Date Header */}
             <div className="sticky top-[220px] z-10 bg-[#060606]/90 backdrop-blur-md py-2 -mx-6 px-6 border-y border-[#E5E4E2]/5 flex justify-between items-center">
@@ -294,7 +364,181 @@ export function EventCalendar() {
             ))}
           </div>
         ))}
+
+        {/* Month view: show events for the selected day inline below the grid */}
+        {viewMode === 'month' && selectedDay && (
+          <div className="space-y-3">
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.4em] text-white/60 border-l-2 border-[#E5E4E2]/30 pl-4">
+              {selectedDay}
+            </h3>
+            {filteredEvents
+              .filter(e => e.date.toDateString() === selectedDay)
+              .map((event: any, index: number) => (
+                <motion.div
+                  key={event.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.04 }}
+                  className="bg-zinc-950/60 border border-white/5 hover:border-[#E5E4E2]/20 transition-all group cursor-pointer"
+                  onClick={() => { if (event.ticketUrl) window.open(event.ticketUrl, '_blank', 'noopener,noreferrer'); }}
+                >
+                  <div className="flex gap-5 p-5">
+                    <div className="flex flex-col items-center justify-center w-14 flex-shrink-0 border-r border-white/5 pr-4">
+                      <span className="text-2xl font-serif italic">{event.date.getDate()}</span>
+                      <span className="text-[8px] uppercase tracking-widest text-white/40 font-bold">
+                        {event.date.toLocaleDateString('en-US', { weekday: 'short' })}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <h3 className="text-sm font-bold uppercase tracking-wider truncate pr-2">{event.name}</h3>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleSave(event.id); }}
+                          className="flex-shrink-0 p-1 hover:bg-white/5 transition-colors"
+                        >
+                          {savedEvents.has(event.id) ? (
+                            <BookmarkCheck size={16} className="text-[#E5E4E2]" />
+                          ) : (
+                            <Bookmark size={16} className="text-white/20" />
+                          )}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-[9px] uppercase tracking-widest text-white/40">
+                        <div className="flex items-center gap-1"><Clock size={9} /><span>{event.time}</span></div>
+                        <div className="flex items-center gap-1"><MapPin size={9} /><span className="truncate">{event.venue}</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            {filteredEvents.filter(e => e.date.toDateString() === selectedDay).length === 0 && (
+              <p className="text-[9px] uppercase tracking-widest text-white/20 text-center py-8">
+                No events on this day
+              </p>
+            )}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+// ── MonthGrid: 7-col date cells with event-count dots ────────────────────────
+function MonthGrid({
+  cursor,
+  onPrev,
+  onNext,
+  events,
+  selectedDay,
+  onSelectDay,
+}: {
+  cursor: Date;
+  onPrev: () => void;
+  onNext: () => void;
+  events: any[];
+  selectedDay: string | null;
+  onSelectDay: (dayKey: string) => void;
+}) {
+  // Build the 6-week (42-cell) grid for cursor's month
+  const monthLabel = cursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const firstDay = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  const startWeekday = firstDay.getDay(); // 0=Sun..6=Sat
+  const gridStart = new Date(firstDay);
+  gridStart.setDate(firstDay.getDate() - startWeekday);
+
+  const cells: { date: Date; key: string; inMonth: boolean; count: number }[] = [];
+  // Build a count map first
+  const countByKey: Record<string, number> = {};
+  for (const ev of events) {
+    const k = ev.date.toDateString();
+    countByKey[k] = (countByKey[k] || 0) + 1;
+  }
+
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(gridStart);
+    d.setDate(gridStart.getDate() + i);
+    const key = d.toDateString();
+    cells.push({
+      date: d,
+      key,
+      inMonth: d.getMonth() === cursor.getMonth(),
+      count: countByKey[key] || 0,
+    });
+  }
+
+  const todayKey = new Date().toDateString();
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  return (
+    <div className="space-y-3">
+      {/* Month nav */}
+      <div className="flex items-center justify-between">
+        <button
+          onClick={onPrev}
+          className="p-2 border border-white/10 hover:border-white/30 transition-colors"
+          aria-label="Previous month"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-white">
+          {monthLabel}
+        </span>
+        <button
+          onClick={onNext}
+          className="p-2 border border-white/10 hover:border-white/30 transition-colors"
+          aria-label="Next month"
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+
+      {/* Day-of-week header */}
+      <div className="grid grid-cols-7 gap-1">
+        {dayLabels.map(d => (
+          <div key={d} className="text-center text-[7px] font-bold uppercase tracking-widest text-white/30 py-1">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Date cells */}
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((cell) => {
+          const isToday = cell.key === todayKey;
+          const isSelected = cell.key === selectedDay;
+          const hasEvents = cell.count > 0;
+          return (
+            <button
+              key={cell.key}
+              onClick={() => hasEvents && onSelectDay(cell.key)}
+              disabled={!hasEvents}
+              className={`aspect-square flex flex-col items-center justify-center border transition-colors text-[10px] font-bold uppercase ${
+                !cell.inMonth
+                  ? 'border-white/5 text-white/15'
+                  : isSelected
+                  ? 'border-[#E5E4E2] bg-white/10 text-white'
+                  : isToday
+                  ? 'border-[#1DB954]/40 bg-[#1DB954]/5 text-white'
+                  : hasEvents
+                  ? 'border-white/15 hover:border-white/40 hover:bg-white/5 text-white/80 cursor-pointer'
+                  : 'border-white/5 text-white/30 cursor-default'
+              }`}
+            >
+              <span>{cell.date.getDate()}</span>
+              {hasEvents && (
+                <span className={`text-[7px] mt-0.5 tracking-widest ${isSelected ? 'text-white' : 'text-[#E5E4E2]/70'}`}>
+                  {cell.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Hint */}
+      <p className="text-[7px] uppercase tracking-widest text-white/20 text-center pt-2">
+        Tap a date to see its events
+      </p>
     </div>
   );
 }
