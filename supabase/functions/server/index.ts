@@ -801,16 +801,22 @@ const EVENTBRITE_API_KEY = Deno.env.get("EVENTBRITE_API_KEY");
 // Enable logger
 app.use('*', logger());
 
-// Enable CORS for all routes and methods
+// Enable CORS for all routes and methods.
+// Echo the request origin back so that EVERY caller works:
+//   - https://a-list-core-application.web.app  (production web)
+//   - http://localhost:5173 / 3000             (local dev web)
+//   - capacitor://localhost / https://localhost (iOS Capacitor app)
+//   - http://localhost / ionic://localhost      (Android Capacitor / legacy Ionic)
+// Origin is not our security boundary: every endpoint is bearer-token gated
+// (anon key minimum) and write paths additionally check service role + userId
+// ownership in the SQL filter. Echoing origin is therefore safe AND stops the
+// "iOS app shows no records" class of bug from regressing.
 app.use(
   "/*",
   cors({
-    origin: (origin) => {
-      const allowed = ["https://a-list-core-application.web.app", "http://localhost:5173", "http://localhost:3000"];
-      return allowed.includes(origin ?? "") ? origin : allowed[0];
-    },
-    allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    origin: (origin) => origin || "*",
+    allowHeaders: ["Content-Type", "Authorization", "apikey", "x-admin-key"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
   }),
