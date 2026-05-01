@@ -13,7 +13,7 @@ import { projectId, publicAnonKey } from '../utils/supabase/info';
 const eventRecaps = [
   {
     id: 1,
-    artist: 'Sonoshvq',
+    artist: 'Sonny Fodera',
     venue: 'Soho Beach House',
     date: 'March 15, 2026',
     vibeDescription: 'Electric peak hour set with curated house selection',
@@ -44,7 +44,7 @@ const tracksOfTheWeek = [
   {
     id: 1,
     trackName: 'Phosphene',
-    artist: 'Sonoshvq',
+    artist: 'Sonny Fodera',
     vibe: 'PEAK HOUR',
     playCount: '3.2K'
   },
