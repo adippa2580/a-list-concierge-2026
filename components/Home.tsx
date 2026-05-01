@@ -91,7 +91,7 @@ const isGenericTitle = (t: string) =>
   /upcoming (events|shows|concerts)/i.test(t) ||
   t.length > 60;
 
-export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtists, onViewMemberClubs }: any) {
+export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtists, onViewMemberClubs, onOpenScene }: any) {
   const { userId } = useAuth();
   const [currentLocation, setCurrentLocation] = useState(() => {
     try { return localStorage.getItem('alist_location') || 'Miami, FL'; } catch { return 'Miami, FL'; }
@@ -1083,20 +1083,105 @@ export function Home({ onVenueClick, onBookTable, onOpenCalendar, onViewAllArtis
           </div>
         )}
 
-        {/* Personalised — events from the user's connected Spotify / Apple Music artists */}
+        {/* Picks for you — compact rail. Algorithmic ranking lives in My Scene;
+            this rail is just a teaser surfacing the top 5 server-side artist
+            matches above the source-bucketed event sections below. */}
         {!dateFilter && personalizedEvents.length > 0 && (
-          <div className={viewMode === 'grid' ? 'grid grid-cols-2 gap-3' : 'space-y-4'}>
-            {viewMode === 'list' && (
-              <h3 className="text-[8px] font-bold text-[#1DB954] uppercase tracking-widest border-b border-[#1DB954]/30 pb-2 flex items-center gap-2 col-span-2">
-                <Music size={12} />
-                For You · Your Music
-                <span className="text-[8px] text-white/25 font-normal ml-auto tracking-wider">
+          <section className="space-y-3 -mx-6">
+            <div className="px-6 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Music size={11} className="text-[#1DB954]" />
+                <h3 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/70">Picks for you</h3>
+                <span className="text-[8px] text-white/25 tracking-widest">
                   {personalizedEvents.length} {personalizedEvents.length === 1 ? 'match' : 'matches'}
                 </span>
-              </h3>
-            )}
-            {personalizedEvents.map(e => renderEventCard(e))}
-          </div>
+              </div>
+              {onOpenScene && (
+                <button
+                  onClick={onOpenScene}
+                  className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-white/50 hover:text-white transition-colors"
+                  aria-label="Open My Scene"
+                >
+                  My Scene
+                  <ChevronRight size={11} />
+                </button>
+              )}
+            </div>
+            <div className="flex gap-3 overflow-x-auto px-6 no-scrollbar pb-1">
+              {personalizedEvents.slice(0, 5).map((e: any) => {
+                const img = e.tmImage || e.image;
+                const ticketUrl = e.tmTicketUrl || e.ticketUrl || e.venueWebsite;
+                return (
+                  <button
+                    key={e.id}
+                    onClick={() => {
+                      if (ticketUrl) window.open(ticketUrl, '_blank', 'noopener,noreferrer');
+                      else if (onBookTable) onBookTable(e);
+                    }}
+                    className="flex-shrink-0 w-40 rounded-2xl overflow-hidden border border-[#1DB954]/30 hover:border-[#1DB954]/60 bg-zinc-950/60 backdrop-blur-sm transition-colors text-left relative group"
+                    style={{ aspectRatio: '3/4' }}
+                  >
+                    {/* Image */}
+                    {img ? (
+                      <ImageWithFallback
+                        src={img}
+                        alt={e.name}
+                        className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#1DB954]/30 to-zinc-950" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+
+                    {/* Top-left: provenance pill */}
+                    <div className="absolute top-2 left-2 z-10 flex gap-1">
+                      {e.fromSpotify && (
+                        <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 rounded-full bg-[#1DB954]/25 text-[#1DB954] border border-[#1DB954]/40 backdrop-blur-sm">
+                          Spotify
+                        </span>
+                      )}
+                      {e.fromAppleMusic && (
+                        <span className="text-[7px] font-bold tracking-[0.15em] uppercase px-1.5 py-0.5 rounded-full bg-[#FA243C]/25 text-[#FA243C] border border-[#FA243C]/40 backdrop-blur-sm">
+                          Apple
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Bottom content */}
+                    <div className="absolute inset-x-0 bottom-0 p-3 z-10">
+                      {e.matchedArtist && (
+                        <p className="text-[8px] uppercase tracking-[0.2em] text-[#1DB954]/90 truncate font-bold">
+                          {e.matchedArtist}
+                        </p>
+                      )}
+                      <h4 className="text-[11px] font-bold uppercase tracking-wide text-white leading-tight line-clamp-2 mt-0.5">
+                        {e.name}
+                      </h4>
+                      <p className="text-[8px] uppercase tracking-widest text-white/50 mt-1 truncate">
+                        {e.venue}
+                      </p>
+                      <p className="text-[8px] text-white/40 mt-0.5 truncate">{e.date}</p>
+                    </div>
+                  </button>
+                );
+              })}
+
+              {/* Trailing CTA: "+N more" → opens My Scene */}
+              {personalizedEvents.length > 5 && onOpenScene && (
+                <button
+                  onClick={onOpenScene}
+                  className="flex-shrink-0 w-32 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-sm hover:border-white/30 hover:bg-white/[0.06] transition-colors flex flex-col items-center justify-center gap-2 p-4"
+                  style={{ aspectRatio: '3/4' }}
+                  aria-label="See all in My Scene"
+                >
+                  <ChevronRight size={14} className="text-white/70" />
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-white/70 text-center leading-tight">
+                    +{personalizedEvents.length - 5} more in My Scene
+                  </span>
+                </button>
+              )}
+            </div>
+          </section>
         )}
 
         {/* Venue Results WITH photo — hidden when date filter active */}
