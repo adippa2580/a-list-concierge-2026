@@ -27,8 +27,8 @@ export function AListLogo({
 
   const themes = {
     gradient: {
-      iconBg: 'bg-gradient-to-br from-[#BD00FF] via-[#FF00E5] to-[#00D9FF]',
-      textGradient: 'bg-gradient-to-r from-[#BD00FF] via-[#FF00E5] to-[#00D9FF] bg-clip-text text-transparent',
+      iconBg: 'bg-gradient-to-br from-[#5B16C7] via-[#8B2EFF] to-[#C77DFF]',
+      textGradient: 'bg-gradient-to-r from-[#5B16C7] via-[#8B2EFF] to-[#C77DFF] bg-clip-text text-transparent',
       tagline: 'text-[#E5E4E2]/60'
     },
     monochrome: {
@@ -37,7 +37,7 @@ export function AListLogo({
       tagline: 'text-[#E5E4E2]/30'
     },
     light: {
-      iconBg: 'bg-gradient-to-br from-[#BD00FF] via-[#FF00E5] to-[#00D9FF]',
+      iconBg: 'bg-gradient-to-br from-[#5B16C7] via-[#8B2EFF] to-[#C77DFF]',
       textGradient: 'bg-gradient-to-r from-[#011410] via-[#000504] to-black bg-clip-text text-transparent',
       tagline: 'text-[#E5E4E2]/50'
     }

@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* ───────────────────────────────────────────────────────────────────────
+   A-LIST DESIGN SYSTEM — Type Direction A
+   Display: Reckless Neue (paid; not yet licensed) → production stand-in:
+            Fraunces with SOFT 0 / opsz 144 (closest free match).
+   UI:      General Sans (Fontshare) with Inter retained as fallback.
+   Imports loaded via index.html (preconnect + <link>) for non-blocking render;
+   the @font-face Cormorant Garamond fallback is below so existing artifacts
+   keep working when the network is offline.
+   ─────────────────────────────────────────────────────────────────────── */
+
 @layer theme {
   :root {
     --font-size: 16px;
@@ -25,13 +35,42 @@
     --switch-background: #cbced4;
     --font-weight-medium: 500;
     --font-weight-normal: 400;
+    --font-weight-bold: 700;
+    --font-weight-black: 900;
     --ring: oklch(0.708 0 0);
 
-    /* Luxury Font Definitions */
-    --font-serif: "Cormorant Garamond", serif;
-    --font-sans: "Inter", sans-serif;
+    /* ── Type stack — Direction A (Fraunces SOFT 0 + General Sans) ──── */
+    --font-serif: "Reckless Neue", "Fraunces", "Cormorant Garamond", Georgia, serif;
+    --font-sans: "General Sans", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    /* Variable-font axes that turn Fraunces into a Reckless stand-in */
+    --font-display-vs: "SOFT" 0, "opsz" 144;
+    --font-display-vs-md: "SOFT" 0, "opsz" 60;
+
+    /* Type scale — display (serif) */
+    --type-display-xl: 48px;
+    --type-display-lg: 36px;
+    --type-display-md: 28px;
+    /* Type scale — luxury label (sans, UPPERCASE, tracked) */
+    --type-luxury: 11px;
+    --type-luxury-sm: 10px;
+    --type-luxury-xs: 9px;
+    --type-luxury-xxs: 8px;
+    --type-luxury-tiny: 7px;
+
+    /* Tracking presets — A-List signature wide-tracked uppercase */
+    --tracking-tight: -0.01em;
+    --tracking-normal: 0;
+    --tracking-wide: 0.1em;
+    --tracking-wider: 0.2em;
+    --tracking-widest: 0.3em;
+    --tracking-luxury: 0.4em;
 
     --radius: 0.625rem;
+    --radius-sm: 4px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-pill: 9999px;
   }
 
   .dark {
@@ -64,6 +103,28 @@
     --emerald: #011410;
     --emerald-dark: #060606;
     --marble-accent: rgba(255, 255, 255, 0.01);
+
+    /* App canvas (true bg) vs surfaces */
+    --background-app: #000504;
+    --surface: #0a0a0a;
+    --surface-2: #111111;
+
+    /* Border tokens — platinum at 10/20/50% (canonical) */
+    --border-strong: rgba(229, 228, 226, 0.20);
+    --border-focus:  rgba(229, 228, 226, 0.50);
+
+    /* ── Logo / hero gradient — PURPLE (only on logo, splash, hero CTA) ── */
+    --neon-violet: #5B16C7;
+    --neon-purple: #8B2EFF;
+    --neon-orchid: #C77DFF;
+    --gradient-logo: linear-gradient(135deg, #5B16C7 0%, #8B2EFF 50%, #C77DFF 100%);
+    --gradient-platinum: linear-gradient(135deg, #8e8e93, #e5e4e2, #f5f5f7, #e5e4e2, #8e8e93);
+
+    /* Shadow ladder (canonical) */
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+    --shadow-md: 0 8px 24px rgba(0,0,0,0.4);
+    --shadow-lg: 0 20px 50px rgba(0,0,0,0.5);
+    --shadow-platinum: 0 20px 50px rgba(229,228,226,0.15);
 
     --chart-1: oklch(0.488 0.243 162);
     --chart-2: oklch(0.696 0.17 162.48);
@@ -217,10 +278,79 @@ html {
   }
 
   .text-luxury {
-    letter-spacing: 0.3em;
+    font-family: var(--font-sans);
+    letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
     font-weight: 700;
-    font-size: 11px;
+    font-size: var(--type-luxury);
+  }
+  .text-luxury-sm  { font-family: var(--font-sans); font-size: var(--type-luxury-sm);  letter-spacing: var(--tracking-widest); text-transform: uppercase; font-weight: 700; }
+  .text-luxury-xs  { font-family: var(--font-sans); font-size: var(--type-luxury-xs);  letter-spacing: var(--tracking-widest); text-transform: uppercase; font-weight: 700; }
+  .text-luxury-xxs { font-family: var(--font-sans); font-size: var(--type-luxury-xxs); letter-spacing: var(--tracking-luxury); text-transform: uppercase; font-weight: 700; }
+  .text-luxury-tiny{ font-family: var(--font-sans); font-size: var(--type-luxury-tiny);letter-spacing: var(--tracking-widest); text-transform: uppercase; font-weight: 900; }
+
+  /* Eyebrow — A-List signature section label */
+  .eyebrow {
+    font-family: var(--font-sans);
+    font-size: var(--type-luxury-xs);
+    font-weight: 700;
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.30);
+  }
+
+  /* Display (serif italic, editorial — Fraunces SOFT 0 stand-in for Reckless) */
+  .display-xl {
+    font-family: var(--font-serif);
+    font-size: var(--type-display-xl);
+    font-style: italic;
+    font-weight: 400;
+    font-variation-settings: var(--font-display-vs);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+  }
+  .display-lg {
+    font-family: var(--font-serif);
+    font-size: var(--type-display-lg);
+    font-style: italic;
+    font-weight: 400;
+    font-variation-settings: var(--font-display-vs);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+  .display-md {
+    font-family: var(--font-serif);
+    font-size: var(--type-display-md);
+    font-style: italic;
+    font-weight: 400;
+    font-variation-settings: var(--font-display-vs-md);
+    line-height: 1.15;
+  }
+
+  /* ── Neon (purple) gradient — ONLY for logo, splash, hero CTA ──────── */
+  .neon-gradient-bg {
+    background-image: var(--gradient-logo);
+  }
+  .neon-gradient-text {
+    background: var(--gradient-logo);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* Shimmer track — 33% platinum sliver L→R 2s linear infinite (signature) */
+  .shimmer-track {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer-track::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 33%;
+    background: linear-gradient(90deg, transparent, rgba(229,228,226,0.6), transparent);
+    animation: shimmer 2s infinite linear;
   }
 
   /* Legacy gold utilities for backward compatibility */
