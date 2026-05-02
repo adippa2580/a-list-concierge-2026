@@ -1226,6 +1226,110 @@ const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? `https://ofjcnikfebfgopytsgbm.supabase.co`;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
+// ── ALIST Concierge on Vertex AI Agent Engine (optional, takes precedence) ──
+// When ALIST_AGENT_ENGINE_ID is set, /chat proxies to the deployed agent
+// instead of calling Gemini directly.  Required env when enabled:
+//   GOOGLE_PROJECT_ID, GOOGLE_LOCATION, ALIST_AGENT_ENGINE_ID,
+//   GCP_SERVICE_ACCOUNT_KEY (json string)
+const ALIST_AGENT_ENGINE_ID = Deno.env.get("ALIST_AGENT_ENGINE_ID");
+const GCP_PROJECT_ID = Deno.env.get("GOOGLE_PROJECT_ID") ?? "a-list-core-application";
+const GCP_LOCATION = Deno.env.get("GOOGLE_LOCATION") ?? "us-central1";
+const GCP_SA_KEY_JSON = Deno.env.get("GCP_SERVICE_ACCOUNT_KEY");
+
+let _gcpToken: { token: string; exp: number } | null = null;
+
+async function _mintGcpAccessToken(): Promise<string> {
+  const now = Date.now();
+  if (_gcpToken && _gcpToken.exp > now + 60_000) return _gcpToken.token;
+  if (!GCP_SA_KEY_JSON) throw new Error("GCP_SERVICE_ACCOUNT_KEY not configured");
+
+  const sa = JSON.parse(GCP_SA_KEY_JSON);
+  const pemBody = (sa.private_key as string)
+    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+    .replace(/-----END PRIVATE KEY-----/g, "")
+    .replace(/\s+/g, "");
+  const der = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    der.buffer,
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const header = { alg: "RS256", typ: "JWT" };
+  const claims = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: Math.floor(now / 1000),
+    exp: Math.floor(now / 1000) + 3600,
+  };
+  const b64url = (s: string) =>
+    btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const signingInput = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(claims))}`;
+  const sig = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    new TextEncoder().encode(signingInput),
+  );
+  const sigB64 = b64url(String.fromCharCode(...new Uint8Array(sig)));
+  const jwt = `${signingInput}.${sigB64}`;
+
+  const tokRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+  if (!tokRes.ok) throw new Error(`gcp token: ${await tokRes.text()}`);
+  const tj = await tokRes.json();
+  _gcpToken = { token: tj.access_token, exp: now + tj.expires_in * 1000 };
+  return tj.access_token;
+}
+
+async function _callAlistAgent(
+  message: string,
+  conversationHistory: Array<{ role: string; content: string }>,
+  location: unknown,
+  userId: string | undefined,
+): Promise<string> {
+  const token = await _mintGcpAccessToken();
+  const inputText = [
+    location ? `[location] ${JSON.stringify(location)}` : "",
+    ...(conversationHistory ?? []).map((m) => `[${m.role}] ${m.content}`),
+    `[user] ${message}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const url =
+    `https://${GCP_LOCATION}-aiplatform.googleapis.com/v1/${ALIST_AGENT_ENGINE_ID}:query`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      input: {
+        user_id: userId ?? "anonymous",
+        session_id: `chat-${userId ?? "anon"}-${Date.now()}`,
+        message: inputText,
+      },
+    }),
+  });
+  if (!res.ok) throw new Error(`agent engine ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  // AdkApp.query returns either {output} or {events: [...]}.  Pull the final
+  // assistant text either way.
+  const fromOutput = typeof data?.output === "string" ? data.output : null;
+  const fromEvents = (data?.events ?? [])
+    .filter((e: { is_final_response?: boolean }) => e?.is_final_response)
+    .pop()?.content?.parts?.[0]?.text;
+  return fromOutput ?? fromEvents ?? "I'm here. What are we doing tonight?";
+}
+
 // Helper: persist social connection status to profiles table
 async function markSocialConnected(userId: string, provider: 'spotify' | 'instagram' | 'soundcloud') {
   if (!SUPABASE_SERVICE_KEY) return;
@@ -1377,24 +1481,49 @@ app.get("/chat/greet", async (c) => {
 
 // ── Main chat ─────────────────────────────────────────────────────────────────
 app.post("/chat", async (c) => {
+  const { message, conversationHistory, location, userId } = await c.req.json();
+
+  // Preferred path: ALIST Concierge on Vertex AI Agent Engine (when configured).
+  if (ALIST_AGENT_ENGINE_ID && GCP_SA_KEY_JSON) {
+    try {
+      const reply = await _callAlistAgent(
+        message,
+        conversationHistory ?? [],
+        location,
+        userId,
+      );
+      // Fire-and-forget intelligence extraction so the Taste Graph keeps learning.
+      if (userId) {
+        const fullHistory = [
+          ...(conversationHistory || []),
+          { role: "user", content: message },
+          { role: "assistant", content: reply },
+        ];
+        extractAndSaveIntelligence(userId, fullHistory);
+      }
+      return c.json({ message: reply, tiles: [] });
+    } catch (err) {
+      console.error("ALIST Agent Engine error, falling back to Gemini:", err);
+      // Falls through to Gemini below.
+    }
+  }
+
+  // Fallback: existing Gemini direct path.
   if (!GEMINI_API_KEY) {
     return c.json({
-      message: "A-List Assist is standing by. Configure GEMINI_API_KEY in edge function secrets to activate full intelligence.",
-      tiles: []
+      message: "A-List Assist is standing by. Configure GEMINI_API_KEY or ALIST_AGENT_ENGINE_ID in edge function secrets to activate full intelligence.",
+      tiles: [],
     });
   }
 
   try {
-    const { message, conversationHistory, location, userId } = await c.req.json();
-
-    // Fetch user intelligence (non-blocking if unavailable)
     const intelligence = userId ? await getUserIntelligence(userId) : null;
     const systemPrompt = buildSystemPrompt(intelligence, location);
 
     const messages = [
       { role: "system", content: systemPrompt },
       ...(conversationHistory || []),
-      { role: "user", content: message }
+      { role: "user", content: message },
     ];
 
     const raw = await callGemini(messages, true);
@@ -1405,12 +1534,11 @@ app.post("/chat", async (c) => {
       parsedContent = { message: raw || "Concierge is calibrating. Try again shortly.", tiles: [] };
     }
 
-    // Fire-and-forget: extract preferences from this conversation turn
     if (userId) {
       const fullHistory = [
         ...(conversationHistory || []),
         { role: "user", content: message },
-        { role: "assistant", content: parsedContent.message }
+        { role: "assistant", content: parsedContent.message },
       ];
       extractAndSaveIntelligence(userId, fullHistory);
     }
