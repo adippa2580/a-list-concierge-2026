@@ -1289,6 +1289,33 @@ async function _mintGcpAccessToken(): Promise<string> {
   return tj.access_token;
 }
 
+// Reuse a single ADK session per (userId, day) so the agent has continuity.
+const _alistSessions = new Map<string, string>();
+
+async function _ensureAlistSession(
+  token: string,
+  base: string,
+  userId: string,
+): Promise<string> {
+  const key = `${userId}:${new Date().toISOString().slice(0, 10)}`;
+  const existing = _alistSessions.get(key);
+  if (existing) return existing;
+  const cs = await fetch(`${base}:query`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      class_method: "create_session",
+      input: { user_id: userId },
+    }),
+  });
+  if (!cs.ok) throw new Error(`create_session ${cs.status}: ${await cs.text()}`);
+  const csJson = await cs.json();
+  const id = csJson?.output?.id;
+  if (!id) throw new Error(`create_session: no id in ${JSON.stringify(csJson)}`);
+  _alistSessions.set(key, id);
+  return id;
+}
+
 async function _callAlistAgent(
   message: string,
   conversationHistory: Array<{ role: string; content: string }>,
@@ -1296,38 +1323,47 @@ async function _callAlistAgent(
   userId: string | undefined,
 ): Promise<string> {
   const token = await _mintGcpAccessToken();
+  const base =
+    `https://${GCP_LOCATION}-aiplatform.googleapis.com/v1/${ALIST_AGENT_ENGINE_ID}`;
+  const uid = userId ?? "anonymous";
+  const sessionId = await _ensureAlistSession(token, base, uid);
+
+  // Pass location/history as preamble lines the agent can read inline.
   const inputText = [
     location ? `[location] ${JSON.stringify(location)}` : "",
-    ...(conversationHistory ?? []).map((m) => `[${m.role}] ${m.content}`),
+    ...(conversationHistory ?? []).slice(-6).map((m) => `[${m.role}] ${m.content}`),
     `[user] ${message}`,
   ]
     .filter(Boolean)
     .join("\n");
-  const url =
-    `https://${GCP_LOCATION}-aiplatform.googleapis.com/v1/${ALIST_AGENT_ENGINE_ID}:query`;
-  const res = await fetch(url, {
+
+  const sq = await fetch(`${base}:streamQuery`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      input: {
-        user_id: userId ?? "anonymous",
-        session_id: `chat-${userId ?? "anon"}-${Date.now()}`,
-        message: inputText,
-      },
+      class_method: "stream_query",
+      input: { message: inputText, user_id: uid, session_id: sessionId },
     }),
   });
-  if (!res.ok) throw new Error(`agent engine ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  // AdkApp.query returns either {output} or {events: [...]}.  Pull the final
-  // assistant text either way.
-  const fromOutput = typeof data?.output === "string" ? data.output : null;
-  const fromEvents = (data?.events ?? [])
-    .filter((e: { is_final_response?: boolean }) => e?.is_final_response)
-    .pop()?.content?.parts?.[0]?.text;
-  return fromOutput ?? fromEvents ?? "I'm here. What are we doing tonight?";
+  if (!sq.ok) throw new Error(`stream_query ${sq.status}: ${await sq.text()}`);
+
+  // The response is JSONL (one JSON object per line). Concatenate every
+  // assistant text part across events; the final assistant turn is what we
+  // want.
+  const raw = await sq.text();
+  const finalParts: string[] = [];
+  for (const line of raw.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t) continue;
+    try {
+      const ev = JSON.parse(t);
+      if (ev?.content?.role !== "model") continue;
+      for (const part of ev?.content?.parts ?? []) {
+        if (typeof part?.text === "string") finalParts.push(part.text);
+      }
+    } catch { /* ignore non-JSON lines */ }
+  }
+  return finalParts.join("").trim() || "I'm here. What are we doing tonight?";
 }
 
 // Helper: persist social connection status to profiles table
